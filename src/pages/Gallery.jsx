@@ -13,6 +13,7 @@ import { Image } from "@/components/ui/image";
 const tabs = ["All", "Available", "Sold"];
 const marketplaceTabs = ["All sites", "Vinted", "Depop", "Etsy", "eBay"];
 
+// Marketplace photos load through Art Flow so seller CDNs cannot block the gallery.
 function marketplaceImageSrc(listing) {
   if (!listing?.image_url && !listing?.listing_url) return "";
   const params = new URLSearchParams();
