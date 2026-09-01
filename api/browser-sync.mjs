@@ -124,6 +124,17 @@ export default async function handler(req,res) {
     }
 
     const action=String(body.action||'listings');
+    if (action === 'settings') {
+      const s=await session(req).catch(()=>null);
+      if (!s?.user) return res.status(401).json({error:'Unauthorized'});
+      const p=await profile(client,s.user); const b=await businessForUser(client,p,s.user);
+      if (!b) return res.status(404).json({error:'Business workspace not found'});
+      const current=await ensureKey(client,b);
+      const next={...(b.data||{}),extension_sync_key:current.key,extension_sync_enabled:body.enabled !== false};
+      await client.query(`UPDATE artflow.businesses SET data=$2::jsonb WHERE base44_id=$1`,[b.base44_id,JSON.stringify(next)]);
+      return res.status(200).json({ok:true,key:current.key,enabled:next.extension_sync_enabled});
+    }
+
     const key=clean(body.sync_key);
     if (!key) return res.status(400).json({error:'Missing sync key'});
     const b=await businessForKey(client,key);
