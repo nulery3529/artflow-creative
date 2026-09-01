@@ -1,6 +1,5 @@
-const APP_ID = '6a91be5ced6058323eb21f7d';
-const ENDPOINT = `https://base44.app/api/apps/${APP_ID}/functions/browserOrderCapture`;
-const LISTING_ENDPOINT = `https://base44.app/api/apps/${APP_ID}/functions/marketplaceListingCapture`;
+const ENDPOINT = 'https://artflowcreative.com/api/browser-sync';
+const LISTING_ENDPOINT = ENDPOINT;
 const $ = (id) => document.getElementById(id);
 let pageUrl = '';
 
@@ -226,7 +225,7 @@ $('syncListings').addEventListener('click', async () => {
     const response = await fetch(LISTING_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sync_key: key, listings: data.listings }),
+      body: JSON.stringify({ action: 'listings', sync_key: key, listings: data.listings }),
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || `Art Flow returned ${response.status}`);
@@ -256,6 +255,7 @@ $('capture').addEventListener('click', async () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        action: 'order',
         sync_key: key,
         order: {
           platform: $('platform').value,
