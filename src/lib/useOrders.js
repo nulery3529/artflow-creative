@@ -1,6 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 
+const finiteNumber = (value, fallback = 0) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+};
+
+const normalizeOrderRecord = (record) => {
+  if (!record) return record;
+  return {
+    ...record,
+    quantity: finiteNumber(record.quantity),
+    unit_price: finiteNumber(record.unit_price),
+    sale_total: finiteNumber(record.sale_total),
+    base_item_cost: finiteNumber(record.base_item_cost),
+    paper_ink_cost: finiteNumber(record.paper_ink_cost),
+    packaging_cost: finiteNumber(record.packaging_cost),
+    total_cost: finiteNumber(record.total_cost),
+    estimated_profit: finiteNumber(record.estimated_profit),
+  };
+};
+
 export function useOrders() {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -41,9 +61,11 @@ export function useOrders() {
       const basePayload = baseResult.status === "fulfilled"
         ? (baseResult.value?.data || baseResult.value || {})
         : {};
-      const baseOrders = Array.isArray(basePayload.orders) ? basePayload.orders : [];
+      const baseOrders = Array.isArray(basePayload.orders)
+        ? basePayload.orders.map(normalizeOrderRecord)
+        : [];
       const neonOrders = neonResult.status === "fulfilled" && Array.isArray(neonResult.value?.orders)
-        ? neonResult.value.orders
+        ? neonResult.value.orders.map(normalizeOrderRecord)
         : [];
 
       // The exact-style tracker import writes canonical `sheet:exact:*` rows to
