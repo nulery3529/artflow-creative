@@ -104,7 +104,7 @@ export default function Dashboard() {
       currentMonth,
       ...activeOrders.map((order) => (order.sale_date || "").slice(0, 7)),
       ...expenses.map((expense) => (expense.date || "").slice(0, 7)),
-    ].filter(/^\d{4}-\d{2}$/))).sort().reverse().slice(0, 6);
+    ].filter((key) => /^\d{4}-\d{2}$/.test(key)))).sort().reverse().slice(0, 6);
 
     const monthlySnapshot = monthKeys.map((key) => {
       const monthOrders = activeOrders.filter((order) => (order.sale_date || "").slice(0, 7) === key);
