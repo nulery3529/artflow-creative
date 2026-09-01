@@ -183,6 +183,10 @@ export default async function handler(req,res){
     await ensureTables(client);
     const op=clean(req.query?.op);
 
+    if(req.method==='GET' && op==='health'){
+      return res.status(200).json({configured:Boolean(depopClientId()&&depopClientSecret())});
+    }
+
     if(req.method==='GET' && op==='callback'){
       const state=clean(req.query?.state), code=clean(req.query?.code), error=clean(req.query?.error);
       if(error) return redirect(res,'error',clean(req.query?.error_description||error));
