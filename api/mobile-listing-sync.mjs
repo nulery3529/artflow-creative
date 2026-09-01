@@ -369,8 +369,20 @@ export default async function handler(req, res) {
         rejected.push(raw);
         continue;
       }
-      if (isListingUrl(platform, raw)) directListings.push({ platform, url: normalizeUrl(raw) });
-      else shopPages.push({ platform, url: raw });
+
+      if (isListingUrl(platform, raw)) {
+        directListings.push({ platform, url: normalizeUrl(raw) });
+        continue;
+      }
+
+      const embedded = embeddedMarketplaceUrls(raw);
+      const embeddedListings = embedded.filter((item) => isListingUrl(item.platform, item.url));
+      if (embeddedListings.length) {
+        for (const item of embeddedListings) directListings.push({ platform: item.platform, url: normalizeUrl(item.url) });
+        continue;
+      }
+
+      shopPages.push({ platform, url: raw });
     }
 
     // Resolve official mobile share/short links and shop pages. A copied marketplace-app link
