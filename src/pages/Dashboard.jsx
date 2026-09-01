@@ -17,10 +17,13 @@ const cardLink = "block active:scale-95 transition-transform";
 export default function Dashboard() {
   const { records: orders, reload: reloadOrders } = useOrders();
   const { selected: trackedSites, configured: sitesConfigured } = useMarketplacePreferences();
-  const activeOrders = useMemo(
-    () => sitesConfigured ? orders.filter((o) => trackedSites.includes(displayPlatform(o.platform))) : [],
-    [orders, trackedSites, sitesConfigured]
-  );
+  const activeOrders = useMemo(() => {
+    // Never zero the dashboard just because marketplace preferences have not
+    // loaded/configured yet. In that case the orders themselves are the safest
+    // source of truth. Once preferences are configured, honor the user's choices.
+    if (!sitesConfigured) return orders;
+    return orders.filter((o) => trackedSites.includes(displayPlatform(o.platform)));
+  }, [orders, trackedSites, sitesConfigured]);
   const { records: expenses, reload: reloadExpenses } = useEntity("Expense", "-created_date");
   const { records: inventory } = useEntity("InventoryCost", "-created_date");
   const [taxRate] = useTaxRate();
@@ -33,10 +36,14 @@ export default function Dashboard() {
   const calc = useMemo(() => {
     const monthOrders = activeOrders.filter((o) => (o.sale_date || "").slice(0, 7) === mk);
     const monthExpenses = expenses.filter((e) => (e.date || "").slice(0, 7) === mk);
-    const thisMonthSales = monthOrders.reduce((s, o) => s + (o.sale_total || 0), 0);
-    const thisMonthProfit = monthOrders.reduce((s, o) => s + (o.estimated_profit || 0), 0);
+    const num = (value) => {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : 0;
+    };
+    const thisMonthSales = monthOrders.reduce((s, o) => s + num(o.sale_total), 0);
+    const thisMonthProfit = monthOrders.reduce((s, o) => s + num(o.estimated_profit), 0);
     const thisMonthDeductions = monthExpenses.reduce(
-      (s, e) => s + (e.deductible_amount ?? ((e.amount || 0) * ((e.deductible_percent ?? 100) / 100))),
+      (s, e) => s + num(e.deductible_amount ?? (num(e.amount) * (num(e.deductible_percent ?? 100) / 100))),
       0
     );
     const taxableProfit = thisMonthProfit - thisMonthDeductions;
@@ -46,14 +53,17 @@ export default function Dashboard() {
       platform: p,
       sales: monthOrders
         .filter((o) => o.platform === p)
-        .reduce((s, o) => s + (o.sale_total || 0), 0),
+        .reduce((s, o) => s + num(o.sale_total), 0),
     }));
 
-    const allTimeSales = activeOrders.reduce((s, o) => s + (o.sale_total || 0), 0);
-    const itemsSold = activeOrders.reduce((s, o) => s + (o.quantity || 0), 0);
-    const orderCosts = activeOrders.reduce((s, o) => s + (o.total_cost || 0), 0);
-    const allTimeProfit = activeOrders.reduce((s, o) => s + (o.estimated_profit || 0), 0);
-    const allTimeDeductions = expenses.reduce((s, e) => s + (e.deductible_amount ?? ((e.amount || 0) * ((e.deductible_percent ?? 100) / 100))), 0);
+    const allTimeSales = activeOrders.reduce((s, o) => s + num(o.sale_total), 0);
+    const itemsSold = activeOrders.reduce((s, o) => s + num(o.quantity), 0);
+    const orderCosts = activeOrders.reduce((s, o) => s + num(o.total_cost), 0);
+    const allTimeProfit = activeOrders.reduce((s, o) => s + num(o.estimated_profit), 0);
+    const allTimeDeductions = expenses.reduce(
+      (s, e) => s + num(e.deductible_amount ?? (num(e.amount) * (num(e.deductible_percent ?? 100) / 100))),
+      0
+    );
     const taxableProfitAll = allTimeProfit - allTimeDeductions;
 
     return {
