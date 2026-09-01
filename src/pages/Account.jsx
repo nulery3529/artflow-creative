@@ -12,7 +12,6 @@ import VintedConnectionCard from "@/components/VintedConnectionCard";
 import EmailConnectionsCard from "@/components/EmailConnectionsCard";
 import TrackerSetupCard from "@/components/TrackerSetupCard";
 import MarketplaceTrackingCard from "@/components/MarketplaceTrackingCard";
-import BrowserSyncCard from "@/components/BrowserSyncCard";
 import MobileMarketplaceSyncCard from "@/components/MobileMarketplaceSyncCard";
 import DepopConnectionCard from "@/components/DepopConnectionCard";
 import EbayConnectionCard from "@/components/EbayConnectionCard";
@@ -71,8 +70,6 @@ export default function Account() {
       <MobileMarketplaceSyncCard />
 
       {!loadingTrackedSites && trackedSites.includes("Depop") && <DepopConnectionCard />}
-
-      <BrowserSyncCard />
 
       {!loadingTrackedSites && trackedSites.includes("Etsy") && <EtsyConnectionCard />}
 
