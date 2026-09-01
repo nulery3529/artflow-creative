@@ -56,10 +56,13 @@ export default async function(req) {
     base44 = createClientFromRequest(req);
     const signedInUser = await base44.auth.me().catch(() => null);
     const gmailUserConnectorId = String(Deno.env.get('GMAIL_USER_CONNECTOR_ID') || '').trim();
-    if (!gmailUserConnectorId && signedInUser?.role !== 'admin') {
+    const isScheduledOrService = !signedInUser
+      || signedInUser?.is_service === true
+      || String(signedInUser?.id || '').startsWith('service_');
+    if (!gmailUserConnectorId && !isScheduledOrService && signedInUser?.role !== 'admin') {
       return Response.json({ available: false, needs_connection: true, message: 'Connect your own Gmail account in Account before syncing email expenses.' }, { status: 409 });
     }
-    const { accessToken } = gmailUserConnectorId
+    const { accessToken } = gmailUserConnectorId && !isScheduledOrService
       ? await base44.asServiceRole.connectors.getCurrentAppUserConnection(gmailUserConnectorId)
       : await base44.asServiceRole.connectors.getConnection('gmail');
     const headers = { Authorization: `Bearer ${accessToken}` };
