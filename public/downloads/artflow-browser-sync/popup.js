@@ -175,17 +175,20 @@ async function crawlListingsFromPage(maxListings = 500) {
   collect();
   let stagnant = 0;
   let previous = seen.size;
+  let confirmedBottom = false;
   for (let i = 0; i < 90 && seen.size < max; i += 1) {
-    clickLoadMore();
+    const clickedMore = clickLoadMore();
     const beforeHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
     window.scrollTo({ top: beforeHeight, behavior: 'auto' });
     await new Promise((resolve) => setTimeout(resolve, i < 10 ? 700 : 900));
     collect();
     const afterHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
-    if (seen.size === previous && afterHeight <= beforeHeight + 10) stagnant += 1;
+    const atBottom = Math.ceil(window.scrollY + window.innerHeight) >= afterHeight - 12;
+    if (seen.size === previous && afterHeight <= beforeHeight + 10 && atBottom && !clickedMore) stagnant += 1;
     else stagnant = 0;
+    confirmedBottom = atBottom && stagnant >= 8;
     previous = seen.size;
-    if (stagnant >= 7) break;
+    if (confirmedBottom) break;
   }
 
   try { window.scrollTo({ top: originalY, behavior: 'auto' }); } catch {}
@@ -193,7 +196,7 @@ async function crawlListingsFromPage(maxListings = 500) {
     supported: true,
     platform,
     listings: [...seen.values()].slice(0, max),
-    complete: seen.size < max && stagnant >= 7,
+    complete: seen.size < max && confirmedBottom,
     reached_limit: seen.size >= max,
   };
 }
