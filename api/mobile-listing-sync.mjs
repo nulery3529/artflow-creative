@@ -13,8 +13,19 @@ function parseBody(req) {
   if (req.body && typeof req.body === 'object') return req.body;
   if (typeof req.body === 'string') {
     try { return JSON.parse(req.body); } catch {}
+    try {
+      return Object.fromEntries(new URLSearchParams(req.body).entries());
+    } catch {}
   }
   return {};
+}
+
+function sendResult(res, status, payload, formMode = false) {
+  if (!formMode) return res.status(status).json(payload);
+  const message = JSON.stringify({ type: 'artflow-listing-sync-result', status, ...payload }).replace(/</g, '\\u003c');
+  res.status(status);
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  return res.end(`<!doctype html><html><body><script>parent.postMessage(${message}, location.origin);</script></body></html>`);
 }
 
 function platformFrom(value = '') {
@@ -387,15 +398,18 @@ async function mapLimit(items, limit, worker) {
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (!['GET', 'POST'].includes(req.method)) return res.status(405).json({ error: 'Method not allowed' });
+  const body = req.method === 'POST' ? parseBody(req) : {};
+  const formMode = body.form_submit === '1';
+  const send = (status, payload) => sendResult(res, status, payload, formMode);
   const s = await session(req).catch(() => null);
-  if (!s?.user) return res.status(401).json({ error: 'Unauthorized' });
+  if (!s?.user) return send(401, { error: 'Unauthorized' });
 
   const client = await pool.connect();
   try {
     await ensureTable(client);
     const p = await profile(client, s.user);
     const b = await businessForUser(client, p, s.user);
-    if (!b) return res.status(404).json({ error: 'Business workspace not found' });
+    if (!b) return send(404, { error: 'Business workspace not found' });
 
     if (req.method === 'GET') {
       return res.status(200).json({
@@ -404,9 +418,8 @@ export default async function handler(req, res) {
       });
     }
 
-    const body = parseBody(req);
     const submitted = splitUrls(body.urls || body.url || '');
-    if (!submitted.length) return res.status(400).json({ error: 'Paste one or more Vinted, Depop, Etsy, or eBay listing links' });
+    if (!submitted.length) return send(400, { error: 'Paste one or more Vinted, Depop, Etsy, or eBay listing links' });
 
     const directListings = [];
     const shopPages = [];
@@ -496,7 +509,7 @@ export default async function handler(req, res) {
     if (!unique.length) {
       const rejectedHosts = rejected.map((raw) => { try { return new URL(raw).hostname; } catch { return 'invalid link'; } });
       console.warn('mobile listing sync no readable links', { submitted: submitted.length, rejectedHosts, unresolved: shopPages.length });
-      return res.status(422).json({
+      return send(422, {
         error: 'Art Flow received the link, but could not resolve it to a marketplace listing yet. Copy the link from the listing Share button and try again.',
         rejected: rejected.length,
       });
@@ -525,7 +538,7 @@ export default async function handler(req, res) {
     }
 
     const breakdown = Object.entries(counts).map(([site, count]) => `${site}: ${count}`).join(' · ');
-    return res.status(200).json({
+    return send(200, {
       ok: true,
       saved,
       counts,
@@ -533,7 +546,7 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error('mobile listing sync error', error?.message || error);
-    return res.status(500).json({ error: 'Mobile marketplace sync failed' });
+    return send(500, { error: 'Mobile marketplace sync failed' });
   } finally {
     client.release();
   }
