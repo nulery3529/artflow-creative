@@ -67,7 +67,7 @@ export default function Account() {
 
       <EmailConnectionsCard />
 
-      {!loadingTrackedSites && (trackedSites.includes("Vinted") || trackedSites.includes("Depop")) && <BrowserSyncCard />}
+      {!loadingTrackedSites && trackedSites.some((site) => ["Vinted", "Depop", "Etsy", "eBay"].includes(site)) && <BrowserSyncCard />}
 
       {!loadingTrackedSites && trackedSites.includes("Etsy") && <EtsyConnectionCard />}
 
