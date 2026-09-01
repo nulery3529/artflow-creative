@@ -5,12 +5,45 @@ import { toast } from "sonner";
 
 export default function DepopConnectionCard() {
   const [status, setStatus] = useState("unknown");
-  const [message, setMessage] = useState("Depop sales are included in Sync All Sales Now.");
+  const [message, setMessage] = useState("One tap syncs all active Depop listings to Gallery, plus Depop sales when Partner API access is connected.");
   const [syncing, setSyncing] = useState(false);
 
   const syncDepop = async () => {
     setSyncing(true);
     try {
+      // Pull the seller's complete active catalog from Depop in API pages, then
+      // replace the Depop Gallery snapshot in Neon. No individual product links.
+      const listingRes = await base44.functions.invoke("syncDepopListings", {});
+      const listingData = listingRes?.data || {};
+      if (listingData.available === false || listingData.needs_setup || listingData.needs_partner_access) {
+        setStatus("setup");
+        setMessage(listingData.message || "Bulk Depop listings need approved Depop Partner API access.");
+        toast.info("Bulk Depop listing access needs setup", { description: listingData.message });
+        return;
+      }
+      if (listingData.error) throw new Error(listingData.error);
+      if (listingData.complete === false) throw new Error("Depop has more active listings than Art Flow could safely load in one sync.");
+
+      const settingsResponse = await fetch("/api/browser-sync", { credentials: "include", cache: "no-store" });
+      const settings = await settingsResponse.json().catch(() => ({}));
+      if (!settingsResponse.ok || !settings.key) throw new Error(settings.error || "Art Flow Gallery sync key is unavailable");
+
+      const galleryResponse = await fetch("/api/browser-sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "listings",
+          sync_key: settings.key,
+          listings: Array.isArray(listingData.listings) ? listingData.listings : [],
+          snapshot_complete: true,
+          snapshot_platform: "Depop",
+        }),
+      });
+      const galleryData = await galleryResponse.json().catch(() => ({}));
+      if (!galleryResponse.ok) throw new Error(galleryData.error || "Could not save Depop listings to Gallery");
+      window.dispatchEvent(new CustomEvent("artflow:listings-synced", { detail: { saved: galleryData.saved || 0 } }));
+
+      // Keep the existing Depop order backfill/webhook setup too.
       let res = await base44.functions.invoke("syncDepopPartner", {});
       let data = res?.data || {};
       let pass = 0;
@@ -19,20 +52,16 @@ export default function DepopConnectionCard() {
         data = res?.data || {};
         pass += 1;
       }
-
-      if (data.available === false || data.needs_setup) {
-        setStatus("setup");
-        setMessage(data.message || "Direct Depop Partner API access is not connected yet. Depop email sales can still sync from a connected inbox.");
-        toast.info("Depop email sync is still available");
-        return;
-      }
       if (data.error) throw new Error(data.error);
 
       const hook = await base44.functions.invoke("setupDepopWebhook", {}).catch(() => null);
       const hookData = hook?.data || {};
-      setStatus(hookData.connected ? "connected" : "setup");
-      setMessage(hookData.message || data.message || "Depop is up to date.");
-      toast.success(hookData.message || data.message || "Depop synced");
+      const count = Number(galleryData.saved || listingData.count || 0);
+      const removed = Number(galleryData.deactivated || 0);
+      const listingMessage = `${count} active Depop listing${count === 1 ? "" : "s"} synced to Gallery${removed ? ` · ${removed} old listing${removed === 1 ? "" : "s"} removed` : ""}.`;
+      setStatus("connected");
+      setMessage(`${listingMessage} ${hookData.message || data.message || "Depop sales are up to date."}`);
+      toast.success(listingMessage);
     } catch (error) {
       const text = error?.response?.data?.error || error?.message || "Depop sync failed";
       setStatus("error");
