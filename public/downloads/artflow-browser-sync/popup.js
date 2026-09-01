@@ -66,7 +66,7 @@ function extractOrderFromPage() {
   };
 }
 
-function extractListingsFromPage() {
+async function crawlListingsFromPage(maxListings = 500) {
   const host = location.hostname.toLowerCase();
   const platform = host.includes('vinted')
     ? 'Vinted'
@@ -77,7 +77,11 @@ function extractListingsFromPage() {
         : host.includes('ebay')
           ? 'eBay'
           : '';
-  if (!platform) return { supported: false, platform: '', listings: [] };
+  if (!platform) return { supported: false, platform: '', listings: [], complete: false };
+
+  const max = Math.max(1, Math.min(500, Number(maxListings) || 500));
+  const originalY = window.scrollY;
+  const seen = new Map();
 
   const isListingHref = (href = '') => {
     try {
@@ -106,62 +110,93 @@ function extractListingsFromPage() {
     try {
       const url = new URL(href, location.href);
       url.hash = '';
-      return url.toString();
+      ['utm_source','utm_medium','utm_campaign','utm_content','utm_term'].forEach((key) => url.searchParams.delete(key));
+      return url.toString().replace(/\/$/, '');
     } catch {
       return '';
     }
   };
 
-  const candidates = [...document.querySelectorAll('a[href]')].filter((anchor) => isListingHref(anchor.href));
-  const seen = new Set();
-  const listings = [];
+  const collect = () => {
+    const candidates = [...document.querySelectorAll('a[href]')].filter((anchor) => isListingHref(anchor.href));
+    for (const anchor of candidates) {
+      if (seen.size >= max) break;
+      const url = absoluteUrl(anchor.href);
+      const id = listingId(url);
+      const key = `${platform}:${id || url.split('?')[0]}`;
+      if (!url || seen.has(key)) continue;
 
-  for (const anchor of candidates) {
-    if (listings.length >= 200) break;
-    const url = absoluteUrl(anchor.href);
-    const id = listingId(url);
-    const key = `${platform}:${id || url.split('?')[0]}`;
-    if (!url || seen.has(key)) continue;
+      const card = anchor.closest('article, li, [data-testid*="listing"], [data-testid*="item"], [class*="listing"], [class*="product"], [class*="card"], [class*="item"]')
+        || anchor.parentElement?.parentElement
+        || anchor.parentElement
+        || anchor;
+      const img = anchor.querySelector('img') || card?.querySelector('img');
+      const imageUrl = (img?.currentSrc || img?.src || img?.getAttribute('data-src') || img?.getAttribute('data-lazy-src') || '').trim();
+      const text = (card?.innerText || anchor.innerText || '').replace(/\r/g, '').trim();
+      const lines = text.split('\n').map((line) => line.trim()).filter(Boolean);
+      let title = (img?.alt || anchor.getAttribute('aria-label') || anchor.getAttribute('title') || '').trim();
 
-    const card = anchor.closest('article, li, [data-testid*="listing"], [data-testid*="item"], [class*="listing"], [class*="product"], [class*="card"], [class*="item"]')
-      || anchor.parentElement?.parentElement
-      || anchor.parentElement
-      || anchor;
-    const img = anchor.querySelector('img') || card?.querySelector('img');
-    const imageUrl = (img?.currentSrc || img?.src || img?.getAttribute('data-src') || '').trim();
-    const text = (card?.innerText || anchor.innerText || '').replace(/\r/g, '').trim();
-    const lines = text.split('\n').map((line) => line.trim()).filter(Boolean);
-    let title = (img?.alt || anchor.getAttribute('aria-label') || anchor.getAttribute('title') || '').trim();
+      if (!title || /^(image|listing|item|product|shop now|view item|sponsored|ad)$/i.test(title)) {
+        title = lines.find((line) =>
+          line.length >= 3 &&
+          line.length <= 300 &&
+          !/^\$?\s*[0-9,.]+\s*$/.test(line) &&
+          !/^(sold|reserved|available|new|sponsored|ad|free shipping|shipping included)$/i.test(line)
+        ) || '';
+      }
 
-    if (!title || /^(image|listing|item|product|shop now|view item|sponsored|ad)$/i.test(title)) {
-      title = lines.find((line) =>
-        line.length >= 3 &&
-        line.length <= 300 &&
-        !/^\$?\s*[0-9,.]+\s*$/.test(line) &&
-        !/^(sold|reserved|available|new|sponsored|ad|free shipping|shipping included)$/i.test(line)
-      ) || '';
+      title = title.replace(/\s+/g, ' ').trim().slice(0, 300);
+      if (!title) title = `${platform} listing ${id || seen.size + 1}`;
+      const moneyMatch = text.match(/(?:US\s*)?\$\s*([0-9][0-9,]*(?:\.\d{1,2})?)/i);
+      const price = moneyMatch ? Number(moneyMatch[1].replace(/,/g, '')) : 0;
+      seen.set(key, {
+        platform,
+        listing_id: id,
+        title,
+        price: Number.isFinite(price) ? price : 0,
+        currency: 'USD',
+        image_url: /^https?:\/\//i.test(imageUrl) ? imageUrl : '',
+        listing_url: url,
+      });
     }
+  };
 
-    title = title.replace(/\s+/g, ' ').trim().slice(0, 300);
-    if (!title) continue;
+  const clickLoadMore = () => {
+    const candidates = [...document.querySelectorAll('button, a[role="button"]')];
+    for (const el of candidates) {
+      const text = (el.innerText || el.getAttribute('aria-label') || '').trim();
+      if (/^(load more|show more|see more|more items|view more)$/i.test(text) && !el.disabled) {
+        try { el.click(); return true; } catch {}
+      }
+    }
+    return false;
+  };
 
-    const moneyMatch = text.match(/(?:US\s*)?\$\s*([0-9][0-9,]*(?:\.\d{1,2})?)/i);
-    const price = moneyMatch ? Number(moneyMatch[1].replace(/,/g, '')) : 0;
-    seen.add(key);
-    listings.push({
-      platform,
-      listing_id: id,
-      title,
-      price: Number.isFinite(price) ? price : 0,
-      currency: 'USD',
-      image_url: /^https?:\/\//i.test(imageUrl) ? imageUrl : '',
-      listing_url: url,
-    });
+  collect();
+  let stagnant = 0;
+  let previous = seen.size;
+  for (let i = 0; i < 90 && seen.size < max; i += 1) {
+    clickLoadMore();
+    const beforeHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
+    window.scrollTo({ top: beforeHeight, behavior: 'auto' });
+    await new Promise((resolve) => setTimeout(resolve, i < 10 ? 700 : 900));
+    collect();
+    const afterHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
+    if (seen.size === previous && afterHeight <= beforeHeight + 10) stagnant += 1;
+    else stagnant = 0;
+    previous = seen.size;
+    if (stagnant >= 7) break;
   }
 
-  return { supported: true, platform, listings };
+  try { window.scrollTo({ top: originalY, behavior: 'auto' }); } catch {}
+  return {
+    supported: true,
+    platform,
+    listings: [...seen.values()].slice(0, max),
+    complete: seen.size < max && stagnant >= 7,
+    reached_limit: seen.size >= max,
+  };
 }
-
 async function readPage() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -209,11 +244,11 @@ $('syncListings').addEventListener('click', async () => {
   if (!key.startsWith('af_')) return setStatus('Save your Art Flow Browser Sync key first.', 'bad');
 
   $('syncListings').disabled = true;
-  setStatus('Reading current listings from this page…');
+  setStatus('Scanning this seller page for up to 500 active listings… Keep this tab open while Art Flow scrolls through the catalog.');
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab?.id) throw new Error('No active tab');
-    const result = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: extractListingsFromPage });
+    const result = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: crawlListingsFromPage, args: [500] });
     const data = result?.[0]?.result || {};
     if (!data.supported) throw new Error('Open your Vinted, Depop, Etsy, or eBay shop/listings page first.');
     if (!Array.isArray(data.listings) || data.listings.length === 0) {
@@ -221,11 +256,11 @@ $('syncListings').addEventListener('click', async () => {
     }
 
     await chrome.storage.local.set({ artflowSyncKey: key });
-    setStatus(`Found ${data.listings.length} ${data.platform} listing${data.listings.length === 1 ? '' : 's'}. Linking photos and URLs to Gallery…`);
+    setStatus(`Found ${data.listings.length} ${data.platform} listing${data.listings.length === 1 ? '' : 's'}. Saving the full batch to Gallery…`);
     const response = await fetch(LISTING_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'listings', sync_key: key, listings: data.listings }),
+      body: JSON.stringify({ action: 'listings', sync_key: key, listings: data.listings, snapshot_complete: data.complete === true, snapshot_platform: data.platform }),
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || `Art Flow returned ${response.status}`);
