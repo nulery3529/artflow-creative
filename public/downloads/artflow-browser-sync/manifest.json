@@ -1,11 +1,10 @@
 {
   "manifest_version": 3,
   "name": "Art Flow Browser Sync",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Refresh up to 500 current Depop and Vinted listings from your logged-in browser into Art Flow Creative without Parse or marketplace API credentials.",
   "permissions": [
     "activeTab",
-    "scripting",
     "storage"
   ],
   "host_permissions": [
@@ -15,6 +14,18 @@
     "https://*.depop.com/*",
     "https://*.etsy.com/*",
     "https://*.ebay.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.vinted.com/*",
+        "https://*.depop.com/*",
+        "https://*.etsy.com/*",
+        "https://*.ebay.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
   ],
   "action": {
     "default_title": "Art Flow Browser Sync",
