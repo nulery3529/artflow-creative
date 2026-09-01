@@ -9,7 +9,7 @@ import { StatCard, MiniCard, PlatformBar, EmptyRow } from "@/components/Cards";
 import LowStockAlert from "@/components/LowStockAlert";
 import PageHeader from "@/components/PageHeader";
 import SyncStatus from "@/components/SyncStatus";
-import { PLATFORM_BAR, displayPlatform, displayProductName } from "@/lib/platforms";
+import { PLATFORM_BAR, displayPlatform } from "@/lib/platforms";
 import { useMarketplacePreferences } from "@/lib/useMarketplacePreferences";
 
 const cardLink = "block active:scale-95 transition-transform";
@@ -70,7 +70,6 @@ export default function Dashboard() {
     };
   }, [activeOrders, expenses, mk, taxRate, trackedSites]);
 
-  const recentOrders = activeOrders.slice(0, 5);
   const recentExpenses = expenses.slice(0, 5);
   const maxPlatform = Math.max(...calc.platformSales.map((p) => p.sales), 1);
 
@@ -96,22 +95,17 @@ export default function Dashboard() {
       <LowStockAlert records={inventory} />
 
       <div className="grid grid-cols-2 gap-3">
-        <Link to={`/orders?month=${mk}`} className="block">
-          <StatCard
-            tone="lavender"
-            label="This Month Sales"
-            value={formatMoney(calc.thisMonthSales)}
-            sub={<><span className="text-foreground">{calc.orderCount}</span> orders · tap to view</>}
-          />
-        </Link>
-        <Link to="/orders?month=All" className="block">
-          <StatCard
-            tone="mint"
-            label="Estimated Profit"
-            value={formatMoney(calc.thisMonthProfit)}
-            sub="tap to view all"
-          />
-        </Link>
+        <StatCard
+          tone="lavender"
+          label="This Month Sales"
+          value={formatMoney(calc.thisMonthSales)}
+          sub={<><span className="text-foreground">{calc.orderCount}</span> orders</>}
+        />
+        <StatCard
+          tone="mint"
+          label="Estimated Profit"
+          value={formatMoney(calc.thisMonthProfit)}
+        />
         <Link to="/expenses" className="block">
           <StatCard
             tone="peach"
@@ -134,26 +128,21 @@ export default function Dashboard() {
         <h2 className="font-heading text-lg mb-4">Sales by Platform</h2>
         {calc.platformSales.length === 0 && <EmptyRow text="Choose your selling sites in Account" />}
         {calc.platformSales.map(({ platform, sales }) => (
-          <Link to="/orders" className="block" key={platform}>
-            <PlatformBar
-              label={platform}
-              value={sales}
-              max={maxPlatform}
-              color={PLATFORM_BAR[platform]}
-            />
-          </Link>
+          <PlatformBar
+            key={platform}
+            label={platform}
+            value={sales}
+            max={maxPlatform}
+            color={PLATFORM_BAR[platform]}
+          />
         ))}
       </section>
 
       <section>
         <h2 className="font-heading text-lg mb-3">Business Snapshot</h2>
         <div className="grid grid-cols-2 gap-3">
-          <Link to="/orders?month=All" className="block">
-            <MiniCard label="All-Time Sales" value={formatMoneyShort(calc.allTimeSales)} />
-          </Link>
-          <Link to="/orders?month=All" className={cardLink}>
-            <MiniCard label="Items Sold" value={String(calc.itemsSold)} />
-          </Link>
+          <MiniCard label="All-Time Sales" value={formatMoneyShort(calc.allTimeSales)} />
+          <MiniCard label="Items Sold" value={String(calc.itemsSold)} />
           <Link to="/inventory" className={cardLink}>
             <MiniCard label="Order Costs" value={formatMoneyShort(calc.orderCosts)} />
           </Link>
@@ -163,37 +152,6 @@ export default function Dashboard() {
         </div>
       </section>
 
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-heading text-lg">Recent Orders</h2>
-          <Link to="/orders" className="text-sm text-[hsl(var(--primary))] font-medium">
-            View all
-          </Link>
-        </div>
-        <div className="space-y-2">
-          {recentOrders.length === 0 && <EmptyRow text="No orders yet" />}
-          {recentOrders.map((o) => (
-            <Link
-              key={o.id}
-              to="/orders"
-              className="bg-card rounded-2xl p-4 border border-[hsl(var(--border))] flex items-center justify-between active:scale-[0.99] transition-transform"
-            >
-              <div className="min-w-0">
-                <p className="font-medium truncate">{displayProductName(o)}</p>
-                <p className="text-xs text-muted-foreground">
-                  {displayPlatform(o.platform)} · <span className="text-foreground">{formatDate(o.sale_date)}</span>
-                </p>
-              </div>
-              <div className="text-right ml-3 shrink-0">
-                <p className="font-heading text-base">{formatMoney(o.sale_total)}</p>
-                <p className="text-xs text-foreground">
-                  {formatMoney(o.estimated_profit)} profit
-                </p>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
 
       <section>
         <div className="flex items-center justify-between mb-3">
