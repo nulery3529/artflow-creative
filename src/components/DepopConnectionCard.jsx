@@ -1,42 +1,69 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
 export default function DepopConnectionCard() {
   const [status, setStatus] = useState("unknown");
-  const [message, setMessage] = useState("One tap syncs every active Depop listing to Gallery through Vercel. No individual listing links required.");
+  const [message, setMessage] = useState("Depop webhooks keep listings, sales, refunds, and order updates current automatically through Vercel.");
   const [syncing, setSyncing] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/depop-webhook-setup", { credentials: "include", cache: "no-store" })
+      .then(async (response) => ({ response, data: await response.json().catch(() => ({})) }))
+      .then(({ response, data }) => {
+        if (cancelled) return;
+        if (response.ok && data.connected) {
+          setStatus("connected");
+          setMessage("Depop webhooks are connected. Listing and order changes will update Art Flow automatically.");
+        } else if (data.needs_setup) {
+          setStatus("setup");
+          setMessage(data.error || "Depop Partner approval is still required before webhooks can be registered.");
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   const syncDepop = async () => {
     setSyncing(true);
     try {
-      const response = await fetch("/api/depop-bulk-sync", {
+      const setupResponse = await fetch("/api/depop-webhook-setup", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: "{}",
       });
-      const data = await response.json().catch(() => ({}));
-      if (data.needs_setup) {
+      const setup = await setupResponse.json().catch(() => ({}));
+      if (setup.needs_setup) {
         setStatus("setup");
-        setMessage(data.error || "Vercel Depop connection needs setup.");
-        toast.info("Depop connection needs one final setup step", { description: data.error });
+        setMessage(setup.error || "Depop Partner approval is still required before webhooks can be registered.");
+        toast.info("Depop webhook approval is still pending", { description: setup.error });
         return;
       }
-      if (!response.ok || data.error) throw new Error(data.error || "Depop bulk sync failed");
+      if (!setupResponse.ok || setup.error) throw new Error(setup.error || "Could not register Depop webhooks");
 
-      const count = Number(data.saved || 0);
-      const removed = Number(data.deactivated || 0);
-      const listingMessage = data.message || `${count} active Depop listing${count === 1 ? "" : "s"} synced to Gallery${removed ? ` · ${removed} old listing${removed === 1 ? "" : "s"} removed` : ""}.`;
+      // One initial reconciliation fills Gallery now. After that, webhooks keep it current.
+      const snapshotResponse = await fetch("/api/depop-bulk-sync", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      const snapshot = await snapshotResponse.json().catch(() => ({}));
+      if (!snapshotResponse.ok || snapshot.error) throw new Error(snapshot.error || "Webhook connected, but the initial Depop snapshot failed");
+
+      const count = Number(snapshot.saved || 0);
       window.dispatchEvent(new CustomEvent("artflow:listings-synced", { detail: { saved: count } }));
       setStatus("connected");
-      setMessage(listingMessage);
-      toast.success(listingMessage);
+      const text = `Depop webhooks connected. ${count} active listing${count === 1 ? "" : "s"} loaded; future changes will update automatically.`;
+      setMessage(text);
+      toast.success("Depop webhooks connected");
     } catch (error) {
-      const text = error?.response?.data?.error || error?.message || "Depop sync failed";
+      const text = error?.response?.data?.error || error?.message || "Depop webhook setup failed";
       setStatus("error");
       setMessage(text);
-      toast.error("Depop sync needs attention", { description: text });
+      toast.error("Depop webhooks need attention", { description: text });
     } finally {
       setSyncing(false);
     }
