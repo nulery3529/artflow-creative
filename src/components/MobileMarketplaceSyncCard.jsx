@@ -1,43 +1,32 @@
-import React, { useRef, useState } from "react";
-import { Loader2, Link2, Smartphone } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Link2, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 
 export default function MobileMarketplaceSyncCard() {
   const [links, setLinks] = useState("");
-  const textareaRef = useRef(null);
-  const [syncing, setSyncing] = useState(false);
   const [result, setResult] = useState("");
 
-  const addListings = async (event) => {
-    event?.preventDefault?.();
-    const value = String(textareaRef.current?.value ?? links).trim();
-    if (!value) {
-      toast.error("Paste at least one marketplace listing link first");
-      return;
-    }
-    setSyncing(true);
-    setResult("");
-    try {
-      const response = await fetch("/api/mobile-listing-sync", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ urls: value }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "Could not add listings");
-      setResult(data.message || "Listings added to Gallery");
-      toast.success(data.message || "Listings added to Gallery");
-      setLinks("");
-      window.dispatchEvent(new CustomEvent("artflow:listings-synced", { detail: { saved: data.saved || 0 } }));
-    } catch (error) {
-      const message = error?.message || "Could not add listings";
+  useEffect(() => {
+    const onMessage = (event) => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data || {};
+      if (data.type !== "artflow-listing-sync-result") return;
+
+      const message = data.message || data.error || "Listing import finished";
       setResult(message);
-      toast.error("Listing import failed", { description: message });
-    } finally {
-      setSyncing(false);
-    }
-  };
+
+      if (data.status >= 200 && data.status < 300 && data.ok !== false) {
+        toast.success(message);
+        setLinks("");
+        window.dispatchEvent(new CustomEvent("artflow:listings-synced", { detail: { saved: data.saved || 0 } }));
+      } else {
+        toast.error("Listing import failed", { description: message });
+      }
+    };
+
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
 
   return (
     <section className="bg-card rounded-3xl p-5 border border-[hsl(var(--border))] space-y-4">
@@ -58,30 +47,41 @@ export default function MobileMarketplaceSyncCard() {
         <p>You can paste several listing links here at once, even from different sites.</p>
       </div>
 
-      <form onSubmit={addListings} className="space-y-3">
+      <form
+        action="/api/mobile-listing-sync"
+        method="POST"
+        target="artflow-listing-sync-frame"
+        className="space-y-3"
+      >
         <textarea
-          ref={textareaRef}
           name="urls"
           value={links}
           onChange={(e) => setLinks(e.target.value)}
           rows={5}
+          required
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
           placeholder={"Paste listing link(s) here\nhttps://www.vinted.com/items/...\nhttps://www.depop.com/products/..."}
           className="w-full rounded-2xl border border-[hsl(var(--border))] bg-background px-3 py-3 text-sm resize-y focus:outline-none focus:ring-1 focus:ring-[hsl(var(--primary))]"
         />
+        <input type="hidden" name="form_submit" value="1" />
 
         <button
           type="submit"
-          disabled={syncing}
-          style={{ touchAction: "manipulation" }}
-          className="w-full h-12 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold flex items-center justify-center gap-2 disabled:opacity-60 active:scale-[0.99] transition-transform"
+          style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+          className="w-full h-12 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold flex items-center justify-center gap-2 active:scale-[0.99] transition-transform"
         >
-          {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
-          {syncing ? "Adding Listings…" : "Add to Gallery"}
+          <Link2 className="w-4 h-4" />
+          Add to Gallery
         </button>
       </form>
+
+      <iframe
+        title="Marketplace listing sync"
+        name="artflow-listing-sync-frame"
+        className="hidden"
+      />
 
       {result && (
         <p className="text-xs text-muted-foreground rounded-xl bg-muted/50 p-3">{result}</p>
