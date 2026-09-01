@@ -29,6 +29,19 @@ export const auth = betterAuth({
     enabled: true,
     autoSignIn: true,
   },
+  session: {
+    // Keep Art Flow sessions stable on mobile instead of forcing frequent re-authentication.
+    expiresIn: 60 * 60 * 24 * 30,
+    updateAge: 60 * 60 * 24,
+  },
+  advanced: {
+    // A user may enter through either the apex or www hostname. Share the same
+    // secure Better Auth cookie across both so API calls do not suddenly become 401.
+    crossSubDomainCookies: {
+      enabled: true,
+      domain: "artflowcreative.com",
+    },
+  },
   account: {
     accountLinking: {
       enabled: true,
