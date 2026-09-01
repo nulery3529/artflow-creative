@@ -6,7 +6,7 @@ import { fromNodeHeaders } from 'better-auth/node';
 const { Pool } = pg;
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 4 });
 const SCRAPER_ID = 'e781fdf1-07fd-44a5-abc9-cfbbe53a5243';
-const PARSE_URL = `https://api.parse.bot/scraper/${SCRAPER_ID}/get_seller_listings_all`;
+const PARSE_URL = `https://api.parse.bot/scraper/${SCRAPER_ID}/get_seller_listings`;
 const MAX_LISTINGS = 500;
 const clean = (v = '') => String(v ?? '').trim();
 const normalize = (v = '') => clean(v).toLowerCase();
