@@ -156,9 +156,11 @@ export default async function handler(req,res) {
     if (!b) return res.status(401).json({error:'Invalid Art Flow Browser Sync key'});
 
     if (action === 'listings') {
-      const incoming=Array.isArray(body.listings)?body.listings.slice(0,250):[];
-      if (!incoming.length) return res.status(400).json({error:'No listings found'});
-      let saved=0,skipped=0;
+      const snapshotPlatform=body.snapshot_complete ? validPlatform(body.snapshot_platform||body.platform) : '';
+      const incoming=Array.isArray(body.listings)?body.listings.slice(0,5000):[];
+      if (!incoming.length && !snapshotPlatform) return res.status(400).json({error:'No listings found'});
+      let saved=0,skipped=0,deactivated=0;
+      const snapshotUrls=[];
       for (const raw of incoming) {
         const platform=validPlatform(raw?.platform), url=normalizeUrl(raw?.listing_url||raw?.url), title=clean(raw?.title||raw?.product_name).slice(0,300);
         if (!platform || !url || !title || !sourceHostMatches(platform,url)) { skipped++; continue; }
@@ -171,9 +173,16 @@ export default async function handler(req,res) {
           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'Active',now(),'browser_listing_sync','{}'::jsonb)
           ON CONFLICT (business_id,platform,listing_url) DO UPDATE SET listing_id=EXCLUDED.listing_id,title=EXCLUDED.title,price=EXCLUDED.price,currency=EXCLUDED.currency,image_url=COALESCE(EXCLUDED.image_url,artflow.marketplace_listings.image_url),status='Active',last_seen_at=now(),sync_source='browser_listing_sync'`,
           [id,b.base44_id,platform,listingId||null,title,price,clean(raw?.currency||'USD')||'USD',image,url]);
+        if (snapshotPlatform && platform===snapshotPlatform) snapshotUrls.push(url);
         saved++;
       }
-      return res.status(200).json({ok:true,saved,skipped,message:`${saved} current listing${saved===1?'':'s'} linked to your Gallery.`});
+      if (snapshotPlatform) {
+        const result=snapshotUrls.length
+          ? await client.query(`UPDATE artflow.marketplace_listings SET status='Inactive',last_seen_at=now(),sync_source='browser_listing_snapshot' WHERE business_id=$1 AND platform=$2 AND status='Active' AND NOT (listing_url = ANY($3::text[]))`,[b.base44_id,snapshotPlatform,snapshotUrls])
+          : await client.query(`UPDATE artflow.marketplace_listings SET status='Inactive',last_seen_at=now(),sync_source='browser_listing_snapshot' WHERE business_id=$1 AND platform=$2 AND status='Active'`,[b.base44_id,snapshotPlatform]);
+        deactivated=Number(result.rowCount||0);
+      }
+      return res.status(200).json({ok:true,saved,skipped,deactivated,message:`${saved} current listing${saved===1?'':'s'} linked to your Gallery${deactivated?` · ${deactivated} no longer active`:''}.`});
     }
 
     if (action === 'order') {
