@@ -1,69 +1,39 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Loader2, Smartphone, RefreshCw } from "lucide-react";
+import React, { useState } from "react";
+import { Loader2, Link2, Smartphone } from "lucide-react";
 import { toast } from "sonner";
-import { useMarketplacePreferences } from "@/lib/useMarketplacePreferences";
-
-const HELP = {
-  Vinted: "Paste your public Vinted profile/shop link, or several listing links.",
-  Depop: "Paste your Depop shop/profile link, or several listing links.",
-  Etsy: "Paste your Etsy shop link, or several listing links.",
-  eBay: "Paste your eBay seller page, store link, or several listing links.",
-};
 
 export default function MobileMarketplaceSyncCard() {
-  const { selected, supported } = useMarketplacePreferences();
-  const [urls, setUrls] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState("");
-  const [result, setResult] = useState({});
+  const [links, setLinks] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const [result, setResult] = useState("");
 
-  const visible = useMemo(() => {
-    const chosen = supported.filter((site) => selected.includes(site));
-    return chosen.length ? chosen : supported;
-  }, [selected, supported]);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const response = await fetch("/api/mobile-listing-sync", { credentials: "include", cache: "no-store" });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.error || "Could not load mobile marketplace sync");
-        if (!cancelled) setUrls(data.urls || {});
-      } catch (error) {
-        console.error("mobile marketplace sync setup error", error);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  const sync = async (platform) => {
-    const value = String(urls[platform] || "").trim();
+  const addListings = async () => {
+    const value = links.trim();
     if (!value) {
-      toast.error(`Paste your ${platform} shop/profile or listing link first`);
+      toast.error("Paste at least one marketplace listing link first");
       return;
     }
-    setSyncing(platform);
-    setResult((current) => ({ ...current, [platform]: "" }));
+    setSyncing(true);
+    setResult("");
     try {
       const response = await fetch("/api/mobile-listing-sync", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ platform, urls: value }),
+        body: JSON.stringify({ urls: value }),
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || `Could not sync ${platform}`);
-      setResult((current) => ({ ...current, [platform]: data.message || `${platform} synced` }));
-      toast.success(data.message || `${platform} listings synced`);
-      window.dispatchEvent(new CustomEvent("artflow:listings-synced", { detail: { platform, saved: data.saved || 0 } }));
+      if (!response.ok) throw new Error(data.error || "Could not add listings");
+      setResult(data.message || "Listings added to Gallery");
+      toast.success(data.message || "Listings added to Gallery");
+      setLinks("");
+      window.dispatchEvent(new CustomEvent("artflow:listings-synced", { detail: { saved: data.saved || 0 } }));
     } catch (error) {
-      setResult((current) => ({ ...current, [platform]: error?.message || `Could not sync ${platform}` }));
-      toast.error(`${platform} sync failed`, { description: error?.message });
+      const message = error?.message || "Could not add listings";
+      setResult(message);
+      toast.error("Listing import failed", { description: message });
     } finally {
-      setSyncing("");
+      setSyncing(false);
     }
   };
 
@@ -74,56 +44,38 @@ export default function MobileMarketplaceSyncCard() {
           <Smartphone className="w-5 h-5" />
         </div>
         <div>
-          <h2 className="font-heading text-lg">Mobile Marketplace Listings</h2>
+          <h2 className="font-heading text-lg">Add Marketplace Listings</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            For phone or tablet: paste your public shop/profile link and Art Flow will link current listings to Gallery with photos and live marketplace links.
+            Works on iPhone and iPad. Copy a listing link from Vinted, Depop, Etsy, or eBay, paste it here, and Art Flow adds it to Gallery.
           </p>
         </div>
       </div>
 
-      <div className="rounded-2xl bg-muted/60 p-3 text-xs text-muted-foreground">
-        If a marketplace blocks reading its shop page, paste several individual listing links in the same box, one per line. The desktop Chrome extension is optional.
+      <div className="rounded-2xl bg-muted/60 p-3 text-xs text-muted-foreground space-y-1">
+        <p><strong className="text-foreground">On the marketplace app:</strong> open a listing → Share or Copy link.</p>
+        <p>You can paste several listing links here at once, even from different sites.</p>
       </div>
 
-      {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3, 4].map((n) => <div key={n} className="h-24 rounded-2xl bg-muted animate-pulse" />)}
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {visible.map((platform) => {
-            const busy = syncing === platform;
-            return (
-              <div key={platform} className="rounded-2xl border border-[hsl(var(--border))] p-3 space-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-semibold text-sm">{platform}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">{HELP[platform]}</p>
-                  </div>
-                </div>
-                <textarea
-                  value={urls[platform] || ""}
-                  onChange={(e) => setUrls((current) => ({ ...current, [platform]: e.target.value }))}
-                  rows={2}
-                  placeholder={`Paste ${platform} shop/profile or listing links`}
-                  className="w-full rounded-xl border border-[hsl(var(--border))] bg-background px-3 py-2 text-xs resize-y focus:outline-none focus:ring-1 focus:ring-[hsl(var(--primary))]"
-                />
-                <button
-                  type="button"
-                  onClick={() => sync(platform)}
-                  disabled={Boolean(syncing)}
-                  className="w-full h-10 rounded-xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
-                >
-                  {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                  {busy ? `Syncing ${platform}…` : `Sync ${platform} Listings`}
-                </button>
-                {result[platform] && (
-                  <p className="text-xs text-muted-foreground rounded-xl bg-muted/50 p-2">{result[platform]}</p>
-                )}
-              </div>
-            );
-          })}
-        </div>
+      <textarea
+        value={links}
+        onChange={(e) => setLinks(e.target.value)}
+        rows={5}
+        placeholder={"Paste listing link(s) here\nhttps://www.vinted.com/items/...\nhttps://www.depop.com/products/..."}
+        className="w-full rounded-2xl border border-[hsl(var(--border))] bg-background px-3 py-3 text-sm resize-y focus:outline-none focus:ring-1 focus:ring-[hsl(var(--primary))]"
+      />
+
+      <button
+        type="button"
+        onClick={addListings}
+        disabled={syncing}
+        className="w-full h-12 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold flex items-center justify-center gap-2 disabled:opacity-60 active:scale-[0.99] transition-transform"
+      >
+        {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+        {syncing ? "Adding Listings…" : "Add to Gallery"}
+      </button>
+
+      {result && (
+        <p className="text-xs text-muted-foreground rounded-xl bg-muted/50 p-3">{result}</p>
       )}
     </section>
   );
