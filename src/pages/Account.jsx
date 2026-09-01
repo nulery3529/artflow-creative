@@ -67,13 +67,13 @@ export default function Account() {
 
       <EmailConnectionsCard />
 
-      <MobileMarketplaceSyncCard />
-
       {!loadingTrackedSites && trackedSites.includes("Depop") && <DepopConnectionCard />}
 
-      {!loadingTrackedSites && trackedSites.includes("Etsy") && <EtsyConnectionCard />}
-
       {!loadingTrackedSites && trackedSites.includes("Vinted") && <VintedConnectionCard />}
+
+      <MobileMarketplaceSyncCard />
+
+      {!loadingTrackedSites && trackedSites.includes("Etsy") && <EtsyConnectionCard />}
 
       {!loadingTrackedSites && trackedSites.includes("eBay") && <EbayConnectionCard />}
 
