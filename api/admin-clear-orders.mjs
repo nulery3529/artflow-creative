@@ -4,8 +4,9 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejec
 const TOKEN = '89a035daa83e9b71546fba1921879db3e66fadd6229f36dd9655017325198e6f';
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  if (req.headers['x-clear-orders-token'] !== TOKEN) return res.status(403).json({ error: 'Forbidden' });
+  if (!['GET','POST'].includes(req.method)) return res.status(405).json({ error: 'Method not allowed' });
+  const provided = req.headers['x-clear-orders-token'] || req.query?.token;
+  if (provided !== TOKEN) return res.status(403).json({ error: 'Forbidden' });
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
