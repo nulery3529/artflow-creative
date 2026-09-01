@@ -46,19 +46,34 @@ export function useOrders() {
         ? neonResult.value.orders
         : [];
 
-      const merged = new Map();
-      const identity = (order) => {
-        if (order?.id) return `id:${order.id}`;
-        if (order?.source_email_id) return `source:${order.source_email_id}`;
-        return `order:${order?.platform || ""}:${order?.order_id || ""}:${order?.sale_date || ""}`;
-      };
+      // The exact-style tracker import writes canonical `sheet:exact:*` rows to
+      // Base44. When those rows are present, Base44 is the live authority and
+      // Neon is only a disaster-recovery fallback. Mixing both physical stores
+      // would double-count the same spreadsheet sale because their database IDs
+      // are intentionally different.
+      const hasCanonicalSheetOrders = baseOrders.some((order) =>
+        order?.archived !== true
+        && order?.sync_source === "google_sheet_master"
+        && /^sheet:exact:\d+$/.test(String(order?.source_email_id || ""))
+      );
 
-      for (const order of baseOrders) merged.set(identity(order), order);
-      for (const order of neonOrders) {
-        const key = identity(order);
-        merged.set(key, { ...(merged.get(key) || {}), ...order });
+      if (hasCanonicalSheetOrders) {
+        setRecords(baseOrders.filter((order) => order?.archived !== true));
+      } else {
+        const merged = new Map();
+        const identity = (order) => {
+          if (order?.source_email_id) return `source:${order.source_email_id}`;
+          if (order?.id) return `id:${order.id}`;
+          return `order:${order?.platform || ""}:${order?.order_id || ""}:${order?.sale_date || ""}`;
+        };
+
+        for (const order of baseOrders) merged.set(identity(order), order);
+        for (const order of neonOrders) {
+          const key = identity(order);
+          merged.set(key, { ...(merged.get(key) || {}), ...order });
+        }
+        setRecords(Array.from(merged.values()).filter((r) => r?.archived !== true));
       }
-      setRecords(Array.from(merged.values()).filter((r) => r?.archived !== true));
     } catch (e) {
       console.error("Failed to load business orders:", e);
     } finally {
