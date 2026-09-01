@@ -111,10 +111,11 @@ function normalizeProduct(p = {}) {
   if (!title) title = `Depop listing ${id}`;
   return { listingId: id, title: title.slice(0, 300), price, currency, imageUrl: firstUrl(p), listingUrl, raw: p };
 }
-async function parseAll(username, key) {
-  const q = new URLSearchParams({ username, max_results: String(MAX_LISTINGS) });
+async function parsePage(username, cursor, key) {
+  const q = new URLSearchParams({ username, limit: '100' });
+  if (cursor) q.set('cursor', cursor);
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 90000);
+  const timer = setTimeout(() => controller.abort(), 20000);
   try {
     const r = await fetch(`${PARSE_URL}?${q.toString()}`, {
       headers: { Accept: 'application/json', 'X-API-Key': key },
@@ -131,7 +132,7 @@ async function parseAll(username, key) {
     return payload;
   } catch (e) {
     if (e?.name === 'AbortError') {
-      const timeout = new Error('Parse took too long to collect the Depop shop. Try Refresh again.');
+      const timeout = new Error('Parse took too long to return a Depop page. Try Refresh again.');
       timeout.status = 504;
       throw timeout;
     }
@@ -200,15 +201,41 @@ export default async function handler(req, res) {
     }
 
     await ensureTable(client);
-    const payload = await parseAll(username, apiKey);
-    const data = payload?.data && typeof payload.data === 'object' ? payload.data : payload;
-    const listings = productArray(payload).map(normalizeProduct).filter(Boolean);
+    const listings = [];
+    const seenCursors = new Set();
+    let cursor = '';
+    let pages = 0;
+    let complete = false;
+
+    while (pages < 5 && listings.length < MAX_LISTINGS) {
+      const payload = await parsePage(username, cursor, apiKey);
+      const data = payload?.data && typeof payload.data === 'object' ? payload.data : payload;
+      const pageProducts = productArray(payload);
+      for (const raw of pageProducts) {
+        const listing = normalizeProduct(raw);
+        if (listing) listings.push(listing);
+        if (listings.length >= MAX_LISTINGS) break;
+      }
+      pages += 1;
+
+      const next = clean(data?.last_offset_id || data?.meta?.last_offset_id || '');
+      const ended = data?.end === true || data?.meta?.end === true;
+      if (ended) {
+        complete = true;
+        break;
+      }
+      if (!next || next === cursor || seenCursors.has(next)) {
+        complete = false;
+        break;
+      }
+      seenCursors.add(next);
+      cursor = next;
+    }
+
     const uniqueListings = [...new Map(listings.map((listing) => [listing.listingUrl, listing])).values()].slice(0, MAX_LISTINGS);
     const activeUrls = await batchUpsert(client, b.base44_id, uniqueListings, username);
-    const meta = metaOf(payload);
-    const hasMore = data?.has_more === true || payload?.has_more === true || meta?.has_more === true;
-    const totalCount = Number(data?.total_count || payload?.total_count || meta?.total_count || data?.returned_count || uniqueListings.length || 0);
-    const complete = !hasMore && totalCount <= MAX_LISTINGS;
+    const totalCount = uniqueListings.length;
+    if (pages >= 5 && !complete) complete = false;
     let deactivated = 0;
     if (complete) {
       if (activeUrls.length) {
@@ -226,7 +253,7 @@ export default async function handler(req, res) {
       ok: true,
       saved,
       deactivated,
-      pages: 1,
+      pages,
       total_count: totalCount,
       max_listings: MAX_LISTINGS,
       username,
