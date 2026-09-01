@@ -113,7 +113,7 @@ function normalizeProduct(p = {}) {
 }
 async function parsePage(username, cursor, key) {
   const q = new URLSearchParams({ username, limit: '100' });
-  if (cursor) q.set('cursor', cursor);
+  if (cursor) q.set('offset_id', cursor);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 20000);
   try {
