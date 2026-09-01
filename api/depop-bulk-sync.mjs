@@ -119,13 +119,17 @@ function normalizeProduct(product = {}) {
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
+  const apiKey = clean(process.env.DEPOP_PARTNER_API_KEY);
+  const ownerEmail = normalize(process.env.DEPOP_PARTNER_OWNER_EMAIL);
+
+  if (req.method === 'GET') {
+    return res.status(200).json({ configured: Boolean(apiKey && ownerEmail), api_key_set: Boolean(apiKey), owner_set: Boolean(ownerEmail) });
+  }
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const session = await getSession(req).catch(() => null);
   if (!session?.user) return res.status(401).json({ error: 'Unauthorized' });
 
-  const apiKey = clean(process.env.DEPOP_PARTNER_API_KEY);
-  const ownerEmail = normalize(process.env.DEPOP_PARTNER_OWNER_EMAIL);
   if (!apiKey || !ownerEmail) {
     return res.status(503).json({
       needs_setup: true,
