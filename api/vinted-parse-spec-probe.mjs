@@ -7,15 +7,12 @@ export default async function handler(req,res){
   const key = clean(process.env.PARSE_API_KEY);
   if(!key) return res.status(503).json({configured:false});
   try{
-    const r = await fetch('https://api.parse.bot/dispatch/tasks?limit=100&status=completed', {headers:{Accept:'application/json','X-API-Key':key}});
+    const r = await fetch(`https://api.parse.bot/scraper/${SCRAPER_ID}`, {headers:{Accept:'application/json','X-API-Key':key}});
     const text = await r.text();
-    let payload={}; try{payload=text?JSON.parse(text):{}}catch{}
-    if(!r.ok) return res.status(r.status).json({error:'Parse task lookup failed',status:r.status});
-    const tasks = Array.isArray(payload?.tasks)?payload.tasks:[];
-    const task = tasks.find(t=>t?.result_scraper_id===SCRAPER_ID || t?.generated_api?.scraper_id===SCRAPER_ID);
-    const spec = task?.generated_api || null;
-    if(!spec) return res.status(404).json({found:false,task_count:tasks.length});
-    const endpoints = (Array.isArray(spec.endpoints)?spec.endpoints:[]).map(e=>({name:e.endpoint_name||e.name||'',method:e.method||'GET',description:e.description||'',input_params:Object.keys(e.input_params||{})}));
-    return res.status(200).json({found:true,scraper_id:SCRAPER_ID,endpoints});
+    let payload={}; try{payload=text?JSON.parse(text):{}}catch{payload={raw:text}}
+    if(!r.ok) return res.status(r.status).json({error:'Parse scraper metadata failed',status:r.status,detail:clean(payload?.detail||payload?.message||payload?.error||'')});
+    const source = payload?.generated_api || payload?.api || payload;
+    const endpoints = (Array.isArray(source?.endpoints)?source.endpoints:[]).map(e=>({name:e.endpoint_name||e.name||'',method:e.method||'GET',description:e.description||'',input_params:Object.keys(e.input_params||e.parameters||{})}));
+    return res.status(200).json({found:true,scraper_id:SCRAPER_ID,name:source?.name||'',source_url:source?.source_url||'',endpoints});
   }catch(e){return res.status(500).json({error:clean(e?.message||'Probe failed')});}
 }
