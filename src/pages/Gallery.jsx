@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ExternalLink, Plus, Search, SlidersHorizontal } from "lucide-react";
 import { useEntity } from "@/lib/useBusinessData";
 import { formatMoney } from "@/lib/format";
@@ -15,11 +15,28 @@ const marketplaceTabs = ["All sites", "Vinted", "Depop", "Etsy", "eBay"];
 
 export default function Gallery() {
   const { records, loading, reload } = useEntity("ArtPiece", "-created_date");
-  const {
-    records: marketplaceListings,
-    loading: marketplaceLoading,
-    reload: reloadMarketplaceListings,
-  } = useEntity("MarketplaceListing", "-last_seen_at", 2000);
+  const [marketplaceListings, setMarketplaceListings] = useState([]);
+  const [marketplaceLoading, setMarketplaceLoading] = useState(true);
+  const reloadMarketplaceListings = useCallback(async () => {
+    try {
+      const response = await fetch("/api/neon-data?op=listings", { credentials: "include", cache: "no-store" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Could not load marketplace listings");
+      setMarketplaceListings(Array.isArray(data.listings) ? data.listings : []);
+    } catch (error) {
+      console.error("Could not load marketplace listings", error);
+      setMarketplaceListings([]);
+    } finally {
+      setMarketplaceLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    reloadMarketplaceListings();
+    const onSync = () => reloadMarketplaceListings();
+    window.addEventListener("artflow:listings-synced", onSync);
+    return () => window.removeEventListener("artflow:listings-synced", onSync);
+  }, [reloadMarketplaceListings]);
   const navigate = useNavigate();
   const [filter, setFilter] = useState("All");
   const [marketplaceFilter, setMarketplaceFilter] = useState("All sites");
