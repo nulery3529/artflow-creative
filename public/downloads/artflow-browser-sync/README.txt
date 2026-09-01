@@ -1,39 +1,14 @@
-ART FLOW BROWSER SYNC
+Art Flow Marketplace Refresh v2.0
 
-Purpose
-- Works on Vinted, Depop, Etsy, and eBay seller/listing pages and sold/order pages in Chrome.
-- Syncs visible current listing cards to Gallery with the photo, title, price, and live marketplace link.
-- Reads visible sold-order information from the page you have open.
-- Sends only listing/order fields to Art Flow Creative.
-- Does NOT collect or transmit marketplace passwords, cookies, or login/session tokens.
+1. Open chrome://extensions in Chrome.
+2. Turn on Developer mode.
+3. Extract artflow-browser-sync.zip.
+4. Choose Load unpacked and select the extracted folder.
+5. In Art Flow Creative > Account, copy your private Marketplace Refresh key.
+6. Open the extension and save that key once.
+7. Open your Depop or Vinted seller/profile listings page while logged in.
+8. Click the extension and choose "Refresh active listings to Gallery".
 
-Install
-1. Unzip artflow-browser-sync.zip.
-2. In Chrome open chrome://extensions.
-3. Turn on Developer mode.
-4. Click Load unpacked.
-5. Choose the artflow-browser-sync folder.
-6. In Art Flow Creative open Account > Art Flow Browser Sync.
-7. Create/copy your private sync key.
-8. Open the extension and paste/save that key once.
+Art Flow will auto-scroll the current seller page and collect up to 500 listing cards, then send title, price, photo URL, and listing URL to your Art Flow Gallery.
 
-Use for current Gallery listings
-1. Stay signed in to Vinted, Depop, Etsy, or eBay normally.
-2. Open your seller/shop page where your current listing cards are visible.
-3. Click the Art Flow Browser Sync extension.
-4. Click Sync current listings to Gallery.
-5. Art Flow stores each current listing photo, title, price, and live marketplace link in Gallery.
-
-Use for sold orders
-1. Open a sold/order page.
-2. Click the Art Flow Browser Sync extension.
-3. Review product, sale total, quantity, order ID, date, and buyer.
-4. Correct any field if the marketplace page uses a layout the extension could not read automatically.
-5. Click Send sale to Art Flow.
-6. Art Flow queues the capture, writes it to the ArtFlow Creative Tracker, and reconciles the spreadsheet into the app.
-
-Duplicate protection
-- Art Flow fingerprints each capture using the platform, order information, amount, product, date, and source page.
-- Sending the same captured sale again is skipped instead of creating another copy.
-
-If a marketplace changes its page layout, the extension leaves fields editable so you can correct them before sending.
+The extension does not send marketplace passwords, cookies, or login tokens to Art Flow.
