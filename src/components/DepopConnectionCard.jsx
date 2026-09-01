@@ -6,6 +6,7 @@ export default function DepopConnectionCard() {
   const [status, setStatus] = useState("unknown");
   const [message, setMessage] = useState("Depop webhooks keep listings, sales, refunds, and order updates current automatically through Vercel.");
   const [syncing, setSyncing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -24,6 +25,31 @@ export default function DepopConnectionCard() {
       .catch(() => {});
     return () => { cancelled = true; };
   }, []);
+
+  const refreshListings = async () => {
+    setRefreshing(true);
+    try {
+      const response = await fetch("/api/depop-bulk-sync", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.error) throw new Error(data.error || "Could not refresh Depop listings");
+      const count = Number(data.saved || 0);
+      window.dispatchEvent(new CustomEvent("artflow:listings-synced", { detail: { saved: count } }));
+      const text = data.message || `${count} active Depop listing${count === 1 ? "" : "s"} refreshed.`;
+      setMessage(text);
+      toast.success("Depop listings refreshed", { description: text });
+    } catch (error) {
+      const text = error?.response?.data?.error || error?.message || "Depop refresh failed";
+      setMessage(text);
+      toast.error("Could not refresh Depop listings", { description: text });
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const syncDepop = async () => {
     setSyncing(true);
@@ -85,14 +111,24 @@ export default function DepopConnectionCard() {
       <div className="rounded-2xl bg-muted/60 p-3 mb-4">
         <p className="text-sm text-foreground">{message}</p>
       </div>
-      <button
-        onClick={syncDepop}
-        disabled={syncing}
-        className="w-full h-12 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
-      >
-        <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
-        {syncing ? "Connecting Depop webhooks…" : status === "connected" ? "Reconnect Depop Webhooks" : "Connect Depop Webhooks"}
-      </button>
+      <div className="space-y-2">
+        <button
+          onClick={syncDepop}
+          disabled={syncing || refreshing}
+          className="w-full h-12 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
+        >
+          <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
+          {syncing ? "Connecting Depop webhooks…" : status === "connected" ? "Reconnect Depop Webhooks" : "Connect Depop Webhooks"}
+        </button>
+        <button
+          onClick={refreshListings}
+          disabled={syncing || refreshing}
+          className="w-full h-12 rounded-2xl bg-muted text-foreground font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
+        >
+          <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+          {refreshing ? "Refreshing active listings…" : "Refresh Active Depop Listings"}
+        </button>
+      </div>
     </section>
   );
 }
