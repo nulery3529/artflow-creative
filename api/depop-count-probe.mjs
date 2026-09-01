@@ -21,6 +21,18 @@ export default async function handler(req,res){
       ORDER BY depop_active DESC
     `);
     const key=String(process.env.PARSE_API_KEY||'').trim();
+    if(String(req.query?.mode||'')==='repair' && key){
+      const fr=await fetch('https://api.parse.bot/dispatch',{
+        method:'POST',
+        headers:{Accept:'application/json','Content-Type':'application/json','X-API-Key':key},
+        body:JSON.stringify({
+          url:'https://www.depop.com',
+          task:'Repair the Depop get_seller_listings endpoint pagination. For seller natasha_ulery, page 1 returns 100 unique listings and page 2 adds only 79 new listings, but page 3 and later repeat earlier products even when the cursor is taken from meta.last_offset_id. Fix pagination so each next page advances correctly without duplicates. Also support optional max_results up to 500 that internally paginates and returns one flat products array of up to 500 unique active seller listings, with returned_count, has_more, and a next cursor when more listings exist. Verify the fix against a seller with more than 500 active listings before marking it complete.'
+        })
+      });
+      const text=await fr.text(); let payload={}; try{payload=text?JSON.parse(text):{}}catch{payload={raw:text}}
+      return res.status(fr.status).json(payload);
+    }
     if(String(req.query?.mode||'')==='pagination' && key){
       const username=String(r.rows?.[0]?.username||'').trim();
       const test=async(paramName)=>{
