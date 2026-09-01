@@ -92,7 +92,7 @@ export default function BrowserSyncCard() {
     const code = makeIPhoneBookmarklet();
     const copied = await copyTextWithFallback(code);
     if (copied) {
-      toast.success("iPhone Refresh copied", { description: "Paste it into the address of a Safari bookmark named Refresh Art Flow." });
+      toast.success("iPhone Refresh copied", { description: "Paste it into the URL of a Chrome bookmark named Refresh Art Flow." });
       setShowIPhoneCode(false);
     } else {
       setShowIPhoneCode(true);
@@ -139,9 +139,9 @@ export default function BrowserSyncCard() {
       <div className="rounded-2xl border border-[hsl(var(--border))] p-4 space-y-3">
         <div className="flex items-center gap-2">
           <Smartphone className="w-4 h-4" />
-          <p className="font-semibold text-sm">iPhone Safari Refresh</p>
+          <p className="font-semibold text-sm">iPhone Chrome Refresh</p>
         </div>
-        <p className="text-xs text-muted-foreground">No extension is required. Copy the personalized Safari bookmark action below, save it once, then tap it while viewing your Depop or Vinted seller listings page.</p>
+        <p className="text-xs text-muted-foreground">No extension is required. Use Chrome on your iPhone, where you can stay signed into Depop or Vinted. Copy the personalized bookmark action below and save it once.</p>
         <button onClick={copyIPhoneRefresh} disabled={!state.key} className="w-full h-11 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-60">
           <Copy className="w-4 h-4" /> Copy iPhone Refresh
         </button>
@@ -158,10 +158,10 @@ export default function BrowserSyncCard() {
           />
         )}
         <div className="text-xs text-muted-foreground space-y-1">
-          <p>1. In Safari, add any page as a bookmark and name it “Refresh Art Flow.”</p>
-          <p>2. Edit that bookmark and replace its address with the copied text.</p>
-          <p>3. Open your Depop or Vinted seller listings page in Safari.</p>
-          <p>4. Open Bookmarks and tap “Refresh Art Flow.” It will scan up to 500 listings and send them to Gallery.</p>
+          <p>1. In Chrome on your iPhone, bookmark any page and name it “Refresh Art Flow.”</p>
+          <p>2. Open Chrome → … → Bookmarks, press and hold that bookmark, tap Edit, and replace its URL with the copied text.</p>
+          <p>3. Open your Depop or Vinted seller listings page in Chrome while signed in.</p>
+          <p>4. Tap the Chrome address bar, type “Refresh Art Flow,” and choose the bookmark result (not a Google search result). It will scan up to 500 listings and send them to Gallery.</p>
         </div>
       </div>
 
@@ -176,7 +176,7 @@ export default function BrowserSyncCard() {
 
       <div className="text-xs text-muted-foreground space-y-1">
         <p><strong className="text-foreground">Desktop:</strong> load v2.0 in Chrome, save the private key once, then use “Refresh active listings to Gallery.”</p>
-        <p><strong className="text-foreground">iPhone:</strong> use the Safari bookmark action above. iPhone Chrome does not support normal Chrome extensions.</p>
+        <p><strong className="text-foreground">iPhone:</strong> use the Chrome bookmark action above. iPhone Chrome does not support normal Chrome extensions, but it does let you create and edit bookmarks.</p>
       </div>
     </section>
   );
