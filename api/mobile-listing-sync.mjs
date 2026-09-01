@@ -238,6 +238,36 @@ async function fetchHtml(url, timeoutMs = 8000) {
   }
 }
 
+function priceFromText(value = '') {
+  const match = String(value || '').match(/(?:US\s*)?\$\s*([0-9][0-9,]*(?:\.\d{1,2})?)/i);
+  if (!match) return 0;
+  const n = Number(match[1].replace(/,/g, ''));
+  return Number.isFinite(n) ? n : 0;
+}
+
+async function fetchBrowserMetadata(url, timeoutMs = 12000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const endpoint = new URL('https://api.microlink.io/');
+    endpoint.searchParams.set('url', url);
+    const response = await fetch(endpoint, { signal: controller.signal, headers: { accept: 'application/json' } });
+    if (!response.ok) throw new Error(`Browser metadata returned ${response.status}`);
+    const payload = await response.json();
+    if (payload?.status !== 'success' || !payload?.data) throw new Error('Browser metadata unavailable');
+    const data = payload.data;
+    const image = typeof data.image === 'string' ? data.image : (data.image?.url || '');
+    return {
+      finalUrl: clean(data.url || url),
+      title: clean(data.title),
+      description: clean(data.description),
+      imageUrl: clean(image),
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function session(req) {
   return auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
 }
