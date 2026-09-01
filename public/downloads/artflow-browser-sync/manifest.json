@@ -1,11 +1,10 @@
 {
   "manifest_version": 3,
   "name": "Art Flow Browser Sync",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Sync Vinted, Depop, Etsy, and eBay sales plus current listing links and photos to Art Flow Creative without sharing marketplace passwords or login tokens.",
   "permissions": ["activeTab", "scripting", "storage"],
   "host_permissions": [
-    "https://base44.app/*",
     "https://artflowcreative.com/*",
     "https://www.artflowcreative.com/*",
     "https://*.vinted.com/*",
