@@ -13,6 +13,7 @@ import EmailConnectionsCard from "@/components/EmailConnectionsCard";
 import TrackerSetupCard from "@/components/TrackerSetupCard";
 import MarketplaceTrackingCard from "@/components/MarketplaceTrackingCard";
 import BrowserSyncCard from "@/components/BrowserSyncCard";
+import MobileMarketplaceSyncCard from "@/components/MobileMarketplaceSyncCard";
 import DepopConnectionCard from "@/components/DepopConnectionCard";
 import EbayConnectionCard from "@/components/EbayConnectionCard";
 import { toast } from "sonner";
@@ -66,6 +67,8 @@ export default function Account() {
       <TrackerSetupCard />
 
       <EmailConnectionsCard />
+
+      <MobileMarketplaceSyncCard />
 
       <BrowserSyncCard />
 
