@@ -92,6 +92,7 @@ async function listOrders(client, session) {
        sale_total,
        buyer,
        source_email_id,
+       data->>'source_url' AS source_url,
        base_item_cost,
        paper_ink_cost,
        packaging_cost,
@@ -160,6 +161,36 @@ async function listExpenses(client, session) {
   return result.rows;
 }
 
+async function listMarketplaceListings(client, session) {
+  const profile = await getLegacyProfile(client, session.user);
+  const businesses = await getAccessibleBusinesses(client, profile, session.user);
+  const ids = businessIds(businesses);
+  await client.query(`CREATE TABLE IF NOT EXISTS artflow.marketplace_listings (
+    id text PRIMARY KEY,
+    business_id text NOT NULL,
+    platform text NOT NULL,
+    listing_id text,
+    title text NOT NULL,
+    price numeric DEFAULT 0,
+    currency text DEFAULT 'USD',
+    image_url text,
+    listing_url text NOT NULL,
+    status text DEFAULT 'Active',
+    last_seen_at timestamptz DEFAULT now(),
+    sync_source text,
+    data jsonb DEFAULT '{}'::jsonb
+  )`);
+  await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS marketplace_listings_business_platform_url_idx ON artflow.marketplace_listings (business_id, platform, listing_url)`);
+  const result = await client.query(
+    `SELECT id,business_id,platform,listing_id,title,price,currency,image_url,listing_url,status,last_seen_at,sync_source
+       FROM artflow.marketplace_listings
+      WHERE business_id = ANY($1::text[]) AND status='Active'
+      ORDER BY platform, title`,
+    [ids]
+  );
+  return result.rows;
+}
+
 async function summary(client, session) {
   const profile = await getLegacyProfile(client, session.user);
   const businesses = await getAccessibleBusinesses(client, profile, session.user);
@@ -197,6 +228,7 @@ export default async function handler(req, res) {
     if (op === 'summary') return res.status(200).json(await summary(client, session));
     if (op === 'orders') return res.status(200).json({ orders: await listOrders(client, session) });
     if (op === 'expenses') return res.status(200).json({ expenses: await listExpenses(client, session) });
+    if (op === 'listings') return res.status(200).json({ listings: await listMarketplaceListings(client, session) });
     return res.status(400).json({ error: 'Unknown operation' });
   } catch (e) {
     console.error('neon data error', e?.message || e);
