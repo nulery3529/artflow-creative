@@ -118,6 +118,48 @@ async function listOrders(client, session) {
   return result.rows;
 }
 
+async function listExpenses(client, session) {
+  const profile = await getLegacyProfile(client, session.user);
+  const businesses = await getAccessibleBusinesses(client, profile, session.user);
+  const ids = businessIds(businesses);
+  const email = normalize(session.user.email);
+  const result = await client.query(
+    `SELECT
+       base44_id AS id,
+       base44_id,
+       created_by_id,
+       created_date,
+       updated_date,
+       date,
+       category,
+       description,
+       amount,
+       deductible_percent,
+       deductible_amount,
+       source,
+       receipt_id,
+       notes,
+       archived,
+       sync_source,
+       business_id,
+       data
+     FROM artflow.expenses
+     WHERE archived IS NOT TRUE
+       AND (
+         business_id = ANY($1::text[])
+         OR EXISTS (
+           SELECT 1
+             FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(data->'access_emails')='array' THEN data->'access_emails' ELSE '[]'::jsonb END) e(value)
+            WHERE lower(e.value) = $2
+         )
+       )
+     ORDER BY date DESC NULLS LAST, created_date DESC NULLS LAST
+     LIMIT 10000`,
+    [ids, email]
+  );
+  return result.rows;
+}
+
 async function summary(client, session) {
   const profile = await getLegacyProfile(client, session.user);
   const businesses = await getAccessibleBusinesses(client, profile, session.user);
@@ -154,6 +196,7 @@ export default async function handler(req, res) {
     const op = String(req.query?.op || 'summary');
     if (op === 'summary') return res.status(200).json(await summary(client, session));
     if (op === 'orders') return res.status(200).json({ orders: await listOrders(client, session) });
+    if (op === 'expenses') return res.status(200).json({ expenses: await listExpenses(client, session) });
     return res.status(400).json({ error: 'Unknown operation' });
   } catch (e) {
     console.error('neon data error', e?.message || e);
