@@ -1,5 +1,6 @@
 const APP_ID = '6a91be5ced6058323eb21f7d';
 const ENDPOINT = `https://base44.app/api/apps/${APP_ID}/functions/browserOrderCapture`;
+const LISTING_ENDPOINT = `https://base44.app/api/apps/${APP_ID}/functions/marketplaceListingCapture`;
 const $ = (id) => document.getElementById(id);
 let pageUrl = '';
 
