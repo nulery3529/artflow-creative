@@ -36,7 +36,7 @@ export default function BrowserSyncCard() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Could not update Browser Sync");
       setState({ key: data.key || state.key, enabled: data.enabled !== false });
-      toast.success(data.enabled === false ? "Desktop Browser Sync paused" : "Desktop Browser Sync enabled");
+      toast.success(data.enabled === false ? "Desktop fallback paused" : "Desktop fallback enabled");
     } catch (error) {
       toast.error("Could not update Browser Sync", { description: error?.message });
     } finally {
@@ -64,18 +64,18 @@ export default function BrowserSyncCard() {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h2 className="font-heading text-lg">Desktop Browser Refresh</h2>
+            <h2 className="font-heading text-lg">Desktop fallback sync</h2>
             {state.enabled && state.key && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Optional desktop fallback for Chrome. Phone users should use the official marketplace connection above when available.
+            Optional fallback for a desktop computer. On phones, use the official Depop/Vinted connection options above instead.
           </p>
         </div>
       </div>
 
       {state.key && (
         <div className="rounded-2xl bg-muted p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">Private sync key</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">Private desktop sync key</p>
           <div className="flex items-center gap-2">
             <code className="min-w-0 flex-1 text-xs break-all bg-background rounded-xl px-3 py-2 border border-[hsl(var(--border))]">
               {showKey ? state.key : `${state.key.slice(0, 7)}••••••••••••••••••••${state.key.slice(-6)}`}
@@ -96,7 +96,7 @@ export default function BrowserSyncCard() {
 
       <button onClick={toggleEnabled} disabled={saving} className="w-full h-11 rounded-2xl bg-muted text-foreground text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-60">
         <RefreshCw className={`w-4 h-4 ${saving ? "animate-spin" : ""}`} />
-        {state.enabled ? "Pause Desktop Browser Sync" : "Enable Desktop Browser Sync"}
+        {state.enabled ? "Pause desktop fallback" : "Enable desktop fallback"}
       </button>
     </section>
   );
