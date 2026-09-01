@@ -1,3 +1,4 @@
+const ext = globalThis.browser || globalThis.chrome;
 const ENDPOINT = 'https://artflowcreative.com/api/browser-sync';
 const LISTING_ENDPOINT = ENDPOINT;
 const $ = (id) => document.getElementById(id);
@@ -202,11 +203,10 @@ async function crawlListingsFromPage(maxListings = 500) {
 }
 async function readPage() {
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const [tab] = await ext.tabs.query({ active: true, currentWindow: true });
     if (!tab?.id) throw new Error('No active tab');
     pageUrl = tab.url || '';
-    const result = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: extractOrderFromPage });
-    const data = result?.[0]?.result || {};
+    const data = await ext.tabs.sendMessage(tab.id, { action: 'read-order' });
     if (!data.supported) {
       setStatus('Open a Vinted, Depop, Etsy, or eBay sold/order page first.', 'bad');
       $('capture').disabled = true;
@@ -228,7 +228,7 @@ async function readPage() {
 }
 
 async function loadKey() {
-  const stored = await chrome.storage.local.get(['artflowSyncKey']);
+  const stored = await ext.storage.local.get(['artflowSyncKey']);
   $('syncKey').value = stored.artflowSyncKey || '';
 }
 
@@ -238,8 +238,8 @@ $('saveKey').addEventListener('click', async () => {
     setStatus('Paste the Browser Sync key from Art Flow Account.', 'bad');
     return;
   }
-  await chrome.storage.local.set({ artflowSyncKey: key });
-  setStatus('Sync key saved on this computer.', 'ok');
+  await ext.storage.local.set({ artflowSyncKey: key });
+  setStatus('Sync key saved in this browser.', 'ok');
 });
 
 $('syncListings').addEventListener('click', async () => {
@@ -249,16 +249,15 @@ $('syncListings').addEventListener('click', async () => {
   $('syncListings').disabled = true;
   setStatus('Scanning this seller page for up to 500 active listings… Keep this tab open while Art Flow scrolls through the catalog.');
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const [tab] = await ext.tabs.query({ active: true, currentWindow: true });
     if (!tab?.id) throw new Error('No active tab');
-    const result = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: crawlListingsFromPage, args: [500] });
-    const data = result?.[0]?.result || {};
+    const data = await ext.tabs.sendMessage(tab.id, { action: 'crawl-listings', max: 500 });
     if (!data.supported) throw new Error('Open your Vinted, Depop, Etsy, or eBay shop/listings page first.');
     if (!Array.isArray(data.listings) || data.listings.length === 0) {
       throw new Error('No current listing cards were found on this page. Open your seller/shop listings page and make sure the listings are visible.');
     }
 
-    await chrome.storage.local.set({ artflowSyncKey: key });
+    await ext.storage.local.set({ artflowSyncKey: key });
     setStatus(`Found ${data.listings.length} ${data.platform} listing${data.listings.length === 1 ? '' : 's'}. Saving the full batch to Gallery…`);
     const response = await fetch(LISTING_ENDPOINT, {
       method: 'POST',
@@ -288,7 +287,7 @@ $('capture').addEventListener('click', async () => {
   $('capture').disabled = true;
   setStatus('Sending sale to Art Flow…');
   try {
-    await chrome.storage.local.set({ artflowSyncKey: key });
+    await ext.storage.local.set({ artflowSyncKey: key });
     const response = await fetch(ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
