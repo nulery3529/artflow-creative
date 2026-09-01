@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogIn, Mail, Lock, Loader2 } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
-import GoogleIcon from "@/components/GoogleIcon";
+import { artflowAuthClient } from "@/lib/artflowAuthClient";
 import { safeReturnTo } from "@/lib/authReturnTo";
 
 export default function Login() {
@@ -13,7 +13,6 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleSubmit = async (event) => {
@@ -21,27 +20,16 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
-      const { base44 } = await import("@/api/base44Client");
-      await base44.auth.loginViaEmailPassword(email.trim(), password);
+      const result = await artflowAuthClient.signIn.email({
+        email: email.trim(),
+        password,
+      });
+      if (result?.error) throw new Error(result.error.message || "Could not sign in.");
       window.location.href = returnTo;
     } catch (err) {
       setError(err?.message || "Could not sign in. Check your email and password.");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleGoogle = async () => {
-    setError("");
-    setGoogleLoading(true);
-    try {
-      const destination = `${window.location.origin}${returnTo}`;
-      const appId = import.meta.env.VITE_BASE44_APP_ID || "6a91be5ced6058323eb21f7d";
-      const googleLoginUrl = `https://app.base44.com/api/apps/auth/login?app_id=${encodeURIComponent(appId)}&from_url=${encodeURIComponent(destination)}`;
-      window.location.assign(googleLoginUrl);
-    } catch (err) {
-      setError(err?.message || "Google sign-in is unavailable right now.");
-      setGoogleLoading(false);
     }
   };
 
@@ -61,23 +49,6 @@ export default function Login() {
           {error}
         </div>
       )}
-
-      <Button
-        type="button"
-        variant="outline"
-        className="w-full h-12 font-medium mb-4"
-        onClick={handleGoogle}
-        disabled={googleLoading || loading}
-      >
-        {googleLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <GoogleIcon className="w-5 h-5 mr-2" />}
-        Continue with Google
-      </Button>
-
-      <div className="flex items-center gap-3 mb-4">
-        <div className="h-px bg-border flex-1" />
-        <span className="text-xs text-muted-foreground">or use email and password</span>
-        <div className="h-px bg-border flex-1" />
-      </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
