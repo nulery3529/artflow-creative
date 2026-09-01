@@ -8,7 +8,7 @@ export default function VintedConnectionCard() {
   const [configured, setConfigured] = useState(false);
   const [profile, setProfile] = useState("");
   const [needsProfile, setNeedsProfile] = useState(false);
-  const [message, setMessage] = useState("Refresh your full active Vinted profile into Gallery with one tap.");
+  const [message, setMessage] = useState("Refresh up to 500 active Vinted listings into Gallery with one tap.");
 
   useEffect(() => {
     let cancelled = false;
@@ -75,7 +75,7 @@ export default function VintedConnectionCard() {
     <section className="bg-card rounded-3xl p-5 border border-[hsl(var(--border))]">
       <div className="mb-4">
         <h2 className="font-heading text-lg">Vinted</h2>
-        <p className="text-sm text-muted-foreground mt-1">Refresh all current active Vinted listings into Gallery at once.</p>
+        <p className="text-sm text-muted-foreground mt-1">Refresh up to 500 current active Vinted listings into Gallery at once.</p>
       </div>
 
       {(needsProfile || !profile) && (
