@@ -455,9 +455,31 @@ export default async function handler(req, res) {
         }
 
         const found = extractListingLinks(resolvedPlatform, html, resolvedUrl);
-        for (const url of found) directListings.push({ platform: resolvedPlatform, url });
+        if (found.length) {
+          for (const url of found) directListings.push({ platform: resolvedPlatform, url });
+          continue;
+        }
+
+        try {
+          const meta = await fetchBrowserMetadata(shop.url);
+          const metaUrl = normalizeUrl(meta.finalUrl || shop.url);
+          const metaPlatform = platformFrom(metaUrl) || shop.platform;
+          if (allowedHost(metaPlatform, metaUrl) && isListingUrl(metaPlatform, metaUrl)) {
+            directListings.push({ platform: metaPlatform, url: metaUrl, meta });
+          }
+        } catch {}
       } catch (error) {
         console.warn('mobile listing link resolve failed', shop.platform, error?.message || error);
+        try {
+          const meta = await fetchBrowserMetadata(shop.url);
+          const metaUrl = normalizeUrl(meta.finalUrl || shop.url);
+          const metaPlatform = platformFrom(metaUrl) || shop.platform;
+          if (allowedHost(metaPlatform, metaUrl) && isListingUrl(metaPlatform, metaUrl)) {
+            directListings.push({ platform: metaPlatform, url: metaUrl, meta });
+          }
+        } catch (fallbackError) {
+          console.warn('browser metadata fallback failed', shop.platform, fallbackError?.message || fallbackError);
+        }
       }
     }
 
