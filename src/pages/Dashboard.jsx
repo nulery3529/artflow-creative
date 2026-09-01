@@ -174,7 +174,6 @@ export default function Dashboard() {
         <p className="text-xs text-muted-foreground mb-3">Live business overview</p>
         <div className="grid grid-cols-2 gap-3">
           <MetricCard tone="lavender" label="Total Sales" value={formatMoney(calc.totalSales)} loading={loading} />
-          <MetricCard tone="mint" label="Orders" value={String(calc.orders)} loading={loading} />
           <MetricCard tone="blue" label="Items Sold" value={String(calc.itemsSold)} loading={loading} />
           <MetricCard tone="yellow" label="Est. Net Profit" value={formatMoney(calc.estimatedNetProfit)} loading={loading} />
           <div className="col-span-2">
@@ -251,9 +250,8 @@ export default function Dashboard() {
                   <p className="font-medium">{monthLabel(row.key)}</p>
                   <p className="font-heading">{formatMoney(row.net)}</p>
                 </div>
-                <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                   <div><span className="block">Sales</span><strong className="text-foreground">{formatMoney(row.sales)}</strong></div>
-                  <div><span className="block">Orders</span><strong className="text-foreground">{row.orders}</strong></div>
                   <div><span className="block">Expenses</span><strong className="text-foreground">{formatMoney(row.expenses)}</strong></div>
                 </div>
               </div>
