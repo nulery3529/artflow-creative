@@ -187,7 +187,7 @@ const sheetNumber = (value, fallback = 0) => {
   return Number.isFinite(n) ? n : fallback;
 };
 
-const sheetDate = (value, fallback = '') => {
+const sheetDate = (value, fallback = '', dayFirst = false) => {
   if (value === null || value === undefined || value === '') return fallback;
   if (typeof value === 'number' || /^\d+(?:\.\d+)?$/.test(String(value).trim())) {
     const serial = Number(value);
@@ -196,8 +196,18 @@ const sheetDate = (value, fallback = '') => {
     }
   }
   const text = String(value).trim();
-  const us = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (us) return `${us[3]}-${String(us[1]).padStart(2, '0')}-${String(us[2]).padStart(2, '0')}`;
+  const slash = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slash) {
+    const first = Number(slash[1]);
+    const second = Number(slash[2]);
+    const useDayFirst = dayFirst || first > 12;
+    const month = useDayFirst ? second : first;
+    const day = useDayFirst ? first : second;
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return `${slash[3]}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+    return fallback;
+  }
   const iso = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (iso) return `${iso[1]}-${String(iso[2]).padStart(2, '0')}-${String(iso[3]).padStart(2, '0')}`;
   const parsed = new Date(text);
@@ -224,16 +234,28 @@ async function importSpreadsheetOrderFallback({
     return { created: 0, skipped: 0, available: false };
   }
 
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent('Orders')}!A:Z?valueRenderOption=UNFORMATTED_VALUE`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${sheetsToken}` } });
-  if (!res.ok) return { created: 0, skipped: 0, available: false };
-  const rows = (await res.json())?.values || [];
+  const sheetCandidates = ['🛍️ Orders', 'Orders'];
+  let rows = [];
+  let resolvedSheet = '';
+  for (const candidate of sheetCandidates) {
+    const range = `${candidate}!A:Z`;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(range)}?valueRenderOption=UNFORMATTED_VALUE`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${sheetsToken}` } });
+    if (res.ok) {
+      rows = (await res.json())?.values || [];
+      resolvedSheet = candidate;
+      break;
+    }
+    if (![400, 404].includes(res.status)) return { created: 0, skipped: 0, available: false };
+  }
+  if (!resolvedSheet) return { created: 0, skipped: 0, available: false };
+  const exactStyle = resolvedSheet === '🛍️ Orders';
   if (rows.length < 2) return { created: 0, skipped: 0, available: true };
 
   const headerRow = rows.findIndex((row) =>
     Array.isArray(row)
     && row.some((cell) => /sale\s*date|date/i.test(String(cell || '')))
-    && row.some((cell) => /product\s*name|product|item/i.test(String(cell || '')))
+    && row.some((cell) => /what\s*sold|product\s*name|product|item/i.test(String(cell || '')))
   );
   if (headerRow < 0) return { created: 0, skipped: 0, available: true };
 
@@ -253,16 +275,19 @@ async function importSpreadsheetOrderFallback({
     date: col('sale date', 'date'),
     platform: col('platform', 'site'),
     orderId: col('order id', 'order_id'),
-    product: col('product name', 'product', 'item'),
+    product: col('what sold', 'product name', 'product', 'item'),
     quantity: col('quantity', 'qty'),
     size: col('size'),
     unitPrice: col('unit price', 'unit_price'),
-    saleTotal: col('sale total', 'total'),
+    saleTotal: col('gross sale price', 'sale total', 'total'),
     buyer: col('buyer', 'customer'),
     base: col('base item cost', 'base_item_cost'),
     paperInk: col('paper & ink', 'paper and ink', 'paper_ink'),
     packaging: col('packaging cost', 'packaging'),
-    totalCost: col('total cost', 'total_cost'),
+    totalCost: col('total cost', 'total_cost', 'purchase price'),
+    fees: col('fees', 'fee'),
+    shipping: col('shipping cost', 'shipping'),
+    profit: col('net profit', 'estimated profit', 'profit'),
   };
 
   let created = 0;
@@ -292,7 +317,7 @@ async function importSpreadsheetOrderFallback({
       continue;
     }
     const unitPrice = unitPriceFromSheet > 0 ? unitPriceFromSheet : +(saleTotal / quantity).toFixed(2);
-    const saleDate = sheetDate(idx.date >= 0 ? row[idx.date] : '', today);
+    const saleDate = sheetDate(idx.date >= 0 ? row[idx.date] : '', today, exactStyle);
     if (!validDate(saleDate) || saleDate < START_DATE || saleDate > today) {
       skipped++;
       continue;
@@ -315,9 +340,15 @@ async function importSpreadsheetOrderFallback({
     const size = String(idx.size >= 0 ? row[idx.size] || 'Unknown' : 'Unknown').trim() || 'Unknown';
     const inv = inventoryCosts.find((item) => item.size === size);
     let costs = calculateOrderCosts({ quantity, size, unit_price: unitPrice }, inv);
-    const manualTotalCost = sheetNumber(idx.totalCost >= 0 ? row[idx.totalCost] : 0, 0);
-    if (manualTotalCost > 0) {
-      const baseItemCost = sheetNumber(idx.base >= 0 ? row[idx.base] : 0, 0);
+    const enteredCost = sheetNumber(idx.totalCost >= 0 ? row[idx.totalCost] : 0, 0);
+    const feeCost = sheetNumber(idx.fees >= 0 ? row[idx.fees] : 0, 0);
+    const shippingCost = sheetNumber(idx.shipping >= 0 ? row[idx.shipping] : 0, 0);
+    const manualTotalCost = +(enteredCost + feeCost + shippingCost).toFixed(2);
+    const manualProfit = idx.profit >= 0 ? sheetNumber(row[idx.profit], Number.NaN) : Number.NaN;
+    if (manualTotalCost > 0 || Number.isFinite(manualProfit)) {
+      const baseItemCost = idx.base >= 0
+        ? sheetNumber(row[idx.base], 0)
+        : enteredCost;
       const paperInkCost = sheetNumber(idx.paperInk >= 0 ? row[idx.paperInk] : 0, 0);
       const packagingCost = sheetNumber(idx.packaging >= 0 ? row[idx.packaging] : 0, 0);
       costs = {
@@ -326,7 +357,7 @@ async function importSpreadsheetOrderFallback({
         paper_ink_cost: paperInkCost,
         packaging_cost: packagingCost,
         total_cost: manualTotalCost,
-        estimated_profit: +(saleTotal - manualTotalCost).toFixed(2),
+        estimated_profit: Number.isFinite(manualProfit) ? manualProfit : +(saleTotal - manualTotalCost).toFixed(2),
       };
     }
 
