@@ -25,15 +25,41 @@ function platformFrom(value = '') {
   return '';
 }
 
+const OFFICIAL_HOSTS = {
+  Vinted: [
+    'vinted.com','www.vinted.com','vinted.co.uk','www.vinted.co.uk','vinted.fr','www.vinted.fr',
+    'vinted.de','www.vinted.de','vinted.it','www.vinted.it','vinted.es','www.vinted.es',
+    'vinted.nl','www.vinted.nl','vinted.be','www.vinted.be','vinted.pl','www.vinted.pl',
+    'vinted.pt','www.vinted.pt','vinted.cz','www.vinted.cz','vinted.at','www.vinted.at',
+    'vinted.ie','www.vinted.ie','vinted.ca','www.vinted.ca','vinted.page.link'
+  ],
+  Depop: ['depop.com','www.depop.com','depop.app.link'],
+  Etsy: ['etsy.com','www.etsy.com','etsy.me'],
+  eBay: [
+    'ebay.com','www.ebay.com','ebay.us','www.ebay.us','ebay.co.uk','www.ebay.co.uk',
+    'ebay.ca','www.ebay.ca','ebay.com.au','www.ebay.com.au','ebay.de','www.ebay.de',
+    'ebay.fr','www.ebay.fr','ebay.it','www.ebay.it','ebay.es','www.ebay.es'
+  ],
+};
+
 function allowedHost(platform, raw = '') {
   try {
-    const host = new URL(raw).hostname.toLowerCase().replace(/^www\./, '');
-    if (platform === 'Vinted') return host === 'vinted.com' || host.endsWith('.vinted.com');
-    if (platform === 'Depop') return host === 'depop.com' || host.endsWith('.depop.com');
-    if (platform === 'Etsy') return host === 'etsy.com' || host.endsWith('.etsy.com');
-    if (platform === 'eBay') return host === 'ebay.com' || host.endsWith('.ebay.com');
+    const host = new URL(raw).hostname.toLowerCase();
+    return (OFFICIAL_HOSTS[platform] || []).some((allowed) => host === allowed || host.endsWith(`.${allowed}`));
   } catch {}
   return false;
+}
+
+function canonicalFromHtml(html = '', baseUrl = '') {
+  const candidates = [
+    metaContent(html, 'og:url'),
+    html.match(/<link[^>]+rel=["'][^"']*canonical[^"']*["'][^>]+href=["']([^"']+)["']/i)?.[1],
+    html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["'][^"']*canonical[^"']*["']/i)?.[1],
+  ].filter(Boolean);
+  for (const raw of candidates) {
+    try { return new URL(decodeEntities(raw), baseUrl).toString(); } catch {}
+  }
+  return '';
 }
 
 function isListingUrl(platform, raw = '') {
@@ -301,15 +327,30 @@ export default async function handler(req, res) {
       else shopPages.push({ platform, url: raw });
     }
 
-    // Shop/profile pages are still supported when a marketplace exposes its listing links publicly.
-    // Direct listing links are the reliable mobile path and can be mixed across marketplaces.
+    // Resolve official mobile share/short links and shop pages. A copied marketplace-app link
+    // may redirect to the canonical listing instead of containing /items, /products, /listing or /itm itself.
     for (const shop of shopPages) {
       try {
         const { html, finalUrl } = await fetchHtml(shop.url, 9000);
-        const found = extractListingLinks(shop.platform, html, finalUrl || shop.url);
-        for (const url of found) directListings.push({ platform: shop.platform, url });
+        const resolvedUrl = finalUrl || shop.url;
+        const resolvedPlatform = platformFrom(resolvedUrl) || shop.platform;
+
+        if (allowedHost(resolvedPlatform, resolvedUrl) && isListingUrl(resolvedPlatform, resolvedUrl)) {
+          directListings.push({ platform: resolvedPlatform, url: normalizeUrl(resolvedUrl) });
+          continue;
+        }
+
+        const canonical = canonicalFromHtml(html, resolvedUrl);
+        const canonicalPlatform = platformFrom(canonical) || resolvedPlatform;
+        if (canonical && allowedHost(canonicalPlatform, canonical) && isListingUrl(canonicalPlatform, canonical)) {
+          directListings.push({ platform: canonicalPlatform, url: normalizeUrl(canonical) });
+          continue;
+        }
+
+        const found = extractListingLinks(resolvedPlatform, html, resolvedUrl);
+        for (const url of found) directListings.push({ platform: resolvedPlatform, url });
       } catch (error) {
-        console.warn('mobile listing profile fetch failed', shop.platform, error?.message || error);
+        console.warn('mobile listing link resolve failed', shop.platform, error?.message || error);
       }
     }
 
@@ -324,8 +365,10 @@ export default async function handler(req, res) {
     }
 
     if (!unique.length) {
+      const rejectedHosts = rejected.map((raw) => { try { return new URL(raw).hostname; } catch { return 'invalid link'; } });
+      console.warn('mobile listing sync no readable links', { submitted: submitted.length, rejectedHosts, unresolved: shopPages.length });
       return res.status(422).json({
-        error: 'No readable listing links were found. In the marketplace app, open a listing, tap Share or Copy link, then paste that listing link here.',
+        error: 'Art Flow received the link, but could not resolve it to a marketplace listing yet. Copy the link from the listing Share button and try again.',
         rejected: rejected.length,
       });
     }
