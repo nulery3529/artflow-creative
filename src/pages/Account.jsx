@@ -12,6 +12,7 @@ import EmailConnectionsCard from "@/components/EmailConnectionsCard";
 import TrackerSetupCard from "@/components/TrackerSetupCard";
 import MarketplaceTrackingCard from "@/components/MarketplaceTrackingCard";
 import BrowserSyncCard from "@/components/BrowserSyncCard";
+import OfficialMarketplaceConnectionsCard from "@/components/OfficialMarketplaceConnectionsCard";
 import MobileMarketplaceSyncCard from "@/components/MobileMarketplaceSyncCard";
 import EbayConnectionCard from "@/components/EbayConnectionCard";
 import { toast } from "sonner";
@@ -65,6 +66,8 @@ export default function Account() {
       <TrackerSetupCard />
 
       <EmailConnectionsCard />
+
+      {!loadingTrackedSites && (trackedSites.includes("Depop") || trackedSites.includes("Vinted")) && <OfficialMarketplaceConnectionsCard />}
 
       {!loadingTrackedSites && (trackedSites.includes("Depop") || trackedSites.includes("Vinted")) && <BrowserSyncCard />}
 
