@@ -84,7 +84,7 @@ export default function BrowserSyncCard() {
             {enabled && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Capture Vinted and Depop order details from Chrome without sharing marketplace passwords, cookies, or login tokens.
+            Capture Vinted, Depop, Etsy, and eBay order details from Chrome without sharing marketplace passwords, cookies, or login tokens.
           </p>
         </div>
       </div>
@@ -137,7 +137,7 @@ export default function BrowserSyncCard() {
       <div className="text-xs text-muted-foreground space-y-1">
         <p>1. Download and unzip the extension.</p>
         <p>2. In Chrome open Extensions → Manage Extensions → Developer mode → Load unpacked.</p>
-        <p>3. Open the Art Flow extension, paste this key once, then use it on a Vinted or Depop sold/order page.</p>
+        <p>3. Open the Art Flow extension, paste this key once, then use it on a Vinted, Depop, Etsy, or eBay sold/order page.</p>
         <p>Captured orders go to the ArtFlow Creative Tracker and then into the app.</p>
       </div>
     </section>
