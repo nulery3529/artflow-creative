@@ -1,3 +1,5 @@
+import pg from 'pg';
+const { Pool } = pg;
 const TOKEN = 'af-depop-500-20260901-3d7f1a';
 const clean = (v='') => String(v ?? '').trim();
 
@@ -9,6 +11,23 @@ export default async function handler(req,res){
   if(!key) return res.status(503).json({error:'Parse API key missing'});
   const mode=clean(req.query?.mode || 'create');
   try{
+    if(mode === 'actual'){
+      const pool=new Pool({connectionString:process.env.DATABASE_URL,ssl:{rejectUnauthorized:false},max:1});
+      const client=await pool.connect();
+      try{
+        const q=await client.query(`SELECT DISTINCT data->>'depop_username' AS username FROM artflow.businesses WHERE COALESCE(data->>'depop_username','')<>'' LIMIT 5`);
+        const results=[];
+        for(const row of q.rows){
+          const username=clean(row.username);
+          const r=await fetch(`https://api.parse.bot/scraper/e781fdf1-07fd-44a5-abc9-cfbbe53a5243/get_seller_listings?username=${encodeURIComponent(username)}&limit=100&max_results=500`,{headers:{Accept:'application/json','X-API-Key':key}});
+          const text=await r.text(); let payload={}; try{payload=text?JSON.parse(text):{}}catch{payload={raw:text}}
+          const data=payload?.data&&typeof payload.data==='object'?payload.data:payload;
+          const products=Array.isArray(data?.products)?data.products:(Array.isArray(data?.listings)?data.listings:[]);
+          results.push({username,status:r.status,count:products.length,data_keys:Object.keys(data||{}),meta:data?.meta||null,last_offset_id:data?.last_offset_id||null,end:data?.end??null});
+        }
+        return res.status(200).json({results});
+      }finally{client.release();await pool.end();}
+    }
     if(mode === 'test'){
       const r=await fetch('https://api.parse.bot/scraper/e781fdf1-07fd-44a5-abc9-cfbbe53a5243/get_seller_listings?username=vintage_finds&limit=100&max_results=5',{headers:{Accept:'application/json','X-API-Key':key}});
       const text=await r.text(); let payload={}; try{payload=text?JSON.parse(text):{}}catch{payload={raw:text}}
