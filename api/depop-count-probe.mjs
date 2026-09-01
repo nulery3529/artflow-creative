@@ -20,6 +20,31 @@ export default async function handler(req,res){
       GROUP BY b.base44_id,b.name,b.data->>'depop_username'
       ORDER BY depop_active DESC
     `);
+    const key=String(process.env.PARSE_API_KEY||'').trim();
+    if(String(req.query?.mode||'')==='pagination' && key){
+      const username=String(r.rows?.[0]?.username||'').trim();
+      const test=async(paramName)=>{
+        let cursor=''; const all=[]; const pages=[]; const seen=new Set();
+        for(let page=1;page<=5;page++){
+          const qs=new URLSearchParams({username,limit:'100'});
+          if(cursor) qs.set(paramName,cursor);
+          const fr=await fetch(`https://api.parse.bot/scraper/e781fdf1-07fd-44a5-abc9-cfbbe53a5243/get_seller_listings?${qs.toString()}`,{headers:{Accept:'application/json','X-API-Key':key}});
+          const text=await fr.text(); let p={}; try{p=text?JSON.parse(text):{}}catch{}
+          const d=p?.data&&typeof p.data==='object'?p.data:p;
+          const products=Array.isArray(d?.products)?d.products:[];
+          const ids=products.map(x=>String(x?.id||x?.product_id||x?.slug||'')).filter(Boolean);
+          const uniquePage=new Set(ids);
+          const before=seen.size; ids.forEach(id=>seen.add(id));
+          all.push(...ids);
+          const next=String(d?.last_offset_id||d?.meta?.last_offset_id||'').trim();
+          pages.push({page,status:fr.status,count:products.length,unique_page:uniquePage.size,new_unique:seen.size-before,end:d?.end===true||d?.meta?.end===true,next_present:Boolean(next)});
+          if(!fr.ok||!next||next===cursor) break;
+          cursor=next;
+        }
+        return {param:paramName,total_responses:all.length,unique_ids:seen.size,pages};
+      };
+      return res.status(200).json({rows:r.rows,tests:[await test('cursor'),await test('last_offset_id')]});
+    }
     return res.status(200).json({rows:r.rows});
   }finally{client.release();await pool.end();}
 }
