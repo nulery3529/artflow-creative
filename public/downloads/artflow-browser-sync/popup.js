@@ -67,6 +67,102 @@ function extractOrderFromPage() {
   };
 }
 
+function extractListingsFromPage() {
+  const host = location.hostname.toLowerCase();
+  const platform = host.includes('vinted')
+    ? 'Vinted'
+    : host.includes('depop')
+      ? 'Depop'
+      : host.includes('etsy')
+        ? 'Etsy'
+        : host.includes('ebay')
+          ? 'eBay'
+          : '';
+  if (!platform) return { supported: false, platform: '', listings: [] };
+
+  const isListingHref = (href = '') => {
+    try {
+      const url = new URL(href, location.href);
+      const path = url.pathname;
+      if (platform === 'Vinted') return /\/items\/\d+/i.test(path);
+      if (platform === 'Depop') return /\/products\/[^/?#]+/i.test(path);
+      if (platform === 'Etsy') return /\/listing\/\d+/i.test(path);
+      if (platform === 'eBay') return /\/itm\//i.test(path);
+    } catch {}
+    return false;
+  };
+
+  const listingId = (href = '') => {
+    try {
+      const path = new URL(href, location.href).pathname;
+      if (platform === 'Vinted') return path.match(/\/items\/(\d+)/i)?.[1] || '';
+      if (platform === 'Depop') return path.match(/\/products\/([^/?#]+)/i)?.[1] || '';
+      if (platform === 'Etsy') return path.match(/\/listing\/(\d+)/i)?.[1] || '';
+      if (platform === 'eBay') return path.match(/\/itm\/(?:[^/]+\/)?(\d{8,16})/i)?.[1] || '';
+    } catch {}
+    return '';
+  };
+
+  const absoluteUrl = (href = '') => {
+    try {
+      const url = new URL(href, location.href);
+      url.hash = '';
+      return url.toString();
+    } catch {
+      return '';
+    }
+  };
+
+  const candidates = [...document.querySelectorAll('a[href]')].filter((anchor) => isListingHref(anchor.href));
+  const seen = new Set();
+  const listings = [];
+
+  for (const anchor of candidates) {
+    if (listings.length >= 200) break;
+    const url = absoluteUrl(anchor.href);
+    const id = listingId(url);
+    const key = `${platform}:${id || url.split('?')[0]}`;
+    if (!url || seen.has(key)) continue;
+
+    const card = anchor.closest('article, li, [data-testid*="listing"], [data-testid*="item"], [class*="listing"], [class*="product"], [class*="card"], [class*="item"]')
+      || anchor.parentElement?.parentElement
+      || anchor.parentElement
+      || anchor;
+    const img = anchor.querySelector('img') || card?.querySelector('img');
+    const imageUrl = (img?.currentSrc || img?.src || img?.getAttribute('data-src') || '').trim();
+    const text = (card?.innerText || anchor.innerText || '').replace(/\r/g, '').trim();
+    const lines = text.split('\n').map((line) => line.trim()).filter(Boolean);
+    let title = (img?.alt || anchor.getAttribute('aria-label') || anchor.getAttribute('title') || '').trim();
+
+    if (!title || /^(image|listing|item|product|shop now|view item|sponsored|ad)$/i.test(title)) {
+      title = lines.find((line) =>
+        line.length >= 3 &&
+        line.length <= 300 &&
+        !/^\$?\s*[0-9,.]+\s*$/.test(line) &&
+        !/^(sold|reserved|available|new|sponsored|ad|free shipping|shipping included)$/i.test(line)
+      ) || '';
+    }
+
+    title = title.replace(/\s+/g, ' ').trim().slice(0, 300);
+    if (!title) continue;
+
+    const moneyMatch = text.match(/(?:US\s*)?\$\s*([0-9][0-9,]*(?:\.\d{1,2})?)/i);
+    const price = moneyMatch ? Number(moneyMatch[1].replace(/,/g, '')) : 0;
+    seen.add(key);
+    listings.push({
+      platform,
+      listing_id: id,
+      title,
+      price: Number.isFinite(price) ? price : 0,
+      currency: 'USD',
+      image_url: /^https?:\/\//i.test(imageUrl) ? imageUrl : '',
+      listing_url: url,
+    });
+  }
+
+  return { supported: true, platform, listings };
+}
+
 async function readPage() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
