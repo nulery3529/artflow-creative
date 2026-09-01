@@ -11,7 +11,7 @@
 <body>
   <div class="wrap">
     <h1 class="title">Art Flow Browser Sync</h1>
-    <p class="sub">Review sold-order details from Vinted, Depop, Etsy, or eBay, then send them to your ArtFlow Creative Tracker.</p>
+    <p class="sub">Sync current marketplace listings with photos and links to your Gallery, and send sold-order details to your ArtFlow Creative Tracker.</p>
 
     <div class="box">
       <div class="label">Private Art Flow sync key</div>
@@ -21,6 +21,13 @@
     </div>
 
     <div class="box">
+      <div class="label">Current listings</div>
+      <div class="tiny">Open your Vinted, Depop, Etsy, or eBay seller/shop listings page. Make sure the listing cards you want are visible, then sync them to Gallery.</div>
+      <button id="syncListings">Sync current listings to Gallery</button>
+    </div>
+
+    <div class="box">
+      <div class="label">Sold order</div>
       <div class="label">Platform</div>
       <select id="platform"><option value="Vinted">Vinted</option><option value="Depop">Depop</option><option value="Etsy">Etsy</option><option value="eBay">eBay</option></select>
       <div class="label">Product</div>
@@ -37,7 +44,7 @@
       <input id="buyer" placeholder="Optional" />
       <button id="capture">Send sale to Art Flow</button>
       <button id="reread" class="secondary">Read this page again</button>
-      <div id="status" class="status">Open a Vinted, Depop, Etsy, or eBay sold/order page, then review the fields above.</div>
+      <div id="status" class="status">Open a marketplace listings page to sync Gallery items, or open a sold/order page to send a sale.</div>
     </div>
   </div>
   <script src="popup.js"></script>
