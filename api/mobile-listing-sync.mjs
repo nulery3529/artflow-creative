@@ -93,6 +93,52 @@ function normalizeUrl(raw = '') {
   } catch { return ''; }
 }
 
+function decodeRepeated(value = '') {
+  let current = clean(value);
+  for (let i = 0; i < 3; i++) {
+    try {
+      const next = decodeURIComponent(current);
+      if (next === current) break;
+      current = next;
+    } catch { break; }
+  }
+  return current;
+}
+
+function embeddedMarketplaceUrls(raw = '') {
+  const found = [];
+  const seen = new Set();
+  const push = (candidate) => {
+    const decoded = decodeRepeated(candidate);
+    if (!/^https?:\/\//i.test(decoded) || seen.has(decoded)) return;
+    seen.add(decoded);
+    const platform = platformFrom(decoded);
+    if (platform && allowedHost(platform, decoded)) found.push({ platform, url: decoded });
+  };
+
+  try {
+    const u = new URL(raw);
+    const keys = [
+      'link','url','u','target','redirect','redirect_url','redirect_uri','destination','dest',
+      'deep_link_id','deep_link_value','af_dp','$canonical_url','$desktop_url','canonical_url','desktop_url'
+    ];
+    for (const key of keys) {
+      const value = u.searchParams.get(key);
+      if (value) push(value);
+    }
+    for (const [, value] of u.searchParams.entries()) {
+      if (/https?%3a%2f%2f|https?:\/\//i.test(value)) push(value);
+    }
+  } catch {}
+
+  const decodedRaw = decodeRepeated(raw);
+  const urlMatches = decodedRaw.match(/https?:\/\/[^\s"'<>]+/gi) || [];
+  for (const match of urlMatches) {
+    if (match !== raw) push(match);
+  }
+  return found;
+}
+
 function splitUrls(value = '') {
   return String(value || '')
     .split(/[\s,]+/)
