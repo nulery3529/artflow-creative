@@ -6,7 +6,8 @@ import { fromNodeHeaders } from 'better-auth/node';
 const { Pool } = pg;
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 4 });
 const PARSE_BASE = 'https://api.parse.bot/scraper/8cd92db4-e548-4ff6-96bd-a5c4ff66bb71';
-const MAX_PAGES = 30;
+const MAX_LISTINGS = 500;
+const MAX_PAGES = 5;
 const clean = (v = '') => String(v ?? '').trim();
 const normalize = (v = '') => clean(v).toLowerCase();
 
@@ -114,7 +115,7 @@ async function parseGet(username, cursor, key) {
   const q = new URLSearchParams({ username, limit: '100' });
   if (cursor) q.set('cursor', cursor);
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 12000);
+  const timer = setTimeout(() => controller.abort(), 18000);
   try {
     const r = await fetch(`${PARSE_BASE}/get_seller_listings?${q.toString()}`, {
       headers: { Accept: 'application/json', 'X-API-Key': key },
@@ -205,11 +206,12 @@ export default async function handler(req, res) {
     let cursor = '';
     let pages = 0;
     let more = true;
-    while (more && pages < MAX_PAGES) {
+    while (more && pages < MAX_PAGES && listings.length < MAX_LISTINGS) {
       const payload = await parseGet(username, cursor, apiKey);
       for (const raw of productArray(payload)) {
         const n = normalizeProduct(raw);
         if (n) listings.push(n);
+        if (listings.length >= MAX_LISTINGS) break;
       }
       pages += 1;
       const meta = metaOf(payload);
@@ -219,26 +221,32 @@ export default async function handler(req, res) {
       seenCursors.add(next);
       cursor = next;
     }
-    if (more) return res.status(502).json({ error: 'Depop has more listings than this refresh can safely process at once. Existing Gallery listings were left unchanged.' });
 
-    const activeUrls = await batchUpsert(client, b.base44_id, listings, username);
+    const uniqueListings = [...new Map(listings.filter(Boolean).map((listing) => [listing.listingUrl, listing])).values()].slice(0, MAX_LISTINGS);
+    const activeUrls = await batchUpsert(client, b.base44_id, uniqueListings, username);
+    const complete = !more && uniqueListings.length <= MAX_LISTINGS;
     let deactivated = 0;
-    if (activeUrls.length) {
-      const r = await client.query(`UPDATE artflow.marketplace_listings SET status='Inactive',last_seen_at=now(),sync_source='parse_depop_snapshot' WHERE business_id=$1 AND platform='Depop' AND status='Active' AND NOT (listing_url = ANY($2::text[]))`, [b.base44_id, activeUrls]);
-      deactivated = Number(r.rowCount || 0);
-    } else {
-      const r = await client.query(`UPDATE artflow.marketplace_listings SET status='Inactive',last_seen_at=now(),sync_source='parse_depop_snapshot' WHERE business_id=$1 AND platform='Depop' AND status='Active'` , [b.base44_id]);
-      deactivated = Number(r.rowCount || 0);
+    if (complete) {
+      if (activeUrls.length) {
+        const r = await client.query(`UPDATE artflow.marketplace_listings SET status='Inactive',last_seen_at=now(),sync_source='parse_depop_snapshot' WHERE business_id=$1 AND platform='Depop' AND status='Active' AND NOT (listing_url = ANY($2::text[]))`, [b.base44_id, activeUrls]);
+        deactivated = Number(r.rowCount || 0);
+      } else {
+        const r = await client.query(`UPDATE artflow.marketplace_listings SET status='Inactive',last_seen_at=now(),sync_source='parse_depop_snapshot' WHERE business_id=$1 AND platform='Depop' AND status='Active'` , [b.base44_id]);
+        deactivated = Number(r.rowCount || 0);
+      }
     }
 
     const saved = activeUrls.length;
+    const partialNote = complete ? '' : ` Up to ${MAX_LISTINGS} active Depop listings were refreshed. Any additional listings were left untouched for safety.`;
     return res.status(200).json({
       ok: true,
       saved,
       deactivated,
       pages,
+      max_listings: MAX_LISTINGS,
       username,
-      message: `${saved} active Depop listing${saved === 1 ? '' : 's'} refreshed${deactivated ? ` · ${deactivated} no longer active` : ''}.`,
+      partial: !complete,
+      message: `${saved} active Depop listing${saved === 1 ? '' : 's'} refreshed${deactivated ? ` · ${deactivated} no longer active` : ''}.${partialNote}`,
     });
   } catch (e) {
     console.error('Parse Depop refresh failed', e?.message || e);
