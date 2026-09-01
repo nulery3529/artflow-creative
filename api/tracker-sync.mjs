@@ -167,6 +167,7 @@ function parseOrders(rows, sheetName = '') {
     date: headerIndex(headers, ['sale date', 'date'], ['sale date']),
     platform: headerIndex(headers, ['platform', 'site'], ['platform', 'site']),
     orderId: headerIndex(headers, ['order id', 'order number'], ['order id', 'order #']),
+    sequence: headerIndex(headers, ['#'], []),
     product: headerIndex(headers, ['what sold', 'product name', 'item name', 'title'], ['what sold', 'product', 'item']),
     quantity: headerIndex(headers, ['quantity', 'qty'], ['quantity']),
     size: headerIndex(headers, ['size'], ['size']),
@@ -211,7 +212,10 @@ function parseOrders(rows, sheetName = '') {
     const saleTotal = moneyNumber(valueAt(row, idx.saleTotal));
     const saleDate = normalizeDate(valueAt(row, idx.date), exactStyle);
     if (!productName || !platform || !saleDate || saleTotal <= 0) continue;
-    const quantity = Math.max(1, Number(valueAt(row, idx.quantity)) || 1);
+    const bundleQuantity = productName.match(/\bbundle\s+(?:of\s+)?(\d+)\s+items?\b/i)?.[1]
+      || productName.match(/\b(\d+)\s+(?:prints?|items?)\b/i)?.[1]
+      || '';
+    const quantity = Math.max(1, Number(valueAt(row, idx.quantity)) || Number(bundleQuantity) || 1);
     const purchaseCost = moneyNumber(valueAt(row, idx.baseCost));
     const feeCost = moneyNumber(valueAt(row, idx.fees));
     const shippingCost = moneyNumber(valueAt(row, idx.shipping));
@@ -232,7 +236,9 @@ function parseOrders(rows, sheetName = '') {
       unit_price: moneyNumber(valueAt(row, idx.unitPrice)) || +(saleTotal / quantity).toFixed(2),
       sale_total: +saleTotal.toFixed(2),
       buyer: clean(valueAt(row, idx.buyer)) || null,
-      source_email_id: clean(valueAt(row, idx.sourceId)) || null,
+      source_email_id: exactStyle && clean(valueAt(row, idx.sequence))
+        ? `sheet:exact:${clean(valueAt(row, idx.sequence))}`
+        : (clean(valueAt(row, idx.sourceId)) || null),
       base_item_cost: +purchaseCost.toFixed(2),
       paper_ink_cost: +moneyNumber(valueAt(row, idx.paperInk)).toFixed(2),
       packaging_cost: +moneyNumber(valueAt(row, idx.packaging)).toFixed(2),
