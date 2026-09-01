@@ -11,18 +11,18 @@
 <body>
   <div class="wrap">
     <h1 class="title">Art Flow Browser Sync</h1>
-    <p class="sub">Review the sold-order details, then send them to your ArtFlow Creative Tracker.</p>
+    <p class="sub">Review sold-order details from Vinted, Depop, Etsy, or eBay, then send them to your ArtFlow Creative Tracker.</p>
 
     <div class="box">
       <div class="label">Private Art Flow sync key</div>
       <input id="syncKey" type="password" autocomplete="off" placeholder="Paste key from Art Flow Account" />
       <button id="saveKey" class="secondary">Save key on this computer</button>
-      <div class="tiny">This extension never asks for or sends your Vinted/Depop password, cookies, or login tokens.</div>
+      <div class="tiny">This extension never asks for or sends marketplace passwords, cookies, or login tokens.</div>
     </div>
 
     <div class="box">
       <div class="label">Platform</div>
-      <select id="platform"><option value="Vinted">Vinted</option><option value="Depop">Depop</option></select>
+      <select id="platform"><option value="Vinted">Vinted</option><option value="Depop">Depop</option><option value="Etsy">Etsy</option><option value="eBay">eBay</option></select>
       <div class="label">Product</div>
       <input id="product" placeholder="Product name" />
       <div class="row">
@@ -37,7 +37,7 @@
       <input id="buyer" placeholder="Optional" />
       <button id="capture">Send sale to Art Flow</button>
       <button id="reread" class="secondary">Read this page again</button>
-      <div id="status" class="status">Open a Vinted or Depop sold/order page, then review the fields above.</div>
+      <div id="status" class="status">Open a Vinted, Depop, Etsy, or eBay sold/order page, then review the fields above.</div>
     </div>
   </div>
   <script src="popup.js"></script>
