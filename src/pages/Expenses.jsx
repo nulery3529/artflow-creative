@@ -91,7 +91,10 @@ export default function Expenses() {
   }, [records, filter]);
 
   const totalAll = useMemo(
-    () => records.reduce((s, e) => s + (e.amount || 0), 0),
+    () => records.reduce((s, e) => {
+      const amount = Number(e.amount);
+      return s + (Number.isFinite(amount) ? amount : 0);
+    }, 0),
     [records]
   );
 
@@ -212,7 +215,10 @@ export default function Expenses() {
           <div className="flex items-center justify-between mb-2 px-1">
             <h2 className="font-heading text-base">{group.label}</h2>
             <span className="text-sm text-foreground">
-              {formatMoney(group.items.reduce((s, e) => s + (e.amount || 0), 0))}
+              {formatMoney(group.items.reduce((s, e) => {
+                const amount = Number(e.amount);
+                return s + (Number.isFinite(amount) ? amount : 0);
+              }, 0))}
             </span>
           </div>
           <div className="space-y-2">
