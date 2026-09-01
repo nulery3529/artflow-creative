@@ -1,9 +1,10 @@
 ART FLOW BROWSER SYNC
 
 Purpose
-- Works on Vinted, Depop, Etsy, and eBay sold/order pages in Chrome.
-- Reads visible order information from the page you have open.
-- Sends only the order fields you review to Art Flow Creative.
+- Works on Vinted, Depop, Etsy, and eBay seller/listing pages and sold/order pages in Chrome.
+- Syncs visible current listing cards to Gallery with the photo, title, price, and live marketplace link.
+- Reads visible sold-order information from the page you have open.
+- Sends only listing/order fields to Art Flow Creative.
 - Does NOT collect or transmit marketplace passwords, cookies, or login/session tokens.
 
 Install
@@ -16,14 +17,20 @@ Install
 7. Create/copy your private sync key.
 8. Open the extension and paste/save that key once.
 
-Use
+Use for current Gallery listings
 1. Stay signed in to Vinted, Depop, Etsy, or eBay normally.
-2. Open a sold/order page.
+2. Open your seller/shop page where your current listing cards are visible.
 3. Click the Art Flow Browser Sync extension.
-4. Review product, sale total, quantity, order ID, date, and buyer.
-5. Correct any field if the marketplace page uses a layout the extension could not read automatically.
-6. Click Send sale to Art Flow.
-7. Art Flow queues the capture, writes it to the ArtFlow Creative Tracker, and reconciles the spreadsheet into the app.
+4. Click Sync current listings to Gallery.
+5. Art Flow stores each current listing photo, title, price, and live marketplace link in Gallery.
+
+Use for sold orders
+1. Open a sold/order page.
+2. Click the Art Flow Browser Sync extension.
+3. Review product, sale total, quantity, order ID, date, and buyer.
+4. Correct any field if the marketplace page uses a layout the extension could not read automatically.
+5. Click Send sale to Art Flow.
+6. Art Flow queues the capture, writes it to the ArtFlow Creative Tracker, and reconciles the spreadsheet into the app.
 
 Duplicate protection
 - Art Flow fingerprints each capture using the platform, order information, amount, product, date, and source page.
