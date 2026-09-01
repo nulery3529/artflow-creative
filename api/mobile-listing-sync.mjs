@@ -502,7 +502,7 @@ export default async function handler(req, res) {
       });
     }
 
-    const listings = await mapLimit(unique, 8, (item) => listingMetadata(item.platform, item.url));
+    const listings = await mapLimit(unique, 8, (item) => listingMetadata(item.platform, item.url, item.meta || null));
     let saved = 0;
     const counts = {};
     for (const listing of listings) {
