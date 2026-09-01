@@ -74,7 +74,7 @@ export default function DepopConnectionCard() {
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
           <h2 className="font-heading text-lg">Depop</h2>
-          <p className="text-sm text-muted-foreground mt-1">Sync every active Depop listing to Gallery at once through Vercel. Sold or removed listings are cleared from the active Gallery snapshot.</p>
+          <p className="text-sm text-muted-foreground mt-1">Real-time Depop webhooks send listing changes, new sales, refunds, and order updates straight to Art Flow through Vercel.</p>
         </div>
         {status === "connected" ? (
           <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
@@ -91,7 +91,7 @@ export default function DepopConnectionCard() {
         className="w-full h-12 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
       >
         <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
-        {syncing ? "Syncing all Depop listings…" : "Sync All Depop Listings"}
+        {syncing ? "Connecting Depop webhooks…" : status === "connected" ? "Reconnect Depop Webhooks" : "Connect Depop Webhooks"}
       </button>
     </section>
   );
