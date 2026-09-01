@@ -324,7 +324,21 @@ async function ensureTable(client) {
   await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS marketplace_listings_business_platform_url_idx ON artflow.marketplace_listings (business_id, platform, listing_url)`);
 }
 
-async function listingMetadata(platform, url) {
+async function listingMetadata(platform, url, prefetched = null) {
+  if (prefetched) {
+    const normalized = normalizeUrl(prefetched.finalUrl || url) || normalizeUrl(url);
+    const title = (prefetched.title || `${platform} listing`).replace(/\s*[|–-]\s*(Vinted|Depop|Etsy|eBay).*$/i, '').trim();
+    return {
+      platform,
+      listing_id: listingIdFromUrl(platform, normalized),
+      title: title.slice(0, 300),
+      price: priceFromText(`${prefetched.title || ''} ${prefetched.description || ''}`),
+      currency: 'USD',
+      image_url: prefetched.imageUrl || '',
+      listing_url: normalized,
+    };
+  }
+
   try {
     const { html, finalUrl } = await fetchHtml(url, 6000);
     const normalized = normalizeUrl(finalUrl || url) || normalizeUrl(url);
@@ -340,15 +354,20 @@ async function listingMetadata(platform, url) {
       listing_url: normalized,
     };
   } catch {
-    return {
-      platform,
-      listing_id: listingIdFromUrl(platform, url),
-      title: `${platform} listing`,
-      price: 0,
-      currency: 'USD',
-      image_url: '',
-      listing_url: normalizeUrl(url),
-    };
+    try {
+      const meta = await fetchBrowserMetadata(url);
+      return listingMetadata(platform, url, meta);
+    } catch {
+      return {
+        platform,
+        listing_id: listingIdFromUrl(platform, url),
+        title: `${platform} listing`,
+        price: 0,
+        currency: 'USD',
+        image_url: '',
+        listing_url: normalizeUrl(url),
+      };
+    }
   }
 }
 
