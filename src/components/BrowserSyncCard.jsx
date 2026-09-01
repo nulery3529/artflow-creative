@@ -64,11 +64,11 @@ export default function BrowserSyncCard() {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h2 className="font-heading text-lg">Art Flow Browser Sync</h2>
+            <h2 className="font-heading text-lg">Art Flow Marketplace Refresh</h2>
             {state.enabled && state.key && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Sync current Vinted, Depop, Etsy, and eBay listings with photos and links, plus sold orders, directly through Art Flow Creative.
+            Refresh Depop and Vinted listings directly from your logged-in Chrome browser. No Parse credits or marketplace API key required. Etsy and eBay visible-page sync remains supported.
           </p>
         </div>
       </div>
@@ -91,7 +91,7 @@ export default function BrowserSyncCard() {
       )}
 
       <a href="/downloads/artflow-browser-sync.zip" download className="w-full h-12 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold flex items-center justify-center gap-2">
-        <Download className="w-4 h-4" /> Download Chrome Extension v1.3
+        <Download className="w-4 h-4" /> Download Browser Refresh v2.0
       </a>
 
       <button onClick={toggleEnabled} disabled={saving} className="w-full h-11 rounded-2xl bg-muted text-foreground text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-60">
@@ -100,9 +100,9 @@ export default function BrowserSyncCard() {
       </button>
 
       <div className="text-xs text-muted-foreground space-y-1">
-        <p>1. Download v1.3 and reload it in Chrome Extensions.</p>
+        <p>1. Download v2.0 and load or reload it in Chrome Extensions.</p>
         <p>2. Copy this new private key and save it in the extension once.</p>
-        <p>3. Open a seller/listings page and choose “Sync current listings to Gallery.”</p>
+        <p>3. Open your Depop or Vinted seller/profile listings page and choose “Refresh active listings to Gallery.” Art Flow will auto-scroll and collect up to 500 listings.</p>
         <p>4. Open a sold/order page to send a sale to Art Flow.</p>
       </div>
     </section>

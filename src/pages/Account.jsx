@@ -8,12 +8,11 @@ import { useAuth } from "@/lib/AuthContext";
 import BusinessManager from "@/components/BusinessManager";
 import ThemeSettings from "@/components/ThemeSettings";
 import EtsyConnectionCard from "@/components/EtsyConnectionCard";
-import VintedConnectionCard from "@/components/VintedConnectionCard";
 import EmailConnectionsCard from "@/components/EmailConnectionsCard";
 import TrackerSetupCard from "@/components/TrackerSetupCard";
 import MarketplaceTrackingCard from "@/components/MarketplaceTrackingCard";
+import BrowserSyncCard from "@/components/BrowserSyncCard";
 import MobileMarketplaceSyncCard from "@/components/MobileMarketplaceSyncCard";
-import DepopConnectionCard from "@/components/DepopConnectionCard";
 import EbayConnectionCard from "@/components/EbayConnectionCard";
 import { toast } from "sonner";
 import { useMarketplacePreferences } from "@/lib/useMarketplacePreferences";
@@ -67,9 +66,7 @@ export default function Account() {
 
       <EmailConnectionsCard />
 
-      {!loadingTrackedSites && trackedSites.includes("Depop") && <DepopConnectionCard />}
-
-      {!loadingTrackedSites && trackedSites.includes("Vinted") && <VintedConnectionCard />}
+      {!loadingTrackedSites && (trackedSites.includes("Depop") || trackedSites.includes("Vinted")) && <BrowserSyncCard />}
 
       <MobileMarketplaceSyncCard />
 
