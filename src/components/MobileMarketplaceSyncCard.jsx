@@ -35,9 +35,9 @@ export default function MobileMarketplaceSyncCard() {
           <Smartphone className="w-5 h-5" />
         </div>
         <div>
-          <h2 className="font-heading text-lg">Add Marketplace Listings</h2>
+          <h2 className="font-heading text-lg">Add Individual Marketplace Listings</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Works on iPhone and iPad. Copy a listing link from Vinted, Depop, Etsy, or eBay, paste it here, and Art Flow adds it to Gallery.
+            Optional manual fallback for one or several specific listings. For your entire Depop shop, use Sync All Depop Listings below instead.
           </p>
         </div>
       </div>
