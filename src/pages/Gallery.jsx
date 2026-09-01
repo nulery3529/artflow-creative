@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from "react";
-import { Plus, Search, SlidersHorizontal } from "lucide-react";
+import { ExternalLink, Plus, Search, SlidersHorizontal } from "lucide-react";
 import { useEntity } from "@/lib/useBusinessData";
 import { formatMoney } from "@/lib/format";
+import { PLATFORM_TONE } from "@/lib/platforms";
 import ArtPieceForm from "@/components/ArtPieceForm";
 import PullToRefresh from "@/components/PullToRefresh";
 import PageHeader from "@/components/PageHeader";
@@ -10,27 +11,53 @@ import { useModalRoute } from "@/hooks/useModalRoute";
 import { Image } from "@/components/ui/image";
 
 const tabs = ["All", "Available", "Sold"];
+const marketplaceTabs = ["All sites", "Vinted", "Depop", "Etsy", "eBay"];
 
 export default function Gallery() {
   const { records, loading, reload } = useEntity("ArtPiece", "-created_date");
+  const {
+    records: marketplaceListings,
+    loading: marketplaceLoading,
+    reload: reloadMarketplaceListings,
+  } = useEntity("MarketplaceListing", "-last_seen_at", 2000);
   const navigate = useNavigate();
   const [filter, setFilter] = useState("All");
+  const [marketplaceFilter, setMarketplaceFilter] = useState("All sites");
   const [mediumFilter, setMediumFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const { isOpen: formOpen, open: openForm, close: closeForm } = useModalRoute();
   const [editRecord, setEditRecord] = useState(null);
 
+  const activeMarketplaceListings = useMemo(
+    () => marketplaceListings.filter((listing) => (listing.status || "Active") === "Active"),
+    [marketplaceListings]
+  );
+
   const stats = useMemo(() => {
-    const available = records.filter((p) => (p.status || "Available") === "Available").length;
+    const manualAvailable = records.filter((p) => (p.status || "Available") === "Available").length;
     const sold = records.filter((p) => p.status === "Sold").length;
-    return { listings: records.length, available, sold };
-  }, [records]);
+    return {
+      listings: records.length + activeMarketplaceListings.length,
+      available: manualAvailable + activeMarketplaceListings.length,
+      sold,
+    };
+  }, [records, activeMarketplaceListings]);
 
   const mediums = useMemo(
     () => [...new Set(records.map((p) => p.medium).filter(Boolean))].sort(),
     [records]
   );
+
+  const filteredMarketplaceListings = useMemo(() => {
+    if (filter === "Sold") return [];
+    const q = search.trim().toLowerCase();
+    return activeMarketplaceListings.filter((listing) => {
+      if (marketplaceFilter !== "All sites" && listing.platform !== marketplaceFilter) return false;
+      if (!q) return true;
+      return `${listing.title || ""} ${listing.platform || ""}`.toLowerCase().includes(q);
+    });
+  }, [activeMarketplaceListings, filter, marketplaceFilter, search]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -54,7 +81,11 @@ export default function Gallery() {
     openForm();
   };
 
-  if (loading) {
+  const refreshAll = async () => {
+    await Promise.all([reload(), reloadMarketplaceListings()]);
+  };
+
+  if (loading || marketplaceLoading) {
     return (
       <div className="space-y-4">
         <PageHeader title="Gallery" />
@@ -69,7 +100,7 @@ export default function Gallery() {
 
   return (
     <div className="space-y-4">
-      <PullToRefresh onRefresh={reload} />
+      <PullToRefresh onRefresh={refreshAll} />
       <PageHeader title="Gallery" onBack={() => navigate(-1)} />
 
       <section className="bg-background border-b border-[hsl(var(--border))] pb-4">
@@ -79,7 +110,7 @@ export default function Gallery() {
           </div>
           <div className="min-w-0">
             <h1 className="text-xl font-bold tracking-tight truncate">Art Flow Creative</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Affordable framed art & prints</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Your art across every marketplace</p>
             <div className="flex gap-5 mt-3">
               <div>
                 <p className="font-bold text-sm">{stats.listings}</p>
@@ -120,7 +151,7 @@ export default function Gallery() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search shop"
+            placeholder="Search gallery"
             className="w-full h-11 pl-10 pr-3 rounded-none bg-muted/60 border-0 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
           />
         </div>
@@ -132,6 +163,24 @@ export default function Gallery() {
           <SlidersHorizontal className="w-4 h-4" />
         </button>
       </div>
+
+      {filter !== "Sold" && (
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+          {marketplaceTabs.map((site) => (
+            <button
+              key={site}
+              onClick={() => setMarketplaceFilter(site)}
+              className={`px-3.5 h-9 rounded-full text-xs font-semibold shrink-0 ${
+                marketplaceFilter === site
+                  ? "bg-foreground text-background"
+                  : "bg-muted text-foreground"
+              }`}
+            >
+              {site}
+            </button>
+          ))}
+        </div>
+      )}
 
       {filtersOpen && mediums.length > 0 && (
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
@@ -151,45 +200,103 @@ export default function Gallery() {
         </div>
       )}
 
-      {filtered.length === 0 ? (
-        <div className="py-16 text-center border border-dashed border-[hsl(var(--border))]">
-          <p className="font-semibold">No artwork here yet</p>
-          <p className="text-sm text-muted-foreground mt-1">Tap + to add a listing</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-x-1.5 gap-y-5">
-          {filtered.map((piece) => {
-            const sold = piece.status === "Sold";
-            return (
-              <button key={piece.id} onClick={() => openEdit(piece)} className="text-left min-w-0">
-                <div className="relative aspect-square bg-muted overflow-hidden">
-                  {piece.image_url ? (
-                    <Image src={piece.image_url} fittingType="fill" className="w-full h-full" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">
-                      No photo
-                    </div>
-                  )}
-                  {sold && (
-                    <span className="absolute left-2 top-2 bg-black text-white px-2 py-1 text-[10px] font-bold uppercase tracking-wide">
-                      Sold
+      {filter !== "Sold" && (
+        <section className="space-y-3">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <h2 className="font-heading text-lg">Current marketplace listings</h2>
+              <p className="text-xs text-muted-foreground">Tap any item to open the live marketplace listing.</p>
+            </div>
+            <span className="text-xs font-semibold text-muted-foreground shrink-0">{filteredMarketplaceListings.length}</span>
+          </div>
+
+          {filteredMarketplaceListings.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-[hsl(var(--border))] p-5 text-center">
+              <p className="font-semibold text-sm">No linked marketplace listings yet</p>
+              <p className="text-xs text-muted-foreground mt-1">Open your seller listings page in Chrome and use Art Flow Browser Sync → Sync current listings to Gallery.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-x-1.5 gap-y-5">
+              {filteredMarketplaceListings.map((listing) => (
+                <a
+                  key={listing.id}
+                  href={listing.listing_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-left min-w-0 block"
+                >
+                  <div className="relative aspect-square bg-muted overflow-hidden">
+                    {listing.image_url ? (
+                      <Image src={listing.image_url} fittingType="fill" className="w-full h-full" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">No photo</div>
+                    )}
+                    <span className={`absolute left-2 top-2 px-2 py-1 rounded-full text-[10px] font-bold ${PLATFORM_TONE[listing.platform] || "bg-black text-white"}`}>
+                      {listing.platform}
                     </span>
-                  )}
-                </div>
-                <div className="pt-2 px-0.5">
-                  <p className="text-sm leading-tight truncate text-foreground">{piece.title}</p>
-                  <p className="text-xs text-muted-foreground mt-1 truncate">
-                    {[piece.size, piece.medium].filter(Boolean).join(" · ") || "Art print"}
-                  </p>
-                  <p className="text-sm font-bold mt-1.5 text-foreground">
-                    {formatMoney(sold ? piece.sale_price || piece.price : piece.price)}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+                    <span className="absolute right-2 top-2 w-7 h-7 rounded-full bg-black/65 text-white flex items-center justify-center">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </span>
+                  </div>
+                  <div className="pt-2 px-0.5">
+                    <p className="text-sm leading-tight line-clamp-2 text-foreground">{listing.title}</p>
+                    <p className="text-sm font-bold mt-1.5 text-foreground">
+                      {Number(listing.price || 0) > 0 ? formatMoney(listing.price) : "View listing"}
+                    </p>
+                  </div>
+                </a>
+              ))}
+            </div>
+          )}
+        </section>
       )}
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="font-heading text-lg">My gallery</h2>
+          <p className="text-xs text-muted-foreground">Artwork you added directly in Art Flow.</p>
+        </div>
+
+        {filtered.length === 0 ? (
+          <div className="py-12 text-center border border-dashed border-[hsl(var(--border))]">
+            <p className="font-semibold">No artwork here yet</p>
+            <p className="text-sm text-muted-foreground mt-1">Tap + to add a listing</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-x-1.5 gap-y-5">
+            {filtered.map((piece) => {
+              const sold = piece.status === "Sold";
+              return (
+                <button key={piece.id} onClick={() => openEdit(piece)} className="text-left min-w-0">
+                  <div className="relative aspect-square bg-muted overflow-hidden">
+                    {piece.image_url ? (
+                      <Image src={piece.image_url} fittingType="fill" className="w-full h-full" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">
+                        No photo
+                      </div>
+                    )}
+                    {sold && (
+                      <span className="absolute left-2 top-2 bg-black text-white px-2 py-1 text-[10px] font-bold uppercase tracking-wide">
+                        Sold
+                      </span>
+                    )}
+                  </div>
+                  <div className="pt-2 px-0.5">
+                    <p className="text-sm leading-tight truncate text-foreground">{piece.title}</p>
+                    <p className="text-xs text-muted-foreground mt-1 truncate">
+                      {[piece.size, piece.medium].filter(Boolean).join(" · ") || "Art print"}
+                    </p>
+                    <p className="text-sm font-bold mt-1.5 text-foreground">
+                      {formatMoney(sold ? piece.sale_price || piece.price : piece.price)}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       <button
         onClick={openCreate}
