@@ -21,19 +21,8 @@ export default defineConfig({
     }),
     react(),
   ],
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (!id.includes('node_modules')) return undefined;
-          if (id.includes('@base44/sdk')) return 'base44-sdk';
-          if (id.includes('react-dom') || id.includes('react-router-dom') || id.includes('@tanstack/react-query') || /node_modules\/react\//.test(id)) return 'react-vendor';
-          if (id.includes('recharts') || id.includes('d3-')) return 'charts-vendor';
-          if (id.includes('@radix-ui') || id.includes('framer-motion') || id.includes('lucide-react') || id.includes('/cmdk/') || id.includes('/vaul/')) return 'ui-vendor';
-          if (id.includes('jspdf') || id.includes('html2canvas') || id.includes('react-markdown') || id.includes('remark') || id.includes('rehype')) return 'export-vendor';
-          return 'vendor';
-        },
-      },
-    },
-  },
+  // Let Rollup decide chunk boundaries. Hand-splitting React, router, Base44,
+  // and shared vendors created a circular production chunk dependency that
+  // could stop Safari before React mounted, leaving a completely white page.
+  build: {}, 
 });
