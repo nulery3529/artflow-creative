@@ -1,6 +1,21 @@
 import { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 
+const finiteNumber = (value, fallback = 0) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+};
+
+const normalizeExpenseRecord = (record) => {
+  if (!record) return record;
+  return {
+    ...record,
+    amount: finiteNumber(record.amount),
+    deductible_percent: record.deductible_percent == null ? 100 : finiteNumber(record.deductible_percent, 100),
+    deductible_amount: record.deductible_amount == null ? null : finiteNumber(record.deductible_amount),
+  };
+};
+
 // Loads an entity's records and keeps them in sync via real-time subscriptions.
 export function useEntity(entityName, sort = "-created_date", limit = 1000) {
   const [records, setRecords] = useState([]);
@@ -19,10 +34,10 @@ export function useEntity(entityName, sort = "-created_date", limit = 1000) {
             }),
         ]);
         const baseExpenses = baseResult.status === "fulfilled" && Array.isArray(baseResult.value)
-          ? baseResult.value
+          ? baseResult.value.map(normalizeExpenseRecord)
           : [];
         const neonExpenses = neonResult.status === "fulfilled" && Array.isArray(neonResult.value?.expenses)
-          ? neonResult.value.expenses
+          ? neonResult.value.expenses.map(normalizeExpenseRecord)
           : [];
         const merged = new Map();
         const identity = (record) => {
@@ -59,13 +74,15 @@ export function useEntity(entityName, sort = "-created_date", limit = 1000) {
       unsub = entity.subscribe((event) => {
         setRecords((prev) => {
           if (event.type === "create") {
-            return event.data?.archived === true ? prev : [event.data, ...prev];
+            const next = entityName === "Expense" ? normalizeExpenseRecord(event.data) : event.data;
+            return next?.archived === true ? prev : [next, ...prev];
           }
           if (event.type === "update") {
-            if (event.data?.archived === true) {
-              return prev.filter((r) => r.id !== event.data.id);
+            const next = entityName === "Expense" ? normalizeExpenseRecord(event.data) : event.data;
+            if (next?.archived === true) {
+              return prev.filter((r) => r.id !== next.id);
             }
-            return prev.map((r) => (r.id === event.data.id ? event.data : r));
+            return prev.map((r) => (r.id === next.id ? next : r));
           }
           if (event.type === "delete") return prev.filter((r) => r.id !== event.data.id);
           return prev;
