@@ -26,7 +26,7 @@ function normalizePlatform(value = '') {
   return '';
 }
 
-function normalizeDate(value) {
+function normalizeDate(value, dayFirst = false) {
   if (value === null || value === undefined || value === '') return '';
   if (typeof value === 'number' && Number.isFinite(value)) {
     // Google Sheets serial date: 1899-12-30 is serial day zero.
@@ -36,10 +36,18 @@ function normalizeDate(value) {
   }
   const raw = clean(value);
   if (/^20\d{2}-\d{2}-\d{2}$/.test(raw)) return raw;
-  const us = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
-  if (us) {
-    const year = us[3].length === 2 ? `20${us[3]}` : us[3];
-    return `${year}-${us[1].padStart(2, '0')}-${us[2].padStart(2, '0')}`;
+  const slash = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (slash) {
+    const year = slash[3].length === 2 ? `20${slash[3]}` : slash[3];
+    const first = Number(slash[1]);
+    const second = Number(slash[2]);
+    const useDayFirst = dayFirst || first > 12;
+    const month = useDayFirst ? second : first;
+    const day = useDayFirst ? first : second;
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+    return '';
   }
   const date = new Date(raw);
   return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
@@ -139,73 +147,98 @@ function headerIndex(headers, exact, contains = []) {
   return -1;
 }
 
-function parseOrders(rows) {
+function parseOrders(rows, sheetName = '') {
   if (!Array.isArray(rows) || rows.length < 2) return [];
   let headerRowIndex = 0;
   for (let i = 0; i < Math.min(8, rows.length); i += 1) {
     const joined = (rows[i] || []).map(normalize).join('|');
-    if (joined.includes('sale date') && (joined.includes('product name') || joined.includes('platform'))) {
+    if (joined.includes('sale date') && (
+      joined.includes('what sold') || joined.includes('product name') ||
+      joined.includes('platform') || joined.includes('site')
+    )) {
       headerRowIndex = i;
       break;
     }
   }
   const headers = rows[headerRowIndex] || [];
+  const normalizedHeaders = headers.map((header) => normalize(header).replace(/[^a-z0-9]+/g, ' ').trim());
+  const exactStyle = sheetName === '🛍️ Orders' || normalizedHeaders.includes('what sold');
   const idx = {
     date: headerIndex(headers, ['sale date', 'date'], ['sale date']),
-    platform: headerIndex(headers, ['platform', 'site'], ['platform']),
+    platform: headerIndex(headers, ['platform', 'site'], ['platform', 'site']),
     orderId: headerIndex(headers, ['order id', 'order number'], ['order id', 'order #']),
-    product: headerIndex(headers, ['product name', 'item name', 'title'], ['product', 'item']),
+    product: headerIndex(headers, ['what sold', 'product name', 'item name', 'title'], ['what sold', 'product', 'item']),
     quantity: headerIndex(headers, ['quantity', 'qty'], ['quantity']),
     size: headerIndex(headers, ['size'], ['size']),
     unitPrice: headerIndex(headers, ['unit price'], ['unit price']),
-    saleTotal: headerIndex(headers, ['sale total', 'gross sale price', 'total sale'], ['sale total', 'gross sale']),
+    saleTotal: headerIndex(headers, ['gross sale price', 'sale total', 'total sale'], ['gross sale', 'sale total']),
     buyer: headerIndex(headers, ['buyer', 'customer'], ['buyer', 'customer']),
     sourceId: headerIndex(headers, ['source email id', 'source id'], ['source email']),
-    baseCost: headerIndex(headers, ['base item cost'], ['base item cost']),
+    baseCost: headerIndex(headers, ['purchase price', 'base item cost'], ['purchase price', 'base item cost']),
     paperInk: headerIndex(headers, ['paper ink', 'paper and ink'], ['paper ink']),
     packaging: headerIndex(headers, ['packaging cost'], ['packaging']),
     totalCost: headerIndex(headers, ['total cost'], ['total cost']),
-    profit: headerIndex(headers, ['estimated profit', 'net profit'], ['profit']),
+    fees: headerIndex(headers, ['fees', 'fee'], ['fees']),
+    shipping: headerIndex(headers, ['shipping cost', 'shipping'], ['shipping cost']),
+    profit: headerIndex(headers, ['net profit', 'estimated profit'], ['profit']),
     sourceUrl: headerIndex(headers, ['source url', 'order url'], ['source url']),
+    sold: headerIndex(headers, ['sold', 'sold?'], ['sold']),
   };
 
-  // Standard ArtFlow Tracker columns are A:P. Keep these fallbacks so older
-  // copies of the tracker continue syncing even if a header was edited slightly.
-  const fallback = {
-    date: 0, platform: 1, orderId: 2, product: 3, quantity: 4, size: 5,
-    unitPrice: 6, saleTotal: 7, buyer: 8, sourceId: 9, baseCost: 10,
-    paperInk: 11, packaging: 12, totalCost: 13, profit: 14, sourceUrl: 15,
-  };
-  for (const key of Object.keys(idx)) if (idx[key] < 0) idx[key] = fallback[key];
+  if (!exactStyle) {
+    // Standard ArtFlow Tracker columns are A:P. Keep these fallbacks so older
+    // copies of the tracker continue syncing even if a header was edited slightly.
+    const fallback = {
+      date: 0, platform: 1, orderId: 2, product: 3, quantity: 4, size: 5,
+      unitPrice: 6, saleTotal: 7, buyer: 8, sourceId: 9, baseCost: 10,
+      paperInk: 11, packaging: 12, totalCost: 13, profit: 14, sourceUrl: 15,
+    };
+    for (const key of Object.keys(fallback)) if (idx[key] < 0) idx[key] = fallback[key];
+  }
 
+  const valueAt = (row, index) => index >= 0 ? row[index] : '';
   const parsed = [];
   const occurrenceByFingerprint = new Map();
   for (let rowIndex = headerRowIndex + 1; rowIndex < rows.length; rowIndex += 1) {
     const row = rows[rowIndex] || [];
-    const productName = clean(row[idx.product]);
-    const platform = normalizePlatform(row[idx.platform]);
-    const saleTotal = moneyNumber(row[idx.saleTotal]);
-    const saleDate = normalizeDate(row[idx.date]);
+    if (exactStyle && idx.sold >= 0) {
+      const sold = valueAt(row, idx.sold);
+      const soldText = normalize(sold);
+      if (!(sold === true || sold === 1 || ['true', 'yes', 'y', 'sold'].includes(soldText))) continue;
+    }
+    const productName = clean(valueAt(row, idx.product));
+    const platform = normalizePlatform(valueAt(row, idx.platform));
+    const saleTotal = moneyNumber(valueAt(row, idx.saleTotal));
+    const saleDate = normalizeDate(valueAt(row, idx.date), exactStyle);
     if (!productName || !platform || !saleDate || saleTotal <= 0) continue;
-    const quantity = Math.max(1, Number(row[idx.quantity]) || 1);
-    const totalCost = moneyNumber(row[idx.totalCost]);
+    const quantity = Math.max(1, Number(valueAt(row, idx.quantity)) || 1);
+    const purchaseCost = moneyNumber(valueAt(row, idx.baseCost));
+    const feeCost = moneyNumber(valueAt(row, idx.fees));
+    const shippingCost = moneyNumber(valueAt(row, idx.shipping));
+    const totalCost = exactStyle
+      ? +(purchaseCost + feeCost + shippingCost).toFixed(2)
+      : moneyNumber(valueAt(row, idx.totalCost));
+    const productSize = productName.match(/\b(\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?)\b/i)?.[1]?.replace(/\s+/g, '') || '';
+    const profitCell = valueAt(row, idx.profit);
+    const hasProfit = profitCell !== '' && profitCell !== null && profitCell !== undefined;
     const order = {
       sale_date: saleDate,
       platform,
-      order_id: clean(row[idx.orderId]) || null,
+      // Exact Style column B is only a display sequence (#), never a marketplace order id.
+      order_id: exactStyle ? null : (clean(valueAt(row, idx.orderId)) || null),
       product_name: productName,
       quantity,
-      size: clean(row[idx.size]) || 'Unknown',
-      unit_price: moneyNumber(row[idx.unitPrice]) || +(saleTotal / quantity).toFixed(2),
+      size: clean(valueAt(row, idx.size)) || productSize || 'Other',
+      unit_price: moneyNumber(valueAt(row, idx.unitPrice)) || +(saleTotal / quantity).toFixed(2),
       sale_total: +saleTotal.toFixed(2),
-      buyer: clean(row[idx.buyer]) || null,
-      source_email_id: clean(row[idx.sourceId]) || null,
-      base_item_cost: +moneyNumber(row[idx.baseCost]).toFixed(2),
-      paper_ink_cost: +moneyNumber(row[idx.paperInk]).toFixed(2),
-      packaging_cost: +moneyNumber(row[idx.packaging]).toFixed(2),
+      buyer: clean(valueAt(row, idx.buyer)) || null,
+      source_email_id: clean(valueAt(row, idx.sourceId)) || null,
+      base_item_cost: +purchaseCost.toFixed(2),
+      paper_ink_cost: +moneyNumber(valueAt(row, idx.paperInk)).toFixed(2),
+      packaging_cost: +moneyNumber(valueAt(row, idx.packaging)).toFixed(2),
       total_cost: +totalCost.toFixed(2),
-      estimated_profit: moneyNumber(row[idx.profit]) || +(saleTotal - totalCost).toFixed(2),
-      source_url: clean(row[idx.sourceUrl]) || null,
+      estimated_profit: hasProfit ? +moneyNumber(profitCell).toFixed(2) : +(saleTotal - totalCost).toFixed(2),
+      source_url: clean(valueAt(row, idx.sourceUrl)) || null,
     };
     const occurrenceBase = fallbackFingerprint(order);
     const occurrence = (occurrenceByFingerprint.get(occurrenceBase) || 0) + 1;
@@ -376,12 +409,26 @@ export default async function handler(req, res) {
       return res.status(409).json({ error: error.message, code: error.code || 'GOOGLE_NOT_LINKED' });
     }
 
-    const rows = await readRange(accessToken, spreadsheetId, 'Orders!A:P');
-    const orders = parseOrders(rows);
+    let rows = [];
+    let resolvedSheetName = '';
+    let lastReadError = null;
+    for (const candidate of ['🛍️ Orders', 'Orders']) {
+      try {
+        rows = await readRange(accessToken, spreadsheetId, `${candidate}!A:P`);
+        resolvedSheetName = candidate;
+        break;
+      } catch (error) {
+        lastReadError = error;
+        if (error?.code === 'GOOGLE_RECONNECT') throw error;
+      }
+    }
+    if (!resolvedSheetName) throw lastReadError || new Error('Could not find the tracker Orders tab.');
+    const orders = parseOrders(rows, resolvedSheetName);
     const result = await syncOrders(client, profile, business, orders);
     return res.status(200).json({
       ok: true,
       spreadsheetRows: orders.length,
+      sheetName: resolvedSheetName,
       ...result,
       message: result.imported > 0
         ? `Synced ${result.imported} missing order${result.imported === 1 ? '' : 's'} from the tracker.`
