@@ -37,7 +37,7 @@ export default function MobileMarketplaceSyncCard() {
         <div>
           <h2 className="font-heading text-lg">Add Individual Marketplace Listings</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Optional manual fallback for one or several specific listings. For your entire Depop shop, use Sync All Depop Listings below instead.
+            Optional manual fallback for one or several specific product links only. For a whole Depop or Vinted account, use the Refresh buttons above.
           </p>
         </div>
       </div>
@@ -45,7 +45,7 @@ export default function MobileMarketplaceSyncCard() {
       <div className="rounded-2xl bg-muted/60 p-3 text-xs text-muted-foreground space-y-1">
         <p><strong className="text-foreground">On the marketplace app:</strong> open a listing → Share or Copy link.</p>
         <p>You can paste several listing links here at once, even from different sites.</p>
-        <p><strong className="text-foreground">Depop:</strong> do not paste the Selling Hub / Active Listings page. Open the individual product and use Share → Copy link.</p>
+        <p><strong className="text-foreground">Do not paste a profile, shop, or seller dashboard URL here.</strong> Whole-account imports belong in the Refresh buttons above.</p>
       </div>
 
       <form
