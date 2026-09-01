@@ -125,35 +125,35 @@ async function listExpenses(client, session) {
   const email = normalize(session.user.email);
   const result = await client.query(
     `SELECT
-       base44_id AS id,
-       base44_id,
-       created_by_id,
-       created_date,
-       updated_date,
-       date,
-       category,
-       description,
-       amount,
-       deductible_percent,
-       deductible_amount,
-       source,
-       receipt_id,
-       notes,
-       archived,
-       sync_source,
-       business_id,
-       data
-     FROM artflow.expenses
-     WHERE archived IS NOT TRUE
+       e.base44_id AS id,
+       e.base44_id,
+       e.created_by_id,
+       e.created_date,
+       e.updated_date,
+       e.expense_date AS date,
+       e.category,
+       COALESCE(e.data->>'description', '') AS description,
+       e.amount,
+       NULLIF(e.data->>'deductible_percent', '')::numeric AS deductible_percent,
+       NULLIF(e.data->>'deductible_amount', '')::numeric AS deductible_amount,
+       e.source,
+       e.receipt_id,
+       e.data->>'notes' AS notes,
+       e.archived,
+       COALESCE(e.data->>'sync_source', e.data->>'source') AS sync_source,
+       e.business_id,
+       e.data
+     FROM artflow.expenses e
+     WHERE e.archived IS NOT TRUE
        AND (
-         business_id = ANY($1::text[])
+         e.business_id = ANY($1::text[])
          OR EXISTS (
            SELECT 1
-             FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(data->'access_emails')='array' THEN data->'access_emails' ELSE '[]'::jsonb END) e(value)
-            WHERE lower(e.value) = $2
+             FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(e.data->'access_emails')='array' THEN e.data->'access_emails' ELSE '[]'::jsonb END) access(value)
+            WHERE lower(access.value) = $2
          )
        )
-     ORDER BY date DESC NULLS LAST, created_date DESC NULLS LAST
+     ORDER BY e.expense_date DESC NULLS LAST, e.created_date DESC NULLS LAST
      LIMIT 10000`,
     [ids, email]
   );
