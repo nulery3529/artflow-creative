@@ -1,0 +1,106 @@
+{
+  "name": "MarketplaceListing",
+  "type": "object",
+  "properties": {
+    "business_id": {
+      "type": "string",
+      "description": "Business workspace that owns this marketplace listing"
+    },
+    "access_emails": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Emails allowed to access this listing"
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "Vinted",
+        "Depop",
+        "Etsy",
+        "eBay"
+      ]
+    },
+    "listing_id": {
+      "type": "string",
+      "description": "Marketplace listing/item identifier when available"
+    },
+    "title": {
+      "type": "string"
+    },
+    "price": {
+      "type": "number"
+    },
+    "currency": {
+      "type": "string",
+      "default": "USD"
+    },
+    "image_url": {
+      "type": "string"
+    },
+    "listing_url": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Active",
+        "Inactive"
+      ],
+      "default": "Active"
+    },
+    "last_seen_at": {
+      "type": "string"
+    },
+    "sync_source": {
+      "type": "string",
+      "description": "Where this listing was captured from"
+    }
+  },
+  "required": [
+    "business_id",
+    "platform",
+    "title",
+    "listing_url",
+    "status"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "data.business_id": "{{user.data.active_business_id}}"
+        },
+        {
+          "data.access_emails": "{{user.email}}"
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "data.business_id": "{{user.data.active_business_id}}"
+        },
+        {
+          "data.access_emails": "{{user.email}}"
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "data.business_id": "{{user.data.active_business_id}}"
+        }
+      ]
+    }
+  }
+}
