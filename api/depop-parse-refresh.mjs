@@ -5,9 +5,9 @@ import { fromNodeHeaders } from 'better-auth/node';
 
 const { Pool } = pg;
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 4 });
-const PARSE_BASE = 'https://api.parse.bot/scraper/8cd92db4-e548-4ff6-96bd-a5c4ff66bb71';
+const SCRAPER_ID = 'e781fdf1-07fd-44a5-abc9-cfbbe53a5243';
+const PARSE_URL = `https://api.parse.bot/scraper/${SCRAPER_ID}/get_seller_listings_all`;
 const MAX_LISTINGS = 500;
-const MAX_PAGES = 5;
 const clean = (v = '') => String(v ?? '').trim();
 const normalize = (v = '') => clean(v).toLowerCase();
 
@@ -111,13 +111,12 @@ function normalizeProduct(p = {}) {
   if (!title) title = `Depop listing ${id}`;
   return { listingId: id, title: title.slice(0, 300), price, currency, imageUrl: firstUrl(p), listingUrl, raw: p };
 }
-async function parseGet(username, cursor, key) {
-  const q = new URLSearchParams({ username, limit: '100' });
-  if (cursor) q.set('cursor', cursor);
+async function parseAll(username, key) {
+  const q = new URLSearchParams({ username, max_results: String(MAX_LISTINGS) });
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 18000);
+  const timer = setTimeout(() => controller.abort(), 90000);
   try {
-    const r = await fetch(`${PARSE_BASE}/get_seller_listings?${q.toString()}`, {
+    const r = await fetch(`${PARSE_URL}?${q.toString()}`, {
       headers: { Accept: 'application/json', 'X-API-Key': key },
       signal: controller.signal,
     });
@@ -132,7 +131,7 @@ async function parseGet(username, cursor, key) {
     return payload;
   } catch (e) {
     if (e?.name === 'AbortError') {
-      const timeout = new Error('Parse took too long to return this Depop page. Try Refresh again.');
+      const timeout = new Error('Parse took too long to collect the Depop shop. Try Refresh again.');
       timeout.status = 504;
       throw timeout;
     }
@@ -201,30 +200,15 @@ export default async function handler(req, res) {
     }
 
     await ensureTable(client);
-    const listings = [];
-    const seenCursors = new Set();
-    let cursor = '';
-    let pages = 0;
-    let more = true;
-    while (more && pages < MAX_PAGES && listings.length < MAX_LISTINGS) {
-      const payload = await parseGet(username, cursor, apiKey);
-      for (const raw of productArray(payload)) {
-        const n = normalizeProduct(raw);
-        if (n) listings.push(n);
-        if (listings.length >= MAX_LISTINGS) break;
-      }
-      pages += 1;
-      const meta = metaOf(payload);
-      const next = clean(meta.last_offset_id || meta.cursor || meta.next_cursor || payload?.data?.cursor || payload?.cursor || '');
-      more = meta.has_more === true || Boolean(next);
-      if (!next || next === cursor || seenCursors.has(next)) { more = false; break; }
-      seenCursors.add(next);
-      cursor = next;
-    }
-
-    const uniqueListings = [...new Map(listings.filter(Boolean).map((listing) => [listing.listingUrl, listing])).values()].slice(0, MAX_LISTINGS);
+    const payload = await parseAll(username, apiKey);
+    const data = payload?.data && typeof payload.data === 'object' ? payload.data : payload;
+    const listings = productArray(payload).map(normalizeProduct).filter(Boolean);
+    const uniqueListings = [...new Map(listings.map((listing) => [listing.listingUrl, listing])).values()].slice(0, MAX_LISTINGS);
     const activeUrls = await batchUpsert(client, b.base44_id, uniqueListings, username);
-    const complete = !more && uniqueListings.length <= MAX_LISTINGS;
+    const meta = metaOf(payload);
+    const hasMore = data?.has_more === true || payload?.has_more === true || meta?.has_more === true;
+    const totalCount = Number(data?.total_count || payload?.total_count || meta?.total_count || data?.returned_count || uniqueListings.length || 0);
+    const complete = !hasMore && totalCount <= MAX_LISTINGS;
     let deactivated = 0;
     if (complete) {
       if (activeUrls.length) {
@@ -242,7 +226,8 @@ export default async function handler(req, res) {
       ok: true,
       saved,
       deactivated,
-      pages,
+      pages: 1,
+      total_count: totalCount,
       max_listings: MAX_LISTINGS,
       username,
       partial: !complete,
