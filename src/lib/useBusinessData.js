@@ -9,16 +9,46 @@ export function useEntity(entityName, sort = "-created_date", limit = 1000) {
 
   const reload = useCallback(async () => {
     try {
-      const data = await entity.list(sort, limit);
-      // Archived rows are retained only as a rollback/safety copy and must
-      // never affect dashboards, reports, taxes, inventory, or order totals.
-      setRecords(data.filter((r) => r?.archived !== true));
+      if (entityName === "Expense") {
+        const [baseResult, neonResult] = await Promise.allSettled([
+          entity.list(sort, limit),
+          fetch("/api/neon-data?op=expenses", { credentials: "include", cache: "no-store" })
+            .then(async (res) => {
+              if (!res.ok) throw new Error(`Neon expenses ${res.status}`);
+              return res.json();
+            }),
+        ]);
+        const baseExpenses = baseResult.status === "fulfilled" && Array.isArray(baseResult.value)
+          ? baseResult.value
+          : [];
+        const neonExpenses = neonResult.status === "fulfilled" && Array.isArray(neonResult.value?.expenses)
+          ? neonResult.value.expenses
+          : [];
+        const merged = new Map();
+        const identity = (record) => {
+          if (record?.receipt_id) return `receipt:${record.receipt_id}`;
+          if (record?.id) return `id:${record.id}`;
+          return `expense:${record?.date || ""}:${Number(record?.amount || 0).toFixed(2)}:${record?.description || ""}`;
+        };
+        for (const expense of baseExpenses) {
+          if (expense?.archived !== true) merged.set(identity(expense), expense);
+        }
+        for (const expense of neonExpenses) {
+          if (expense?.archived !== true) merged.set(identity(expense), { ...(merged.get(identity(expense)) || {}), ...expense });
+        }
+        setRecords(Array.from(merged.values()));
+      } else {
+        const data = await entity.list(sort, limit);
+        // Archived rows are retained only as a rollback/safety copy and must
+        // never affect dashboards, reports, taxes, inventory, or order totals.
+        setRecords(data.filter((r) => r?.archived !== true));
+      }
     } catch (e) {
       console.error(`Failed to load ${entityName}:`, e);
     } finally {
       setLoading(false);
     }
-  }, [entity, sort, limit]);
+  }, [entity, entityName, sort, limit]);
 
   useEffect(() => {
     let unsub;
