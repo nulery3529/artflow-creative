@@ -8,7 +8,8 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejec
 const SCRAPER_ID = 'b3450aa3-6a34-4cb8-8534-1b7a4d240553';
 const PARSE_URL = `https://api.parse.bot/scraper/${SCRAPER_ID}/get_user_profile`;
 const PER_PAGE = 96;
-const MAX_PAGES = 12;
+const MAX_LISTINGS = 500;
+const MAX_PAGES = Math.ceil(MAX_LISTINGS / PER_PAGE);
 const clean = (v = '') => String(v ?? '').trim();
 const normalize = (v = '') => clean(v).toLowerCase();
 
@@ -244,13 +245,9 @@ export default async function handler(req, res) {
     const totalPages = Number.isFinite(totalPagesRaw) && totalPagesRaw > 0 ? Math.ceil(totalPagesRaw) : 1;
     const pagesToFetch = Math.min(totalPages, MAX_PAGES);
     const results = [first];
-
-    for (let start = 2; start <= pagesToFetch; start += 4) {
-      const batch = [];
-      for (let page = start; page < start + 4 && page <= pagesToFetch; page += 1) {
-        batch.push(fetchPage(parsed.user, page, apiKey));
-      }
-      results.push(...await Promise.all(batch));
+    const remainingPages = Array.from({ length: Math.max(0, pagesToFetch - 1) }, (_, index) => index + 2);
+    if (remainingPages.length) {
+      results.push(...await Promise.all(remainingPages.map((page) => fetchPage(parsed.user, page, apiKey))));
     }
 
     const normalizedListings = [];
@@ -261,9 +258,11 @@ export default async function handler(req, res) {
       }
     }
 
+    const uniqueListings = [...new Map(normalizedListings.map((listing) => [listing.listingUrl, listing])).values()];
+    const cappedListings = uniqueListings.slice(0, MAX_LISTINGS);
     const seller = clean(first.profile?.username || parsed.user);
-    const activeUrls = await batchUpsert(client, business.base44_id, normalizedListings, seller);
-    const complete = totalPages <= MAX_PAGES;
+    const activeUrls = await batchUpsert(client, business.base44_id, cappedListings, seller);
+    const complete = totalPages <= MAX_PAGES && uniqueListings.length <= MAX_LISTINGS;
     let deactivated = 0;
 
     if (complete) {
@@ -288,13 +287,14 @@ export default async function handler(req, res) {
     }
 
     const saved = activeUrls.length;
-    const partialNote = complete ? '' : ` Vinted reported ${totalPages} pages; the first ${MAX_PAGES} pages were refreshed and older Gallery entries were left active for safety.`;
+    const partialNote = complete ? '' : ` Up to ${MAX_LISTINGS} active Vinted listings were refreshed. Any additional listings were left untouched for safety.`;
     return res.status(200).json({
       ok: true,
       saved,
       deactivated,
       pages: results.length,
       total_pages: totalPages,
+      max_listings: MAX_LISTINGS,
       profile: input,
       username: seller,
       partial: !complete,
