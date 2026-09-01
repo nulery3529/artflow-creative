@@ -30,6 +30,12 @@ export default function Gallery() {
     try {
       const response = await fetch("/api/neon-data?op=listings", { credentials: "include", cache: "no-store" });
       const data = await response.json().catch(() => ({}));
+      if (response.status === 401) {
+        // Never leave the Gallery looking empty when the independent Art Flow
+        // session has expired. Re-authenticate once, then return straight here.
+        window.location.replace(`/login?returnTo=${encodeURIComponent('/gallery')}`);
+        return;
+      }
       if (!response.ok) throw new Error(data.error || "Could not load marketplace listings");
       setMarketplaceListings(Array.isArray(data.listings) ? data.listings : []);
     } catch (error) {
