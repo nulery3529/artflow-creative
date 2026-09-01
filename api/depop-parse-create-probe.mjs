@@ -10,11 +10,11 @@ export default async function handler(req,res){
   const mode=clean(req.query?.mode || 'create');
   try{
     if(mode === 'test'){
-      const r=await fetch('https://api.parse.bot/scraper/e781fdf1-07fd-44a5-abc9-cfbbe53a5243/get_seller_listings_all?username=vintage_finds&max_results=5',{headers:{Accept:'application/json','X-API-Key':key}});
+      const r=await fetch('https://api.parse.bot/scraper/e781fdf1-07fd-44a5-abc9-cfbbe53a5243/get_seller_listings?username=vintage_finds&limit=100&max_results=5',{headers:{Accept:'application/json','X-API-Key':key}});
       const text=await r.text(); let payload={}; try{payload=text?JSON.parse(text):{}}catch{payload={raw:text}}
       const data=payload?.data&&typeof payload.data==='object'?payload.data:payload;
       const products=Array.isArray(data?.products)?data.products:(Array.isArray(data?.listings)?data.listings:[]);
-      return res.status(r.status).json({ok:r.ok,status:r.status,top_keys:Object.keys(payload||{}),data_keys:Object.keys(data||{}),count:products.length,has_more:data?.has_more??data?.meta?.has_more??null,total_count:data?.total_count??data?.meta?.total_count??null});
+      return res.status(r.status).json({ok:r.ok,status:r.status,top_keys:Object.keys(payload||{}),data_keys:Object.keys(data||{}),count:products.length,has_more:data?.has_more??data?.meta?.has_more??null,total_count:data?.total_count??data?.meta?.total_count??null,error:payload?.error||null,available_endpoints:payload?.available_endpoints||payload?.endpoints||null});
     }
     if(mode === 'status'){
       const r=await fetch('https://api.parse.bot/dispatch/tasks?limit=100',{headers:{Accept:'application/json','X-API-Key':key}});
