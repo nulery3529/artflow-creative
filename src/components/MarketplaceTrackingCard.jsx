@@ -1,45 +1,43 @@
 import React, { useEffect, useState } from "react";
-import { Check, Store } from "lucide-react";
+import { Check, Loader2, Store } from "lucide-react";
 import { useMarketplacePreferences } from "@/lib/useMarketplacePreferences";
 import { toast } from "sonner";
 
 const SITE_HELP = {
-  Vinted: "Track Vinted sale emails and captured orders",
-  Depop: "Track Depop sale emails and captured orders",
-  Etsy: "Track Etsy seller orders",
-  eBay: "Track eBay seller orders",
+  Vinted: "Sync Vinted listings and sales",
+  Depop: "Sync Depop listings and sales",
+  Etsy: "Sync Etsy listings and sales",
+  eBay: "Sync eBay listings and sales",
 };
 
 export default function MarketplaceTrackingCard() {
-  const { selected, configured, loading, save, supported } = useMarketplacePreferences();
+  const { selected, loading, save, supported } = useMarketplacePreferences();
   const [draft, setDraft] = useState([]);
-  const [saving, setSaving] = useState(false);
+  const [savingSite, setSavingSite] = useState("");
 
   useEffect(() => {
     setDraft(selected);
   }, [selected.join("|")]);
 
-  const toggle = (name) => {
-    setDraft((current) => current.includes(name)
-      ? current.filter((item) => item !== name)
-      : [...current, name]);
-  };
+  const toggleAndSave = async (name) => {
+    if (savingSite) return;
+    const wasActive = draft.includes(name);
+    const next = wasActive
+      ? draft.filter((item) => item !== name)
+      : [...draft, name];
 
-  const saveChoices = async () => {
-    setSaving(true);
+    setDraft(next);
+    setSavingSite(name);
     try {
-      await save(draft);
-      toast.success(draft.length
-        ? `Tracking ${draft.length} marketplace${draft.length === 1 ? "" : "s"}`
-        : "Marketplace tracking is turned off");
+      await save(next);
+      toast.success(wasActive ? `${name} sync turned off` : `${name} selected for sync`);
     } catch (error) {
-      toast.error("Could not save marketplace choices", { description: error?.message });
+      setDraft(draft);
+      toast.error(`Could not update ${name}`, { description: error?.message });
     } finally {
-      setSaving(false);
+      setSavingSite("");
     }
   };
-
-  const changed = [...draft].sort().join("|") !== [...selected].sort().join("|");
 
   return (
     <section className="bg-card rounded-3xl p-5 border border-[hsl(var(--border))] space-y-4">
@@ -48,27 +46,30 @@ export default function MarketplaceTrackingCard() {
           <Store className="w-5 h-5" />
         </div>
         <div>
-          <h2 className="font-heading text-lg">Sites I sell on</h2>
+          <h2 className="font-heading text-lg">Marketplace Sync</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Choose only the marketplaces you want Art Flow to track. You can change this anytime.
+            Tap each marketplace you use. A checkmark means Art Flow is set to sync that site.
           </p>
         </div>
       </div>
 
       {loading ? (
         <div className="space-y-2">
-          {[1, 2, 3, 4].map((n) => <div key={n} className="h-12 rounded-2xl bg-muted animate-pulse" />)}
+          {[1, 2, 3, 4].map((n) => <div key={n} className="h-16 rounded-2xl bg-muted animate-pulse" />)}
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-2">
           {supported.map((name) => {
             const active = draft.includes(name);
+            const saving = savingSite === name;
             return (
               <button
                 key={name}
                 type="button"
-                onClick={() => toggle(name)}
-                className={`min-h-16 rounded-2xl border p-3 text-left transition-colors ${
+                onClick={() => toggleAndSave(name)}
+                disabled={Boolean(savingSite)}
+                aria-pressed={active}
+                className={`min-h-20 rounded-2xl border p-3 text-left transition-colors disabled:opacity-70 ${
                   active
                     ? "border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10"
                     : "border-[hsl(var(--border))] bg-muted/40"
@@ -76,32 +77,18 @@ export default function MarketplaceTrackingCard() {
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-semibold text-sm">{name}</span>
-                  <span className={`w-6 h-6 rounded-full flex items-center justify-center ${active ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]" : "bg-background"}`}>
-                    {active && <Check className="w-4 h-4" />}
+                  <span className={`w-7 h-7 rounded-full flex items-center justify-center ${active ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]" : "bg-background border border-[hsl(var(--border))]"}`}>
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : active ? <Check className="w-4 h-4" /> : null}
                   </span>
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-1 leading-snug">{SITE_HELP[name]}</p>
+                <p className={`text-[11px] font-semibold mt-2 ${active ? "text-[hsl(var(--primary))]" : "text-muted-foreground"}`}>
+                  {saving ? "Saving…" : active ? "Sync on" : "Tap to sync"}
+                </p>
               </button>
             );
           })}
         </div>
-      )}
-
-      {!loading && !configured && (
-        <p className="text-xs text-muted-foreground rounded-2xl bg-muted/60 p-3">
-          No sites are selected yet. Choose the marketplaces you use to start tracking them.
-        </p>
-      )}
-
-      {!loading && (changed || !configured) && (
-        <button
-          type="button"
-          onClick={saveChoices}
-          disabled={saving}
-          className="w-full h-12 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold disabled:opacity-60"
-        >
-          {saving ? "Saving…" : "Save Marketplace Choices"}
-        </button>
       )}
     </section>
   );
