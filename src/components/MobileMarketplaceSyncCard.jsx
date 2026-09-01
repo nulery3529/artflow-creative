@@ -45,6 +45,7 @@ export default function MobileMarketplaceSyncCard() {
       <div className="rounded-2xl bg-muted/60 p-3 text-xs text-muted-foreground space-y-1">
         <p><strong className="text-foreground">On the marketplace app:</strong> open a listing → Share or Copy link.</p>
         <p>You can paste several listing links here at once, even from different sites.</p>
+        <p><strong className="text-foreground">Depop:</strong> do not paste the Selling Hub / Active Listings page. Open the individual product and use Share → Copy link.</p>
       </div>
 
       <form
