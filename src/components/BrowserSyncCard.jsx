@@ -87,8 +87,8 @@ export default function BrowserSyncCard() {
           <ExternalLink className="w-4 h-4" /> Install Orion on iPhone
         </a>
 
-        <a href="/downloads/artflow-browser-sync.zip" download className="w-full h-11 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-sm font-semibold flex items-center justify-center gap-2">
-          <Download className="w-4 h-4" /> Download Art Flow Refresh v2.1
+        <a href="/downloads/artflow-orion-sync.zip" download className="w-full h-11 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-sm font-semibold flex items-center justify-center gap-2">
+          <Download className="w-4 h-4" /> Download iPhone Orion Refresh v2.1.1
         </a>
 
         <div className="grid grid-cols-2 gap-2">
@@ -102,7 +102,7 @@ export default function BrowserSyncCard() {
 
         <div className="text-xs text-muted-foreground space-y-1">
           <p>1. Install Orion, then Orion → ••• → Settings → enable Chrome extensions.</p>
-          <p>2. Orion → ••• → Extensions → + → install the Art Flow Refresh file you downloaded.</p>
+          <p>2. Orion → ••• → Extensions → + → install the iPhone Orion Refresh ZIP you downloaded.</p>
           <p>3. Tap Connect Depop or Connect Vinted above and log in on the marketplace page itself.</p>
           <p>4. Depop sends a magic login link to your email. Vinted uses its normal email, Apple, Google, or Facebook login.</p>
           <p>5. Open your seller/profile listings page, open Art Flow Browser Sync from Orion Extensions, save the private key once, then tap Refresh active listings to Gallery.</p>
