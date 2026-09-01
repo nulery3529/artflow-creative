@@ -1,14 +1,16 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { Loader2, Link2, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 
 export default function MobileMarketplaceSyncCard() {
   const [links, setLinks] = useState("");
+  const textareaRef = useRef(null);
   const [syncing, setSyncing] = useState(false);
   const [result, setResult] = useState("");
 
-  const addListings = async () => {
-    const value = links.trim();
+  const addListings = async (event) => {
+    event?.preventDefault?.();
+    const value = String(textareaRef.current?.value ?? links).trim();
     if (!value) {
       toast.error("Paste at least one marketplace listing link first");
       return;
@@ -56,23 +58,30 @@ export default function MobileMarketplaceSyncCard() {
         <p>You can paste several listing links here at once, even from different sites.</p>
       </div>
 
-      <textarea
-        value={links}
-        onChange={(e) => setLinks(e.target.value)}
-        rows={5}
-        placeholder={"Paste listing link(s) here\nhttps://www.vinted.com/items/...\nhttps://www.depop.com/products/..."}
-        className="w-full rounded-2xl border border-[hsl(var(--border))] bg-background px-3 py-3 text-sm resize-y focus:outline-none focus:ring-1 focus:ring-[hsl(var(--primary))]"
-      />
+      <form onSubmit={addListings} className="space-y-3">
+        <textarea
+          ref={textareaRef}
+          name="urls"
+          value={links}
+          onChange={(e) => setLinks(e.target.value)}
+          rows={5}
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          placeholder={"Paste listing link(s) here\nhttps://www.vinted.com/items/...\nhttps://www.depop.com/products/..."}
+          className="w-full rounded-2xl border border-[hsl(var(--border))] bg-background px-3 py-3 text-sm resize-y focus:outline-none focus:ring-1 focus:ring-[hsl(var(--primary))]"
+        />
 
-      <button
-        type="button"
-        onClick={addListings}
-        disabled={syncing}
-        className="w-full h-12 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold flex items-center justify-center gap-2 disabled:opacity-60 active:scale-[0.99] transition-transform"
-      >
-        {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
-        {syncing ? "Adding Listings…" : "Add to Gallery"}
-      </button>
+        <button
+          type="submit"
+          disabled={syncing}
+          style={{ touchAction: "manipulation" }}
+          className="w-full h-12 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold flex items-center justify-center gap-2 disabled:opacity-60 active:scale-[0.99] transition-transform"
+        >
+          {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+          {syncing ? "Adding Listings…" : "Add to Gallery"}
+        </button>
+      </form>
 
       {result && (
         <p className="text-xs text-muted-foreground rounded-xl bg-muted/50 p-3">{result}</p>
