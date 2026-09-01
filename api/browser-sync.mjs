@@ -84,7 +84,22 @@ async function businessForUser(client, p, user) {
   const active=p?.active_business_id || p?.data?.active_business_id || null;
   const email=normalize(user?.email);
   const r=await client.query(`SELECT base44_id,name,primary_email,data FROM artflow.businesses ORDER BY name NULLS LAST`);
-  return r.rows.find(x=>active && x.base44_id===active) || r.rows.find(x=>email && businessEmails(x).includes(email)) || null;
+  const activeRow=r.rows.find(x=>active && x.base44_id===active) || null;
+  const emailRows=r.rows.filter(x=>email && businessEmails(x).includes(email));
+  const isPlaceholder=(row)=>{
+    if (!row) return false;
+    const d=row.data||{};
+    return businessEmails(row).length===0 && !d.spreadsheet_id && !d.spreadsheetId && /^my business$/i.test(String(row.name||'').trim());
+  };
+  const canonical=emailRows.find((row)=>{
+    const d=row.data||{};
+    return Boolean(d.spreadsheet_id || d.spreadsheetId || (Array.isArray(d.tracked_marketplaces) && d.tracked_marketplaces.length));
+  }) || emailRows[0] || null;
+  const chosen=isPlaceholder(activeRow) && canonical ? canonical : (activeRow || canonical || null);
+  if (chosen && p?.base44_id && activeRow && chosen.base44_id!==activeRow.base44_id && isPlaceholder(activeRow)) {
+    await client.query(`UPDATE artflow.legacy_users SET active_business_id=$2 WHERE base44_id=$1`,[p.base44_id,chosen.base44_id]);
+  }
+  return chosen;
 }
 async function businessForKey(client, key) {
   const r=await client.query(`SELECT base44_id,name,primary_email,data FROM artflow.businesses WHERE data->>'extension_sync_key'=$1 AND COALESCE((data->>'extension_sync_enabled')::boolean,true)=true LIMIT 1`, [key]);
