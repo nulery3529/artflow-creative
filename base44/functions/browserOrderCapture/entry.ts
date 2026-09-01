@@ -2,7 +2,12 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { appendOrdersToMasterSheet } from '../../shared/spreadsheetMaster.js';
 
 const normalize = (value = '') => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
-const validPlatform = (value = '') => /vinted/i.test(value) ? 'Vinted' : /depop/i.test(value) ? 'Depop' : '';
+const validPlatform = (value = '') =>
+  /vinted/i.test(value) ? 'Vinted'
+  : /depop/i.test(value) ? 'Depop'
+  : /etsy/i.test(value) ? 'Etsy'
+  : /ebay/i.test(value) ? 'eBay'
+  : '';
 const inferSize = (name = '') => {
   const match = String(name).match(/\b(\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?)\b/i);
   return match ? match[1].replace(/\s+/g, '').replace('×', 'x') : 'Unknown';
@@ -21,6 +26,8 @@ function sourceHostMatches(platform, url = '') {
     const host = new URL(url).hostname.toLowerCase();
     if (platform === 'Vinted') return host === 'vinted.com' || host.endsWith('.vinted.com');
     if (platform === 'Depop') return host === 'depop.com' || host.endsWith('.depop.com');
+    if (platform === 'Etsy') return host === 'etsy.com' || host.endsWith('.etsy.com');
+    if (platform === 'eBay') return host === 'ebay.com' || host.endsWith('.ebay.com');
   } catch {}
   return false;
 }
