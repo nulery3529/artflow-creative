@@ -13,6 +13,14 @@ import { Image } from "@/components/ui/image";
 const tabs = ["All", "Available", "Sold"];
 const marketplaceTabs = ["All sites", "Vinted", "Depop", "Etsy", "eBay"];
 
+function marketplaceImageSrc(listing) {
+  if (!listing?.image_url && !listing?.listing_url) return "";
+  const params = new URLSearchParams();
+  if (listing.image_url) params.set("image", listing.image_url);
+  if (listing.listing_url) params.set("listing", listing.listing_url);
+  return `/api/listing-image?${params.toString()}`;
+}
+
 export default function Gallery() {
   const { records, loading, reload } = useEntity("ArtPiece", "-created_date");
   const [marketplaceListings, setMarketplaceListings] = useState([]);
@@ -243,8 +251,13 @@ export default function Gallery() {
                   className="text-left min-w-0 block"
                 >
                   <div className="relative aspect-square bg-muted overflow-hidden">
-                    {listing.image_url ? (
-                      <Image src={listing.image_url} fittingType="fill" className="w-full h-full" />
+                    {listing.image_url || listing.listing_url ? (
+                      <Image
+                        src={marketplaceImageSrc(listing)}
+                        fittingType="fill"
+                        className="w-full h-full object-cover"
+                        alt={listing.title || `${listing.platform || "Marketplace"} listing`}
+                      />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">No photo</div>
                     )}
