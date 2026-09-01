@@ -23,9 +23,18 @@ export default async function handler(req, res) {
     const sample = await client.query(`
       SELECT base44_id, data, to_jsonb(e) AS row_json
       FROM artflow.expenses e
-      LIMIT 1
+      LIMIT 5
     `);
-    return res.status(200).json({ columns: columns.rows, sample: sample.rows[0] || null });
+    const stats = await client.query(`
+      SELECT
+        count(*)::int AS total,
+        count(*) FILTER (WHERE archived IS NOT TRUE)::int AS active,
+        count(*) FILTER (WHERE archived IS NOT TRUE AND (expense_date IS NULL OR btrim(expense_date)=''))::int AS active_missing_date,
+        count(*) FILTER (WHERE archived IS NOT TRUE AND data->>'source'='google_sheet_master')::int AS active_sheet_rows,
+        count(*) FILTER (WHERE archived IS NOT TRUE AND data->>'source'='google_sheet_master' AND (expense_date IS NULL OR btrim(expense_date)=''))::int AS sheet_missing_date
+      FROM artflow.expenses
+    `);
+    return res.status(200).json({ columns: columns.rows, stats: stats.rows[0] || null, sample: sample.rows });
   } catch (error) {
     return res.status(500).json({ error: error?.message || String(error) });
   } finally {
