@@ -242,7 +242,12 @@ async function fetchHtml(url, timeoutMs = 8000) {
         'accept-language': 'en-US,en;q=0.9',
       },
     });
-    if (!response.ok) throw new Error(`Marketplace returned ${response.status}`);
+    if (!response.ok) {
+      const error = new Error(`Marketplace returned ${response.status}`);
+      error.status = response.status;
+      error.finalUrl = response.url || url;
+      throw error;
+    }
     return { html: await response.text(), finalUrl: response.url || url };
   } finally {
     clearTimeout(timer);
@@ -483,6 +488,14 @@ export default async function handler(req, res) {
         } catch {}
       } catch (error) {
         console.warn('mobile listing link resolve failed', shop.platform, error?.message || error);
+
+        const redirectedUrl = normalizeUrl(error?.finalUrl || '');
+        const redirectedPlatform = platformFrom(redirectedUrl) || shop.platform;
+        if (redirectedUrl && allowedHost(redirectedPlatform, redirectedUrl) && isListingUrl(redirectedPlatform, redirectedUrl)) {
+          directListings.push({ platform: redirectedPlatform, url: redirectedUrl });
+          continue;
+        }
+
         try {
           const meta = await fetchBrowserMetadata(shop.url);
           const metaUrl = normalizeUrl(meta.finalUrl || shop.url);
