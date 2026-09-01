@@ -157,16 +157,31 @@ export default async function handler(req, res) {
     return res.status(404).end();
   }
 
-  try {
-    const response = await fetchImage(image.toString(), listing?.toString() || '');
-    if (!response.ok) return res.status(response.status === 404 ? 404 : 502).end();
+  async function sendImage(candidate) {
+    const response = await fetchImage(candidate.toString(), listing?.toString() || '');
+    if (!response.ok) return false;
     const contentType = response.headers.get('content-type') || '';
-    if (!contentType.toLowerCase().startsWith('image/')) return res.status(415).end();
+    if (!contentType.toLowerCase().startsWith('image/')) return false;
     const body = Buffer.from(await response.arrayBuffer());
     res.setHeader('Content-Type', contentType);
     res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800');
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    return res.status(200).send(body);
+    res.status(200).send(body);
+    return true;
+  }
+
+  try {
+    if (await sendImage(image)) return;
+
+    // Marketplace CDN image URLs can expire even while the listing is still live.
+    // If the saved image fails, rediscover the current image from the listing and retry.
+    if (listing) {
+      const discovered = await discoverImage(listing.toString());
+      const refreshedImage = safeHttpsUrl(discovered, IMAGE_HOST_SUFFIXES);
+      if (refreshedImage && refreshedImage.toString() !== image.toString() && await sendImage(refreshedImage)) return;
+    }
+
+    return res.status(404).end();
   } catch (error) {
     console.warn('listing image proxy failed', error?.message || error);
     return res.status(502).end();
