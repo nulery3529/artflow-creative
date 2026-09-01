@@ -284,46 +284,58 @@ export default async function handler(req, res) {
     }
 
     const body = parseBody(req);
-    const platform = SUPPORTED.includes(body.platform) ? body.platform : platformFrom(body.platform);
-    if (!platform) return res.status(400).json({ error: 'Choose a supported marketplace' });
-
     const submitted = splitUrls(body.urls || body.url || '');
-    if (!submitted.length) return res.status(400).json({ error: 'Paste your shop/profile link or one or more listing links' });
-    if (submitted.some((url) => !allowedHost(platform, url))) {
-      return res.status(400).json({ error: `Use only ${platform} links in this field` });
-    }
+    if (!submitted.length) return res.status(400).json({ error: 'Paste one or more Vinted, Depop, Etsy, or eBay listing links' });
 
-    const savedUrls = { ...(b.data?.mobile_shop_urls || {}), [platform]: clean(body.urls || body.url).slice(0, 12000) };
-    const nextBusinessData = { ...(b.data || {}), mobile_shop_urls: savedUrls };
-    await client.query(`UPDATE artflow.businesses SET data=$2::jsonb WHERE base44_id=$1`, [b.base44_id, JSON.stringify(nextBusinessData)]);
+    const directListings = [];
+    const shopPages = [];
+    const rejected = [];
 
-    const listingUrls = new Set();
-    for (const input of submitted) {
-      if (isListingUrl(platform, input)) {
-        listingUrls.add(normalizeUrl(input));
+    for (const raw of submitted) {
+      const platform = platformFrom(raw);
+      if (!platform || !allowedHost(platform, raw)) {
+        rejected.push(raw);
         continue;
       }
+      if (isListingUrl(platform, raw)) directListings.push({ platform, url: normalizeUrl(raw) });
+      else shopPages.push({ platform, url: raw });
+    }
+
+    // Shop/profile pages are still supported when a marketplace exposes its listing links publicly.
+    // Direct listing links are the reliable mobile path and can be mixed across marketplaces.
+    for (const shop of shopPages) {
       try {
-        const { html, finalUrl } = await fetchHtml(input, 9000);
-        extractListingLinks(platform, html, finalUrl || input).forEach((url) => listingUrls.add(url));
+        const { html, finalUrl } = await fetchHtml(shop.url, 9000);
+        const found = extractListingLinks(shop.platform, html, finalUrl || shop.url);
+        for (const url of found) directListings.push({ platform: shop.platform, url });
       } catch (error) {
-        console.warn('mobile listing profile fetch failed', platform, error?.message || error);
+        console.warn('mobile listing profile fetch failed', shop.platform, error?.message || error);
       }
     }
 
-    const urls = [...listingUrls].filter(Boolean).slice(0, 60);
-    if (!urls.length) {
+    const unique = [];
+    const seen = new Set();
+    for (const item of directListings) {
+      const key = `${item.platform}|${item.url}`;
+      if (!item.url || seen.has(key)) continue;
+      seen.add(key);
+      unique.push(item);
+      if (unique.length >= 80) break;
+    }
+
+    if (!unique.length) {
       return res.status(422).json({
-        error: `Art Flow could not read listing cards from that ${platform} shop page. Paste several individual listing links in the same box instead; one per line works.`,
-        savedUrl: true,
+        error: 'No readable listing links were found. In the marketplace app, open a listing, tap Share or Copy link, then paste that listing link here.',
+        rejected: rejected.length,
       });
     }
 
-    const listings = await mapLimit(urls, 8, (url) => listingMetadata(platform, url));
+    const listings = await mapLimit(unique, 8, (item) => listingMetadata(item.platform, item.url));
     let saved = 0;
+    const counts = {};
     for (const listing of listings) {
-      if (!listing.listing_url) continue;
-      const id = crypto.createHash('sha256').update(`${b.base44_id}|${platform}|${listing.listing_url}`).digest('hex');
+      if (!listing.listing_url || !listing.platform) continue;
+      const id = crypto.createHash('sha256').update(`${b.base44_id}|${listing.platform}|${listing.listing_url}`).digest('hex');
       await client.query(
         `INSERT INTO artflow.marketplace_listings (id,business_id,platform,listing_id,title,price,currency,image_url,listing_url,status,last_seen_at,sync_source,data)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'Active',now(),'mobile_listing_sync','{}'::jsonb)
@@ -334,16 +346,18 @@ export default async function handler(req, res) {
            currency=EXCLUDED.currency,
            image_url=COALESCE(NULLIF(EXCLUDED.image_url,''),artflow.marketplace_listings.image_url),
            status='Active',last_seen_at=now(),sync_source='mobile_listing_sync'`,
-        [id,b.base44_id,platform,listing.listing_id || null,listing.title,listing.price || 0,listing.currency || 'USD',listing.image_url || null,listing.listing_url]
+        [id,b.base44_id,listing.platform,listing.listing_id || null,listing.title,listing.price || 0,listing.currency || 'USD',listing.image_url || null,listing.listing_url]
       );
+      counts[listing.platform] = (counts[listing.platform] || 0) + 1;
       saved++;
     }
 
+    const breakdown = Object.entries(counts).map(([site, count]) => `${site}: ${count}`).join(' · ');
     return res.status(200).json({
       ok: true,
       saved,
-      platform,
-      message: `${saved} ${platform} listing${saved === 1 ? '' : 's'} linked to Gallery.`,
+      counts,
+      message: `${saved} listing${saved === 1 ? '' : 's'} added to Gallery${breakdown ? ` (${breakdown})` : ''}.`,
     });
   } catch (error) {
     console.error('mobile listing sync error', error?.message || error);
