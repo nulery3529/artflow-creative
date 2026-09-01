@@ -60,8 +60,9 @@ async function insertRows(client, table, inputRows, owner) {
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  if (String(req.headers['x-artflow-seed-token'] || '') !== ALLOWED_TOKEN) {
+  if (!['GET', 'POST'].includes(req.method)) return res.status(405).json({ error: 'Method not allowed' });
+  const suppliedToken = String(req.headers['x-artflow-seed-token'] || req.query?.token || '');
+  if (suppliedToken !== ALLOWED_TOKEN) {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
