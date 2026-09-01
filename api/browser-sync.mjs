@@ -159,8 +159,9 @@ export default async function handler(req,res) {
       const snapshotPlatform=body.snapshot_complete ? validPlatform(body.snapshot_platform||body.platform) : '';
       const incoming=Array.isArray(body.listings)?body.listings.slice(0,5000):[];
       if (!incoming.length && !snapshotPlatform) return res.status(400).json({error:'No listings found'});
-      let saved=0,skipped=0,deactivated=0;
-      const snapshotUrls=[];
+
+      let skipped=0,deactivated=0;
+      const deduped=new Map();
       for (const raw of incoming) {
         const platform=validPlatform(raw?.platform), url=normalizeUrl(raw?.listing_url||raw?.url), title=clean(raw?.title||raw?.product_name).slice(0,300);
         if (!platform || !url || !title || !sourceHostMatches(platform,url)) { skipped++; continue; }
@@ -169,19 +170,47 @@ export default async function handler(req,res) {
         const listingId=clean(raw?.listing_id||listingIdFromUrl(platform,url)).slice(0,200);
         const image=/^https?:\/\//i.test(clean(raw?.image_url))?clean(raw.image_url).slice(0,2000):null;
         const id=crypto.createHash('sha256').update(`${b.base44_id}|${platform}|${url}`).digest('hex');
-        await client.query(`INSERT INTO artflow.marketplace_listings (id,business_id,platform,listing_id,title,price,currency,image_url,listing_url,status,last_seen_at,sync_source,data)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'Active',now(),'browser_listing_sync','{}'::jsonb)
-          ON CONFLICT (business_id,platform,listing_url) DO UPDATE SET listing_id=EXCLUDED.listing_id,title=EXCLUDED.title,price=EXCLUDED.price,currency=EXCLUDED.currency,image_url=COALESCE(EXCLUDED.image_url,artflow.marketplace_listings.image_url),status='Active',last_seen_at=now(),sync_source='browser_listing_sync'`,
-          [id,b.base44_id,platform,listingId||null,title,price,clean(raw?.currency||'USD')||'USD',image,url]);
-        if (snapshotPlatform && platform===snapshotPlatform) snapshotUrls.push(url);
-        saved++;
+        deduped.set(`${platform}|${url}`,{
+          id,platform,listing_id:listingId||null,title,price,
+          currency:clean(raw?.currency||'USD')||'USD',image_url:image,listing_url:url,
+        });
       }
+
+      const rows=[...deduped.values()];
+      if (rows.length) {
+        await client.query(`
+          WITH incoming AS (
+            SELECT * FROM jsonb_to_recordset($1::jsonb) AS x(
+              id text, platform text, listing_id text, title text, price numeric,
+              currency text, image_url text, listing_url text
+            )
+          )
+          INSERT INTO artflow.marketplace_listings
+            (id,business_id,platform,listing_id,title,price,currency,image_url,listing_url,status,last_seen_at,sync_source,data)
+          SELECT id,$2,platform,listing_id,title,price,currency,image_url,listing_url,'Active',now(),'browser_listing_sync','{}'::jsonb
+          FROM incoming
+          ON CONFLICT (business_id,platform,listing_url) DO UPDATE SET
+            listing_id=EXCLUDED.listing_id,
+            title=EXCLUDED.title,
+            price=EXCLUDED.price,
+            currency=EXCLUDED.currency,
+            image_url=COALESCE(NULLIF(EXCLUDED.image_url,''),artflow.marketplace_listings.image_url),
+            status='Active',
+            last_seen_at=now(),
+            sync_source='browser_listing_sync'
+        `,[JSON.stringify(rows),b.base44_id]);
+      }
+
+      const snapshotUrls=snapshotPlatform
+        ? rows.filter((row)=>row.platform===snapshotPlatform).map((row)=>row.listing_url)
+        : [];
       if (snapshotPlatform) {
         const result=snapshotUrls.length
           ? await client.query(`UPDATE artflow.marketplace_listings SET status='Inactive',last_seen_at=now(),sync_source='browser_listing_snapshot' WHERE business_id=$1 AND platform=$2 AND status='Active' AND NOT (listing_url = ANY($3::text[]))`,[b.base44_id,snapshotPlatform,snapshotUrls])
           : await client.query(`UPDATE artflow.marketplace_listings SET status='Inactive',last_seen_at=now(),sync_source='browser_listing_snapshot' WHERE business_id=$1 AND platform=$2 AND status='Active'`,[b.base44_id,snapshotPlatform]);
         deactivated=Number(result.rowCount||0);
       }
+      const saved=rows.length;
       return res.status(200).json({ok:true,saved,skipped,deactivated,message:`${saved} current listing${saved===1?'':'s'} linked to your Gallery${deactivated?` · ${deactivated} no longer active`:''}.`});
     }
 
