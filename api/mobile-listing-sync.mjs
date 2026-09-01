@@ -84,6 +84,14 @@ function isListingUrl(platform, raw = '') {
   return false;
 }
 
+function isPrivateSellerDashboard(platform, raw = '') {
+  try {
+    const p = new URL(raw).pathname;
+    return platform === 'Depop' && /^\/sellinghub(?:\/|$)/i.test(p);
+  } catch {}
+  return false;
+}
+
 function listingIdFromUrl(platform, raw = '') {
   try {
     const p = new URL(raw).pathname;
@@ -428,12 +436,18 @@ export default async function handler(req, res) {
 
     const directListings = [];
     const shopPages = [];
+    const privateSellerPages = [];
     const rejected = [];
 
     for (const raw of submitted) {
       const platform = platformFrom(raw);
       if (!platform || !allowedHost(platform, raw)) {
         rejected.push(raw);
+        continue;
+      }
+
+      if (isPrivateSellerDashboard(platform, raw)) {
+        privateSellerPages.push({ platform, url: raw });
         continue;
       }
 
@@ -520,6 +534,14 @@ export default async function handler(req, res) {
     }
 
     if (!unique.length) {
+      if (privateSellerPages.some((item) => item.platform === 'Depop')) {
+        return send(422, {
+          error: "That is Depop's private Selling Hub / Active Listings page. Art Flow cannot read listings from that logged-in dashboard. Open a Depop product, tap Share → Copy link, then paste the product link here.",
+          rejected: privateSellerPages.length,
+          reason: 'private_seller_dashboard',
+        });
+      }
+
       const rejectedHosts = rejected.map((raw) => { try { return new URL(raw).hostname; } catch { return 'invalid link'; } });
       console.warn('mobile listing sync no readable links', { submitted: submitted.length, rejectedHosts, unresolved: shopPages.length });
       return send(422, {
