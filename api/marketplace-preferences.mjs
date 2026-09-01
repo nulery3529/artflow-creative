@@ -45,10 +45,26 @@ async function getBusiness(client, profile, user) {
   const active = profile?.active_business_id || profile?.data?.active_business_id || null;
   const email = normalize(user?.email);
   const result = await client.query(`SELECT base44_id, name, primary_email, data FROM artflow.businesses ORDER BY name NULLS LAST`);
-  const existing = result.rows.find((row) => active && row.base44_id === active)
-    || result.rows.find((row) => email && businessEmails(row).includes(email))
-    || null;
-  if (existing) return existing;
+  const activeRow = result.rows.find((row) => active && row.base44_id === active) || null;
+  const emailRows = result.rows.filter((row) => email && businessEmails(row).includes(email));
+  const isPlaceholder = (row) => {
+    if (!row) return false;
+    const d = row.data || {};
+    const hasIdentity = businessEmails(row).length > 0;
+    const hasTracker = Boolean(d.spreadsheet_id || d.spreadsheetId || row.spreadsheet_id);
+    return !hasIdentity && !hasTracker && /^my business$/i.test(String(row.name || '').trim());
+  };
+  const canonical = emailRows.find((row) => {
+    const d = row.data || {};
+    return Boolean(d.spreadsheet_id || d.spreadsheetId || (Array.isArray(d.tracked_marketplaces) && d.tracked_marketplaces.length));
+  }) || emailRows[0] || null;
+  const existing = isPlaceholder(activeRow) && canonical ? canonical : (activeRow || canonical || null);
+  if (existing) {
+    if (profile?.base44_id && activeRow && existing.base44_id !== activeRow.base44_id && isPlaceholder(activeRow)) {
+      await client.query(`UPDATE artflow.legacy_users SET active_business_id=$2 WHERE base44_id=$1`, [profile.base44_id, existing.base44_id]);
+    }
+    return existing;
+  }
 
   const id = crypto.randomUUID();
   const name = `${String(user?.name || 'My').trim() || 'My'} Art Business`;
