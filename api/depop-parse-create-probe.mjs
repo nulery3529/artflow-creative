@@ -19,11 +19,25 @@ export default async function handler(req,res){
         const results=[];
         for(const row of q.rows){
           const username=clean(row.username);
-          const r=await fetch(`https://api.parse.bot/scraper/e781fdf1-07fd-44a5-abc9-cfbbe53a5243/get_seller_listings?username=${encodeURIComponent(username)}&limit=100&max_results=500`,{headers:{Accept:'application/json','X-API-Key':key}});
-          const text=await r.text(); let payload={}; try{payload=text?JSON.parse(text):{}}catch{payload={raw:text}}
-          const data=payload?.data&&typeof payload.data==='object'?payload.data:payload;
-          const products=Array.isArray(data?.products)?data.products:(Array.isArray(data?.listings)?data.listings:[]);
-          results.push({username,status:r.status,count:products.length,data_keys:Object.keys(data||{}),meta:data?.meta||null,last_offset_id:data?.last_offset_id||null,end:data?.end??null});
+          let cursor='';
+          let total=0;
+          const pages=[];
+          const seen=new Set();
+          for(let page=1;page<=5;page++){
+            const qs=new URLSearchParams({username,limit:'100'});
+            if(cursor) qs.set('cursor',cursor);
+            const r=await fetch(`https://api.parse.bot/scraper/e781fdf1-07fd-44a5-abc9-cfbbe53a5243/get_seller_listings?${qs.toString()}`,{headers:{Accept:'application/json','X-API-Key':key}});
+            const text=await r.text(); let payload={}; try{payload=text?JSON.parse(text):{}}catch{payload={raw:text}}
+            const data=payload?.data&&typeof payload.data==='object'?payload.data:payload;
+            const products=Array.isArray(data?.products)?data.products:(Array.isArray(data?.listings)?data.listings:[]);
+            const next=clean(data?.last_offset_id||data?.meta?.last_offset_id||'');
+            const end=data?.end===true||data?.meta?.end===true;
+            total+=products.length;
+            pages.push({page,status:r.status,count:products.length,end,next_present:Boolean(next),cursor_changed:Boolean(next&&next!==cursor)});
+            if(!r.ok||end||!next||next===cursor||seen.has(next)) break;
+            seen.add(next); cursor=next;
+          }
+          results.push({username,total,pages});
         }
         return res.status(200).json({results});
       }finally{client.release();await pool.end();}
