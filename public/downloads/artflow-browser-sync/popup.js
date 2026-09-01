@@ -16,17 +16,25 @@ function setStatus(message, kind = '') {
 
 function extractOrderFromPage() {
   const host = location.hostname.toLowerCase();
-  const platform = host.includes('vinted') ? 'Vinted' : host.includes('depop') ? 'Depop' : '';
+  const platform = host.includes('vinted')
+    ? 'Vinted'
+    : host.includes('depop')
+      ? 'Depop'
+      : host.includes('etsy')
+        ? 'Etsy'
+        : host.includes('ebay')
+          ? 'eBay'
+          : '';
   const body = (document.body?.innerText || '').replace(/\r/g, '');
   const lines = body.split('\n').map((v) => v.trim()).filter(Boolean);
   const metaTitle = document.querySelector('meta[property="og:title"]')?.content || '';
   const h1 = document.querySelector('h1')?.innerText || '';
-  let product = (h1 || metaTitle || document.title || '').replace(/\s*[|–-]\s*(Vinted|Depop).*$/i, '').trim();
+  let product = (h1 || metaTitle || document.title || '').replace(/\s*[|–-]\s*(Vinted|Depop|Etsy|eBay).*$/i, '').trim();
   if (product.length > 300) product = product.slice(0, 300);
 
   const labeledMoney = [
-    /(?:order\s+total|subtotal|item\s+price|sale\s+price|sold\s+for|price)\s*[:\n]?\s*\$\s*([0-9][0-9,]*(?:\.\d{1,2})?)/i,
-    /\$\s*([0-9][0-9,]*(?:\.\d{1,2})?)\s*(?:item\s+price|subtotal|total)/i,
+    /(?:order\s+total|order\s+value|subtotal|item\s+total|item\s+price|sale\s+price|sold\s+for|you\s+earned|price)\s*[:\n]?\s*(?:US\s*)?\$\s*([0-9][0-9,]*(?:\.\d{1,2})?)/i,
+    /(?:US\s*)?\$\s*([0-9][0-9,]*(?:\.\d{1,2})?)\s*(?:item\s+price|subtotal|total|order\s+total)/i,
   ];
   let saleTotal = '';
   for (const re of labeledMoney) {
@@ -34,8 +42,8 @@ function extractOrderFromPage() {
     if (match) { saleTotal = match[1].replace(/,/g, ''); break; }
   }
 
-  const orderMatch = body.match(/(?:order(?:\s*(?:id|number))?|order\s*#)\s*[:#]?\s*([A-Z0-9][A-Z0-9_-]{5,})/i);
-  const buyerMatch = body.match(/(?:buyer|sold\s+to)\s*[:\n]\s*([^\n]{2,80})/i);
+  const orderMatch = body.match(/(?:order(?:\s*(?:id|number))?|order\s*#|receipt(?:\s*(?:id|number))?|receipt\s*#)\s*[:#]?\s*([A-Z0-9][A-Z0-9_-]{5,})/i);
+  const buyerMatch = body.match(/(?:buyer|sold\s+to|purchased\s+by)\s*[:\n]\s*([^\n]{2,80})/i);
   const quantityMatch = body.match(/(?:quantity|qty)\s*[:\n]?\s*(\d{1,2})/i);
 
   // Some marketplace order pages use nearby text rather than semantic headings.
@@ -66,7 +74,7 @@ async function readPage() {
     const result = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: extractOrderFromPage });
     const data = result?.[0]?.result || {};
     if (!data.supported) {
-      setStatus('Open a Vinted or Depop sold/order page first.', 'bad');
+      setStatus('Open a Vinted, Depop, Etsy, or eBay sold/order page first.', 'bad');
       $('capture').disabled = true;
       return;
     }
