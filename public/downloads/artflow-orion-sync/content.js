@@ -84,10 +84,19 @@ async function crawlListingsFromPage(maxListings = 500) {
     } catch { return ''; }
   };
 
+  const absoluteImageUrl = (value = '') => {
+    const clean = String(value || '').trim();
+    if (!clean || clean.startsWith('data:') || clean.startsWith('blob:')) return '';
+    try {
+      const url = new URL(clean, location.href);
+      return /^https?:$/i.test(url.protocol) ? url.toString() : '';
+    } catch { return ''; }
+  };
+
   const srcsetCandidates = (value = '') => {
     return String(value || '').split(',').map((part) => {
       const bits = part.trim().split(/\s+/);
-      const url = bits[0] || '';
+      const url = absoluteImageUrl(bits[0] || '');
       const descriptor = bits[1] || '';
       let score = 0;
       const width = descriptor.match(/^(\d+)w$/i);
@@ -95,14 +104,14 @@ async function crawlListingsFromPage(maxListings = 500) {
       if (width) score = Number(width[1]);
       else if (density) score = Number(density[1]) * 1000;
       return { url, score };
-    }).filter((item) => /^https?:\/\//i.test(item.url));
+    }).filter((item) => item.url);
   };
 
   const bestImage = (img, card) => {
     const candidates = [];
     const add = (url, score = 1) => {
-      const clean = String(url || '').trim();
-      if (/^https?:\/\//i.test(clean)) candidates.push({ url: clean, score });
+      const clean = absoluteImageUrl(url);
+      if (clean) candidates.push({ url: clean, score });
     };
     if (img) {
       add(img.getAttribute('data-original'), 5000);
