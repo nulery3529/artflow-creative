@@ -69,23 +69,6 @@ async function ensureTable(client) {
     data jsonb DEFAULT '{}'::jsonb
   )`);
   await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS marketplace_listings_business_platform_url_idx ON artflow.marketplace_listings (business_id, platform, listing_url)`);
-  await client.query(`
-    DELETE FROM artflow.marketplace_listings older
-    USING artflow.marketplace_listings newer
-    WHERE older.business_id=newer.business_id
-      AND older.platform=newer.platform
-      AND older.listing_id IS NOT NULL
-      AND older.listing_id<>''
-      AND older.listing_id=newer.listing_id
-      AND older.id<>newer.id
-      AND (
-        COALESCE(older.last_seen_at,'epoch'::timestamptz) < COALESCE(newer.last_seen_at,'epoch'::timestamptz)
-        OR (
-          COALESCE(older.last_seen_at,'epoch'::timestamptz) = COALESCE(newer.last_seen_at,'epoch'::timestamptz)
-          AND older.id < newer.id
-        )
-      )
-  `);
   await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS marketplace_listings_business_platform_listing_id_idx ON artflow.marketplace_listings (business_id, platform, listing_id) WHERE listing_id IS NOT NULL AND listing_id<>''`);
 }
 async function session(req) { return auth.api.getSession({ headers: fromNodeHeaders(req.headers) }); }
