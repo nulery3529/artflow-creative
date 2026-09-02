@@ -25,13 +25,13 @@ import Expenses from "@/pages/Expenses";
 import Logo from "@/components/Logo";
 import { useAuth } from "@/lib/AuthContext";
 
-// Primary tab views stay mounted so scroll/search/filter state survives navigation.
 const tabs = [
   { path: "/", Comp: Dashboard },
   { path: "/orders", Comp: Orders },
   { path: "/inventory", Comp: Inventory },
   { path: "/expenses", Comp: Expenses },
 ];
+
 const tabPaths = new Set(tabs.map((t) => t.path));
 
 const mainNav = [
@@ -59,29 +59,40 @@ export default function Layout() {
   const { theme, setTheme } = useTheme();
 
   const isActive = (to) =>
-    to === "/" ? pathname === "/" : pathname === to || pathname.startsWith(`${to}/`);
+    to === "/"
+      ? pathname === "/"
+      : pathname === to || pathname.startsWith(`${to}/`);
 
   useEffect(() => {
     if (!tabPaths.has(pathname)) return;
+
     const onScroll = () => {
       scrollPositions.current[pathname] = window.scrollY;
     };
+
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
+
     return () => window.removeEventListener("scroll", onScroll);
   }, [pathname]);
 
   useEffect(() => {
     if (!tabPaths.has(pathname)) return;
+
     const saved = scrollPositions.current[pathname] ?? 0;
     const id = requestAnimationFrame(() => window.scrollTo(0, saved));
+
     return () => cancelAnimationFrame(id);
   }, [pathname]);
 
-  const firstName = String(user?.full_name || user?.name || "Artist").trim().split(/\s+/)[0] || "Artist";
+  const firstName =
+    String(user?.full_name || user?.name || "Artist")
+      .trim()
+      .split(/\s+/)[0] || "Artist";
 
   const renderNavItem = ({ label, to, icon: Icon }) => {
     const active = isActive(to);
+
     return (
       <button
         type="button"
@@ -93,7 +104,10 @@ export default function Layout() {
             : "text-muted-foreground hover:bg-white/55 hover:text-foreground dark:hover:bg-white/5"
         }`}
       >
-        <Icon className="w-5 h-5 shrink-0" strokeWidth={active ? 2.5 : 2} />
+        <Icon
+          className="w-5 h-5 shrink-0"
+          strokeWidth={active ? 2.5 : 2}
+        />
         <span>{label}</span>
       </button>
     );
@@ -101,7 +115,6 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Lavender desktop / iPad sidebar */}
       <aside className="hidden md:flex fixed inset-y-0 left-0 z-40 w-72 flex-col border-r border-[hsl(var(--border))] bg-[rgba(245,236,255,0.82)] dark:bg-[rgba(13,18,33,0.88)] backdrop-blur-xl px-4 py-5">
         <button
           type="button"
@@ -111,39 +124,69 @@ export default function Layout() {
           <div className="w-12 h-12 rounded-2xl bg-white/70 dark:bg-white/5 border border-white/60 dark:border-white/10 flex items-center justify-center shadow-sm">
             <Logo size={38} />
           </div>
+
           <div className="min-w-0">
-            <div className="font-heading text-xl leading-none artflow-gradient-text">ART FLOW</div>
-            <div className="text-[11px] tracking-[0.28em] text-muted-foreground mt-1">CREATIVE</div>
+            <div className="font-heading text-xl leading-none artflow-gradient-text">
+              ART FLOW
+            </div>
+            <div className="text-[11px] tracking-[0.28em] text-muted-foreground mt-1">
+              CREATIVE
+            </div>
           </div>
         </button>
 
-        <nav className="space-y-1.5">{mainNav.map(renderNavItem)}</nav>
+        <nav className="space-y-1.5">
+          {mainNav.map(renderNavItem)}
+        </nav>
 
         <div className="my-4 border-t border-[hsl(var(--border))]" />
-        <nav className="space-y-1">{secondaryNav.map(renderNavItem)}</nav>
+
+        <nav className="space-y-1">
+          {secondaryNav.map(renderNavItem)}
+        </nav>
 
         <div className="mt-auto space-y-3 pt-5">
           <div className="rounded-3xl border border-[hsl(var(--border))] bg-white/55 dark:bg-white/5 p-4 shadow-sm">
-            <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">Signed in</p>
-            <p className="font-semibold mt-1 truncate">{firstName}</p>
-            <p className="text-xs text-muted-foreground truncate">{user?.email || "Art Flow Creative"}</p>
+            <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
+              Signed in
+            </p>
+
+            <p className="font-semibold mt-1 truncate">
+              {firstName}
+            </p>
+
+            <p className="text-xs text-muted-foreground truncate">
+              {user?.email || "Art Flow Creative"}
+            </p>
           </div>
 
           <div className="rounded-2xl border border-[hsl(var(--border))] bg-white/45 dark:bg-white/5 p-2 flex items-center gap-2">
-            <span className="text-xs text-muted-foreground font-medium px-2 mr-auto">Theme</span>
+            <span className="text-xs text-muted-foreground font-medium px-2 mr-auto">
+              Theme
+            </span>
+
             <button
               type="button"
               aria-label="Light theme"
               onClick={() => setTheme("light")}
-              className={`w-9 h-9 rounded-xl flex items-center justify-center ${theme !== "dark" ? "bg-white text-[hsl(var(--primary))] shadow-sm" : "text-muted-foreground"}`}
+              className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                theme !== "dark"
+                  ? "bg-white text-[hsl(var(--primary))] shadow-sm"
+                  : "text-muted-foreground"
+              }`}
             >
               <Sun className="w-4 h-4" />
             </button>
+
             <button
               type="button"
               aria-label="Dark theme"
               onClick={() => setTheme("dark")}
-              className={`w-9 h-9 rounded-xl flex items-center justify-center ${theme === "dark" ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] shadow-sm" : "text-muted-foreground"}`}
+              className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                theme === "dark"
+                  ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] shadow-sm"
+                  : "text-muted-foreground"
+              }`}
             >
               <Moon className="w-4 h-4" />
             </button>
@@ -163,10 +206,16 @@ export default function Layout() {
       <div className="md:ml-72 min-h-screen">
         <main className="max-w-md md:max-w-none md:w-full md:px-8 lg:px-10 xl:px-12 mx-auto px-5 pt-[calc(1.5rem+env(safe-area-inset-top))] md:pt-8 pb-28 md:pb-10 overflow-x-clip">
           {tabs.map(({ path, Comp }) => (
-            <div key={path} style={{ display: pathname === path ? "block" : "none" }}>
+            <div
+              key={path}
+              style={{
+                display: pathname === path ? "block" : "none",
+              }}
+            >
               <Comp />
             </div>
           ))}
+
           {!tabPaths.has(pathname) && (
             <div key={pathname} className="screen-slide">
               <Outlet />
