@@ -156,7 +156,9 @@ async function crawlListingsFromPage(maxListings = 500) {
       title = title.replace(/\s+/g, ' ').trim().slice(0, 300) || `${platform} listing ${id || seen.size + 1}`;
       const moneyMatch = text.match(/(?:US\s*)?\$\s*([0-9][0-9,]*(?:\.\d{1,2})?)/i);
       const price = moneyMatch ? Number(moneyMatch[1].replace(/,/g, '')) : 0;
-      const next = { platform, listing_id: id, title, price: Number.isFinite(price) ? price : 0, currency: 'USD', image_url: best.url, listing_url: url, _image_score: best.score };
+      const sold = lines.some((line) => /^(sold|sold out)$/i.test(line)) || /(?:^|\n)\s*(?:sold|sold out)\s*(?:\n|$)/i.test(text);
+      const status = sold ? 'Sold' : 'Active';
+      const next = { platform, listing_id: id, title, price: Number.isFinite(price) ? price : 0, currency: 'USD', image_url: best.url, listing_url: url, status, _image_score: best.score };
       const previous = seen.get(key);
       if (!previous) {
         if (seen.size < max) seen.set(key, next);
@@ -164,6 +166,7 @@ async function crawlListingsFromPage(maxListings = 500) {
         if (next._image_score > (previous._image_score || 0) && next.image_url) previous.image_url = next.image_url;
         if ((!previous.title || /^Vinted listing /i.test(previous.title)) && next.title) previous.title = next.title;
         if ((!previous.price || previous.price <= 0) && next.price > 0) previous.price = next.price;
+        if (next.status === 'Sold') previous.status = 'Sold';
         previous._image_score = Math.max(previous._image_score || 0, next._image_score || 0);
       }
     }
