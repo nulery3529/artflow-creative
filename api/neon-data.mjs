@@ -182,10 +182,23 @@ async function listMarketplaceListings(client, session) {
   )`);
   await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS marketplace_listings_business_platform_url_idx ON artflow.marketplace_listings (business_id, platform, listing_url)`);
   const result = await client.query(
-    `SELECT id,business_id,platform,listing_id,title,price,currency,image_url,listing_url,status,last_seen_at,sync_source
+    `SELECT DISTINCT ON (
+         platform,
+         CASE
+           WHEN platform='Vinted' THEN COALESCE(NULLIF(listing_id,''), substring(listing_url from '/items/([0-9]+)'), listing_url)
+           ELSE COALESCE(NULLIF(listing_id,''), listing_url)
+         END
+       )
+       id,business_id,platform,listing_id,title,price,currency,image_url,listing_url,status,last_seen_at,sync_source
        FROM artflow.marketplace_listings
-      WHERE business_id = ANY($1::text[]) AND status='Active'
-      ORDER BY platform, title`,
+      WHERE business_id = ANY($1::text[]) AND status IN ('Active','Sold')
+      ORDER BY
+        platform,
+        CASE
+          WHEN platform='Vinted' THEN COALESCE(NULLIF(listing_id,''), substring(listing_url from '/items/([0-9]+)'), listing_url)
+          ELSE COALESCE(NULLIF(listing_id,''), listing_url)
+        END,
+        last_seen_at DESC NULLS LAST`,
     [ids]
   );
   return result.rows;
