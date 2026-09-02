@@ -1,0 +1,314 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 225 32% 7%;
+    --foreground: 210 30% 96%;
+    --card: 224 30% 11%;
+    --card-foreground: 210 30% 97%;
+    --popover: 224 30% 10%;
+    --popover-foreground: 210 30% 97%;
+    --primary: 187 91% 55%;
+    --primary-foreground: 225 34% 7%;
+    --secondary: 224 23% 16%;
+    --secondary-foreground: 210 30% 96%;
+    --muted: 224 22% 15%;
+    --muted-foreground: 217 15% 66%;
+    --accent: 323 84% 62%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 350 88% 63%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 28% 22%;
+    --input: 221 25% 18%;
+    --ring: 187 91% 55%;
+    --radius: 1.15rem;
+    --font-heading: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-body: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-display: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    --lavender: 269 47% 16%;
+    --mint: 184 52% 13%;
+    --peach: 343 49% 15%;
+    --paleyellow: 31 55% 15%;
+    --lightblue: 216 53% 16%;
+  }
+
+  .dark {
+    --background: 225 32% 7%;
+    --foreground: 210 30% 96%;
+    --card: 224 30% 11%;
+    --card-foreground: 210 30% 97%;
+    --popover: 224 30% 10%;
+    --popover-foreground: 210 30% 97%;
+    --primary: 187 91% 55%;
+    --primary-foreground: 225 34% 7%;
+    --secondary: 224 23% 16%;
+    --secondary-foreground: 210 30% 96%;
+    --muted: 224 22% 15%;
+    --muted-foreground: 217 15% 66%;
+    --accent: 323 84% 62%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 350 88% 63%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 28% 22%;
+    --input: 221 25% 18%;
+    --ring: 187 91% 55%;
+    --lavender: 269 47% 16%;
+    --mint: 184 52% 13%;
+    --peach: 343 49% 15%;
+    --paleyellow: 31 55% 15%;
+    --lightblue: 216 53% 16%;
+  }
+
+  .light {
+    --background: 271 76% 96%;
+    --foreground: 248 34% 16%;
+    --card: 270 100% 99%;
+    --card-foreground: 248 34% 16%;
+    --popover: 270 100% 99%;
+    --popover-foreground: 248 34% 16%;
+    --primary: 263 83% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 270 62% 92%;
+    --secondary-foreground: 249 33% 20%;
+    --muted: 269 49% 93%;
+    --muted-foreground: 250 17% 43%;
+    --accent: 326 82% 59%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 350 72% 48%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 267 45% 86%;
+    --input: 268 42% 89%;
+    --ring: 263 83% 58%;
+    --lavender: 271 82% 92%;
+    --mint: 181 70% 92%;
+    --peach: 337 82% 94%;
+    --paleyellow: 36 86% 93%;
+    --lightblue: 213 86% 94%;
+  }
+}
+
+@layer base {
+  html,
+  body {
+    overscroll-behavior-y: none;
+  }
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+  }
+  /* Prevent accidental selection / callout menus on interactive chrome in WebView */
+  nav,
+  button,
+  a,
+  [data-icon-container] {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+}
+
+@layer components {
+  .form-input {
+    @apply w-full h-14 px-4 rounded-2xl bg-card border border-input text-base focus:outline-none focus:ring-2 focus:ring-ring;
+  }
+  .form-textarea {
+    @apply w-full px-4 py-3 rounded-2xl bg-card border border-input text-base focus:outline-none focus:ring-2 focus:ring-ring;
+  }
+}
+
+@layer utilities {
+  .pastel-lavender { background-color: hsl(var(--lavender)); }
+  .pastel-mint { background-color: hsl(var(--mint)); }
+  .pastel-peach { background-color: hsl(var(--peach)); }
+  .pastel-yellow { background-color: hsl(var(--paleyellow)); }
+  .pastel-blue { background-color: hsl(var(--lightblue)); }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}
+
+/* iOS readability: floor the tiny arbitrary font sizes at 12px. Unlayered so it
+   overrides Tailwind's utilities without touching every component. */
+.text-\[10px\], .text-\[11px\] { font-size: 0.75rem; line-height: 1rem; }
+
+/* Horizontal page-switch transition (mobile). No fill-mode, so the element
+   returns to no transform at rest — fixed FABs keep their viewport anchoring. */
+@keyframes screen-slide {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.screen-slide { animation: screen-slide 0.22s ease-out; }
+
+/* Art Flow Creative — neon dashboard theme */
+html { background: hsl(var(--background)); }
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 8% 4%, rgba(38, 215, 255, .12), transparent 28rem),
+    radial-gradient(circle at 92% 10%, rgba(255, 74, 177, .10), transparent 30rem),
+    linear-gradient(135deg, rgba(33, 76, 135, .055) 1px, transparent 1px),
+    linear-gradient(45deg, rgba(46, 211, 255, .035) 1px, transparent 1px),
+    hsl(var(--background));
+  background-size: auto, auto, 44px 44px, 44px 44px, auto;
+  background-attachment: fixed;
+}
+
+.light body {
+  background:
+    radial-gradient(circle at 12% 3%, rgba(173, 133, 255, .24), transparent 28rem),
+    radial-gradient(circle at 88% 8%, rgba(255, 146, 211, .18), transparent 30rem),
+    radial-gradient(circle at 55% 92%, rgba(118, 224, 232, .13), transparent 28rem),
+    linear-gradient(135deg, rgba(136, 100, 218, .06) 1px, transparent 1px),
+    linear-gradient(45deg, rgba(233, 154, 225, .055) 1px, transparent 1px),
+    hsl(var(--background));
+  background-size: auto, auto, auto, 44px 44px, 44px 44px, auto;
+  background-attachment: fixed;
+}
+
+.light .bg-card,
+.light .pastel-lavender,
+.light .pastel-mint,
+.light .pastel-peach,
+.light .pastel-yellow,
+.light .pastel-blue {
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.92),
+    0 12px 34px rgba(94, 63, 156, .10);
+}
+
+.light .bg-card {
+  background-color: rgba(255, 252, 255, .82) !important;
+  border-color: rgba(149, 111, 208, .20) !important;
+}
+
+.light .pastel-lavender {
+  background: linear-gradient(145deg, rgba(224, 205, 255, .92), rgba(250, 245, 255, .88));
+  border-color: rgba(144, 101, 216, .22) !important;
+}
+.light .pastel-mint {
+  background: linear-gradient(145deg, rgba(213, 249, 245, .88), rgba(250, 253, 255, .9));
+}
+.light .pastel-peach {
+  background: linear-gradient(145deg, rgba(255, 222, 239, .88), rgba(255, 249, 252, .9));
+}
+.light .pastel-yellow {
+  background: linear-gradient(145deg, rgba(255, 240, 209, .88), rgba(255, 252, 245, .9));
+}
+.light .pastel-blue {
+  background: linear-gradient(145deg, rgba(220, 235, 255, .9), rgba(248, 251, 255, .9));
+}
+
+.artflow-bottom-nav {
+  background: rgba(12,17,31,0.88);
+  border-color: rgba(91,133,180,0.24);
+  box-shadow: 0 12px 42px rgba(0,0,0,0.38), 0 0 28px rgba(48,215,241,0.06);
+}
+.light .artflow-bottom-nav {
+  background: rgba(248, 241, 255, .88);
+  border-color: rgba(139, 104, 205, .24);
+  box-shadow: 0 12px 34px rgba(91, 58, 147, .16), 0 0 26px rgba(171, 118, 255, .10);
+}
+
+.dark body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    linear-gradient(90deg, transparent 0 7%, rgba(46, 211, 255, .06) 7% 7.12%, transparent 7.12% 100%),
+    linear-gradient(0deg, transparent 0 13%, rgba(129, 95, 255, .05) 13% 13.12%, transparent 13.12% 100%);
+  mask-image: linear-gradient(to bottom, black, transparent 72%);
+}
+
+.font-heading { letter-spacing: -0.025em; font-weight: 650; }
+
+.bg-card,
+.pastel-lavender,
+.pastel-mint,
+.pastel-peach,
+.pastel-yellow,
+.pastel-blue {
+  position: relative;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.035),
+    0 16px 42px rgba(0,0,0,.18);
+}
+
+.dark .bg-card,
+.dark .pastel-lavender,
+.dark .pastel-mint,
+.dark .pastel-peach,
+.dark .pastel-yellow,
+.dark .pastel-blue {
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.dark .pastel-lavender {
+  background: linear-gradient(145deg, rgba(119, 85, 255, .16), rgba(23, 23, 45, .92));
+  border-color: rgba(132, 101, 255, .26) !important;
+}
+.dark .pastel-mint {
+  background: linear-gradient(145deg, rgba(40, 220, 209, .13), rgba(17, 31, 39, .92));
+  border-color: rgba(54, 228, 217, .22) !important;
+}
+.dark .pastel-peach {
+  background: linear-gradient(145deg, rgba(255, 70, 158, .13), rgba(37, 21, 39, .92));
+  border-color: rgba(255, 87, 171, .22) !important;
+}
+.dark .pastel-yellow {
+  background: linear-gradient(145deg, rgba(255, 162, 58, .14), rgba(42, 29, 23, .92));
+  border-color: rgba(255, 170, 72, .23) !important;
+}
+.dark .pastel-blue {
+  background: linear-gradient(145deg, rgba(54, 145, 255, .14), rgba(19, 29, 47, .92));
+  border-color: rgba(74, 158, 255, .23) !important;
+}
+
+.dark .bg-card { background-color: rgba(18, 23, 39, .84) !important; }
+.dark .bg-muted\/40 { background-color: rgba(33, 42, 64, .42) !important; }
+
+.form-input,
+.form-textarea,
+input,
+select,
+textarea {
+  transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
+}
+.dark .form-input:focus,
+.dark .form-textarea:focus,
+.dark input:focus,
+.dark select:focus,
+.dark textarea:focus {
+  box-shadow: 0 0 0 3px rgba(45, 220, 241, .10), 0 0 22px rgba(45, 220, 241, .08);
+}
+
+.dark button[class*="bg-\[hsl(var(--primary))\]"],
+.dark a[class*="bg-\[hsl(var(--primary))\]"] {
+  box-shadow: 0 0 24px rgba(45, 220, 241, .16);
+}
+
+.dark [role="dialog"] {
+  background: rgba(15, 20, 35, .96);
+  border-color: rgba(104, 128, 170, .25);
+  box-shadow: 0 -18px 60px rgba(0,0,0,.42);
+}
+
+/* Brighter, more app-like media cards */
+.dark img { color-scheme: dark; }
+
+/* Neon text helper used by the Art Flow wordmark */
+.artflow-gradient-text {
+  background: linear-gradient(90deg, #54e6ff 0%, #8f9cff 45%, #ff5ca8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 28px rgba(105, 204, 255, .10);
+}
