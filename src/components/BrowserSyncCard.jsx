@@ -88,7 +88,7 @@ export default function BrowserSyncCard() {
         </a>
 
         <a href="/downloads/artflow-orion-sync.zip" download className="w-full h-11 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-sm font-semibold flex items-center justify-center gap-2">
-          <Download className="w-4 h-4" /> Download iPhone Orion Refresh v2.1.2
+          <Download className="w-4 h-4" /> Download iPhone Orion Refresh v2.1.3
         </a>
 
         <div className="grid grid-cols-2 gap-2">
