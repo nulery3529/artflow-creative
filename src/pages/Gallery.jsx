@@ -61,20 +61,24 @@ export default function Gallery() {
   const { isOpen: formOpen, open: openForm, close: closeForm } = useModalRoute();
   const [editRecord, setEditRecord] = useState(null);
 
-  const activeMarketplaceListings = useMemo(
+  const availableMarketplaceListings = useMemo(
     () => marketplaceListings.filter((listing) => (listing.status || "Active") === "Active"),
+    [marketplaceListings]
+  );
+  const soldMarketplaceListings = useMemo(
+    () => marketplaceListings.filter((listing) => listing.status === "Sold"),
     [marketplaceListings]
   );
 
   const stats = useMemo(() => {
     const manualAvailable = records.filter((p) => (p.status || "Available") === "Available").length;
-    const sold = records.filter((p) => p.status === "Sold").length;
+    const manualSold = records.filter((p) => p.status === "Sold").length;
     return {
-      listings: records.length + activeMarketplaceListings.length,
-      available: manualAvailable + activeMarketplaceListings.length,
-      sold,
+      listings: records.length + availableMarketplaceListings.length + soldMarketplaceListings.length,
+      available: manualAvailable + availableMarketplaceListings.length,
+      sold: manualSold + soldMarketplaceListings.length,
     };
-  }, [records, activeMarketplaceListings]);
+  }, [records, availableMarketplaceListings, soldMarketplaceListings]);
 
   const mediums = useMemo(
     () => [...new Set(records.map((p) => p.medium).filter(Boolean))].sort(),
@@ -82,14 +86,18 @@ export default function Gallery() {
   );
 
   const filteredMarketplaceListings = useMemo(() => {
-    if (filter === "Sold") return [];
     const q = search.trim().toLowerCase();
-    return activeMarketplaceListings.filter((listing) => {
+    const source = filter === "Sold"
+      ? soldMarketplaceListings
+      : filter === "Available"
+        ? availableMarketplaceListings
+        : [...availableMarketplaceListings, ...soldMarketplaceListings];
+    return source.filter((listing) => {
       if (marketplaceFilter !== "All sites" && listing.platform !== marketplaceFilter) return false;
       if (!q) return true;
       return `${listing.title || ""} ${listing.platform || ""}`.toLowerCase().includes(q);
     });
-  }, [activeMarketplaceListings, filter, marketplaceFilter, search]);
+  }, [availableMarketplaceListings, soldMarketplaceListings, filter, marketplaceFilter, search]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -196,23 +204,21 @@ export default function Gallery() {
         </button>
       </div>
 
-      {filter !== "Sold" && (
-        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-          {marketplaceTabs.map((site) => (
-            <button
-              key={site}
-              onClick={() => setMarketplaceFilter(site)}
-              className={`px-3.5 h-9 rounded-full text-xs font-semibold shrink-0 ${
-                marketplaceFilter === site
-                  ? "bg-foreground text-background"
-                  : "bg-muted text-foreground"
-              }`}
-            >
-              {site}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+        {marketplaceTabs.map((site) => (
+          <button
+            key={site}
+            onClick={() => setMarketplaceFilter(site)}
+            className={`px-3.5 h-9 rounded-full text-xs font-semibold shrink-0 ${
+              marketplaceFilter === site
+                ? "bg-foreground text-background"
+                : "bg-muted text-foreground"
+            }`}
+          >
+            {site}
+          </button>
+        ))}
+      </div>
 
       {filtersOpen && mediums.length > 0 && (
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
@@ -232,12 +238,13 @@ export default function Gallery() {
         </div>
       )}
 
-      {filter !== "Sold" && (
-        <section className="space-y-3">
+      <section className="space-y-3">
           <div className="flex items-end justify-between gap-3">
             <div>
-              <h2 className="font-heading text-lg">Current marketplace listings</h2>
-              <p className="text-xs text-muted-foreground">Tap any item to open the live marketplace listing.</p>
+              <h2 className="font-heading text-lg">
+                {filter === "Sold" ? "Sold marketplace listings" : filter === "Available" ? "Available marketplace listings" : "Marketplace listings"}
+              </h2>
+              <p className="text-xs text-muted-foreground">Tap any item to open the marketplace listing.</p>
             </div>
             <span className="text-xs font-semibold text-muted-foreground shrink-0">{filteredMarketplaceListings.length}</span>
           </div>
@@ -271,6 +278,11 @@ export default function Gallery() {
                     <span className={`absolute left-2 top-2 px-2 py-1 rounded-full text-[10px] font-bold ${PLATFORM_TONE[listing.platform] || "bg-black text-white"}`}>
                       {listing.platform}
                     </span>
+                    {listing.status === "Sold" && (
+                      <span className="absolute left-2 bottom-2 bg-black text-white px-2 py-1 text-[10px] font-bold uppercase tracking-wide">
+                        Sold
+                      </span>
+                    )}
                     <span className="absolute right-2 top-2 w-7 h-7 rounded-full bg-black/65 text-white flex items-center justify-center">
                       <ExternalLink className="w-3.5 h-3.5" />
                     </span>
@@ -286,7 +298,6 @@ export default function Gallery() {
             </div>
           )}
         </section>
-      )}
 
       <section className="space-y-3">
         <div>
