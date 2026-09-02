@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Art Flow Browser Sync",
-  "version": "2.1.0",
+  "version": "2.1.2",
   "description": "Refresh up to 500 current Depop and Vinted listings from your logged-in browser into Art Flow Creative without Parse or marketplace API credentials.",
   "permissions": [
     "activeTab",
