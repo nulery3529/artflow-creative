@@ -50,6 +50,7 @@ async function crawlListingsFromPage(maxListings = 500) {
   const max = Math.max(1, Math.min(500, Number(maxListings) || 500));
   const originalY = window.scrollY;
   const seen = new Map();
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
   const isListingHref = (href = '') => {
     try {
@@ -83,17 +84,69 @@ async function crawlListingsFromPage(maxListings = 500) {
     } catch { return ''; }
   };
 
+  const srcsetCandidates = (value = '') => {
+    return String(value || '').split(',').map((part) => {
+      const bits = part.trim().split(/\s+/);
+      const url = bits[0] || '';
+      const descriptor = bits[1] || '';
+      let score = 0;
+      const width = descriptor.match(/^(\d+)w$/i);
+      const density = descriptor.match(/^(\d+(?:\.\d+)?)x$/i);
+      if (width) score = Number(width[1]);
+      else if (density) score = Number(density[1]) * 1000;
+      return { url, score };
+    }).filter((item) => /^https?:\/\//i.test(item.url));
+  };
+
+  const bestImage = (img, card) => {
+    const candidates = [];
+    const add = (url, score = 1) => {
+      const clean = String(url || '').trim();
+      if (/^https?:\/\//i.test(clean)) candidates.push({ url: clean, score });
+    };
+    if (img) {
+      add(img.getAttribute('data-original'), 5000);
+      add(img.getAttribute('data-full-src'), 4800);
+      add(img.getAttribute('data-src'), 4200);
+      add(img.getAttribute('data-lazy-src'), 4100);
+      add(img.currentSrc, Math.max(1200, Number(img.naturalWidth || 0)));
+      add(img.src, Math.max(1000, Number(img.naturalWidth || 0)));
+      for (const attr of ['srcset', 'data-srcset', 'data-lazy-srcset']) {
+        for (const item of srcsetCandidates(img.getAttribute(attr))) add(item.url, 3000 + item.score);
+      }
+      const picture = img.closest('picture');
+      if (picture) {
+        for (const source of picture.querySelectorAll('source')) {
+          for (const attr of ['srcset', 'data-srcset']) {
+            for (const item of srcsetCandidates(source.getAttribute(attr))) add(item.url, 3500 + item.score);
+          }
+        }
+      }
+    }
+    if (card) {
+      for (const node of card.querySelectorAll('img')) {
+        if (node === img) continue;
+        add(node.getAttribute('data-original'), 4500);
+        add(node.getAttribute('data-full-src'), 4400);
+        for (const item of srcsetCandidates(node.getAttribute('srcset'))) add(item.url, 2800 + item.score);
+        add(node.currentSrc || node.src, Math.max(900, Number(node.naturalWidth || 0)));
+      }
+    }
+    candidates.sort((a, b) => b.score - a.score);
+    return candidates[0] || { url: '', score: 0 };
+  };
+
   const collect = () => {
     const candidates = [...document.querySelectorAll('a[href]')].filter((anchor) => isListingHref(anchor.href));
     for (const anchor of candidates) {
-      if (seen.size >= max) break;
       const url = absoluteUrl(anchor.href);
       const id = listingId(url);
       const key = `${platform}:${id || url.split('?')[0]}`;
-      if (!url || seen.has(key)) continue;
+      if (!url) continue;
+      if (seen.size >= max && !seen.has(key)) continue;
       const card = anchor.closest('article, li, [data-testid*="listing"], [data-testid*="item"], [class*="listing"], [class*="product"], [class*="card"], [class*="item"]') || anchor.parentElement?.parentElement || anchor.parentElement || anchor;
       const img = anchor.querySelector('img') || card?.querySelector('img');
-      const imageUrl = (img?.currentSrc || img?.src || img?.getAttribute('data-src') || img?.getAttribute('data-lazy-src') || '').trim();
+      const best = bestImage(img, card);
       const text = (card?.innerText || anchor.innerText || '').replace(/\r/g, '').trim();
       const lines = text.split('\n').map((line) => line.trim()).filter(Boolean);
       let title = (img?.alt || anchor.getAttribute('aria-label') || anchor.getAttribute('title') || '').trim();
@@ -103,7 +156,16 @@ async function crawlListingsFromPage(maxListings = 500) {
       title = title.replace(/\s+/g, ' ').trim().slice(0, 300) || `${platform} listing ${id || seen.size + 1}`;
       const moneyMatch = text.match(/(?:US\s*)?\$\s*([0-9][0-9,]*(?:\.\d{1,2})?)/i);
       const price = moneyMatch ? Number(moneyMatch[1].replace(/,/g, '')) : 0;
-      seen.set(key, { platform, listing_id: id, title, price: Number.isFinite(price) ? price : 0, currency: 'USD', image_url: /^https?:\/\//i.test(imageUrl) ? imageUrl : '', listing_url: url });
+      const next = { platform, listing_id: id, title, price: Number.isFinite(price) ? price : 0, currency: 'USD', image_url: best.url, listing_url: url, _image_score: best.score };
+      const previous = seen.get(key);
+      if (!previous) {
+        if (seen.size < max) seen.set(key, next);
+      } else {
+        if (next._image_score > (previous._image_score || 0) && next.image_url) previous.image_url = next.image_url;
+        if ((!previous.title || /^Vinted listing /i.test(previous.title)) && next.title) previous.title = next.title;
+        if ((!previous.price || previous.price <= 0) && next.price > 0) previous.price = next.price;
+        previous._image_score = Math.max(previous._image_score || 0, next._image_score || 0);
+      }
     }
   };
 
@@ -121,23 +183,43 @@ async function crawlListingsFromPage(maxListings = 500) {
   let stagnant = 0;
   let previous = seen.size;
   let confirmedBottom = false;
-  for (let i = 0; i < 90 && seen.size < max; i += 1) {
+  const scrolling = document.scrollingElement || document.documentElement;
+  const step = Math.max(420, Math.floor(window.innerHeight * (platform === 'Vinted' ? 0.72 : 0.9)));
+  const maxLoops = platform === 'Vinted' ? 260 : 160;
+  const bottomWaits = platform === 'Vinted' ? 16 : 10;
+
+  for (let i = 0; i < maxLoops && seen.size < max; i += 1) {
     const clickedMore = clickLoadMore();
-    const beforeHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
-    window.scrollTo({ top: beforeHeight, behavior: 'auto' });
-    await new Promise((resolve) => setTimeout(resolve, i < 10 ? 700 : 900));
+    const beforeHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, scrolling?.scrollHeight || 0);
+    const currentTop = Number(scrolling?.scrollTop || window.scrollY || 0);
+    const nextTop = Math.min(beforeHeight, currentTop + step);
+    window.scrollTo({ top: nextTop, behavior: 'auto' });
+    await sleep(platform === 'Vinted' ? 500 : 650);
     collect();
-    const afterHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
-    const atBottom = Math.ceil(window.scrollY + window.innerHeight) >= afterHeight - 12;
+
+    let afterHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, scrolling?.scrollHeight || 0);
+    let atBottom = Math.ceil((scrolling?.scrollTop || window.scrollY || 0) + window.innerHeight) >= afterHeight - 20;
+
+    if (atBottom) {
+      await sleep(platform === 'Vinted' ? 1100 : 750);
+      clickLoadMore();
+      collect();
+      afterHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, scrolling?.scrollHeight || 0);
+      atBottom = Math.ceil((scrolling?.scrollTop || window.scrollY || 0) + window.innerHeight) >= afterHeight - 20;
+    }
+
     if (seen.size === previous && afterHeight <= beforeHeight + 10 && atBottom && !clickedMore) stagnant += 1;
     else stagnant = 0;
-    confirmedBottom = atBottom && stagnant >= 8;
+    confirmedBottom = atBottom && stagnant >= bottomWaits;
     previous = seen.size;
     if (confirmedBottom) break;
   }
 
+  await sleep(500);
+  collect();
   try { window.scrollTo({ top: originalY, behavior: 'auto' }); } catch {}
-  return { supported: true, platform, listings: [...seen.values()].slice(0, max), complete: seen.size < max && confirmedBottom, reached_limit: seen.size >= max };
+  const listings = [...seen.values()].slice(0, max).map(({ _image_score, ...item }) => item);
+  return { supported: true, platform, listings, complete: seen.size < max && confirmedBottom, reached_limit: seen.size >= max };
 }
 
 ext?.runtime?.onMessage?.addListener((message, sender, sendResponse) => {
