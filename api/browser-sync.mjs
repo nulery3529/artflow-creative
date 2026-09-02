@@ -69,6 +69,31 @@ async function ensureTable(client) {
     data jsonb DEFAULT '{}'::jsonb
   )`);
   await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS marketplace_listings_business_platform_url_idx ON artflow.marketplace_listings (business_id, platform, listing_url)`);
+  await client.query(`
+    DELETE FROM artflow.marketplace_listings older
+    USING artflow.marketplace_listings newer
+    WHERE older.business_id=newer.business_id
+      AND older.platform='Vinted'
+      AND newer.platform='Vinted'
+      AND COALESCE(NULLIF(older.listing_id,''), substring(older.listing_url from '/items/([0-9]+)')) IS NOT NULL
+      AND COALESCE(NULLIF(older.listing_id,''), substring(older.listing_url from '/items/([0-9]+)'))
+          = COALESCE(NULLIF(newer.listing_id,''), substring(newer.listing_url from '/items/([0-9]+)'))
+      AND older.id<>newer.id
+      AND (
+        COALESCE(older.last_seen_at,'epoch'::timestamptz) < COALESCE(newer.last_seen_at,'epoch'::timestamptz)
+        OR (
+          COALESCE(older.last_seen_at,'epoch'::timestamptz) = COALESCE(newer.last_seen_at,'epoch'::timestamptz)
+          AND older.id < newer.id
+        )
+      )
+  `);
+  await client.query(`
+    UPDATE artflow.marketplace_listings
+    SET listing_id = substring(listing_url from '/items/([0-9]+)')
+    WHERE platform='Vinted'
+      AND COALESCE(listing_id,'')=''
+      AND listing_url ~ '/items/[0-9]+'
+  `);
   await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS marketplace_listings_business_platform_listing_id_idx ON artflow.marketplace_listings (business_id, platform, listing_id) WHERE listing_id IS NOT NULL AND listing_id<>''`);
 }
 async function session(req) { return auth.api.getSession({ headers: fromNodeHeaders(req.headers) }); }
@@ -134,11 +159,23 @@ export default async function handler(req,res) {
       if (!b) return res.status(404).json({error:'Business workspace not found'});
       if (String(req.query?.op||'') === 'listings') {
         const r=await client.query(`
-          SELECT DISTINCT ON (platform, COALESCE(NULLIF(listing_id,''), listing_url))
+          SELECT DISTINCT ON (
+            platform,
+            CASE
+              WHEN platform='Vinted' THEN COALESCE(NULLIF(listing_id,''), substring(listing_url from '/items/([0-9]+)'), listing_url)
+              ELSE COALESCE(NULLIF(listing_id,''), listing_url)
+            END
+          )
             id,business_id,platform,listing_id,title,price,currency,image_url,listing_url,status,last_seen_at,sync_source
           FROM artflow.marketplace_listings
           WHERE business_id=$1 AND status='Active'
-          ORDER BY platform, COALESCE(NULLIF(listing_id,''), listing_url), last_seen_at DESC NULLS LAST
+          ORDER BY
+            platform,
+            CASE
+              WHEN platform='Vinted' THEN COALESCE(NULLIF(listing_id,''), substring(listing_url from '/items/([0-9]+)'), listing_url)
+              ELSE COALESCE(NULLIF(listing_id,''), listing_url)
+            END,
+            last_seen_at DESC NULLS LAST
         `,[b.base44_id]);
         return res.status(200).json({listings:r.rows});
       }
