@@ -132,7 +132,13 @@ export default async function handler(req,res) {
       const p=await profile(client,s.user); const b=await businessForUser(client,p,s.user);
       if (!b) return res.status(404).json({error:'Business workspace not found'});
       if (String(req.query?.op||'') === 'listings') {
-        const r=await client.query(`SELECT id,business_id,platform,listing_id,title,price,currency,image_url,listing_url,status,last_seen_at,sync_source FROM artflow.marketplace_listings WHERE business_id=$1 AND status='Active' ORDER BY platform,title`,[b.base44_id]);
+        const r=await client.query(`
+          SELECT DISTINCT ON (platform, COALESCE(NULLIF(listing_id,''), listing_url))
+            id,business_id,platform,listing_id,title,price,currency,image_url,listing_url,status,last_seen_at,sync_source
+          FROM artflow.marketplace_listings
+          WHERE business_id=$1 AND status='Active'
+          ORDER BY platform, COALESCE(NULLIF(listing_id,''), listing_url), last_seen_at DESC NULLS LAST
+        `,[b.base44_id]);
         return res.status(200).json({listings:r.rows});
       }
       const k=await ensureKey(client,b);
