@@ -170,8 +170,9 @@ export default async function handler(req,res) {
         const price=Number.isFinite(priceNum)&&priceNum>=0?priceNum:0;
         const listingId=clean(raw?.listing_id||listingIdFromUrl(platform,url)).slice(0,200);
         const image=/^https?:\/\//i.test(clean(raw?.image_url))?clean(raw.image_url).slice(0,2000):null;
-        const id=crypto.createHash('sha256').update(`${b.base44_id}|${platform}|${url}`).digest('hex');
-        deduped.set(`${platform}|${url}`,{
+        const identity=listingId ? `id:${listingId}` : `url:${url}`;
+        const id=crypto.createHash('sha256').update(`${b.base44_id}|${platform}|${identity}`).digest('hex');
+        deduped.set(`${platform}|${identity}`,{
           id,platform,listing_id:listingId||null,title,price,
           currency:clean(raw?.currency||'USD')||'USD',image_url:image,listing_url:url,
         });
@@ -179,6 +180,23 @@ export default async function handler(req,res) {
 
       const rows=[...deduped.values()];
       if (rows.length) {
+        await client.query(`
+          WITH incoming AS (
+            SELECT * FROM jsonb_to_recordset($1::jsonb) AS x(
+              id text, platform text, listing_id text, title text, price numeric,
+              currency text, image_url text, listing_url text
+            )
+          )
+          DELETE FROM artflow.marketplace_listings existing
+          USING incoming
+          WHERE existing.business_id=$2
+            AND existing.platform=incoming.platform
+            AND incoming.listing_id IS NOT NULL
+            AND incoming.listing_id<>''
+            AND existing.listing_id=incoming.listing_id
+            AND existing.listing_url<>incoming.listing_url
+        `,[JSON.stringify(rows),b.base44_id]);
+
         await client.query(`
           WITH incoming AS (
             SELECT * FROM jsonb_to_recordset($1::jsonb) AS x(
