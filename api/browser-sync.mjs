@@ -168,7 +168,7 @@ export default async function handler(req,res) {
           )
             id,business_id,platform,listing_id,title,price,currency,image_url,listing_url,status,last_seen_at,sync_source
           FROM artflow.marketplace_listings
-          WHERE business_id=$1 AND status='Active'
+          WHERE business_id=$1 AND status IN ('Active','Sold')
           ORDER BY
             platform,
             CASE
@@ -214,11 +214,12 @@ export default async function handler(req,res) {
         const price=Number.isFinite(priceNum)&&priceNum>=0?priceNum:0;
         const listingId=clean(raw?.listing_id||listingIdFromUrl(platform,url)).slice(0,200);
         const image=/^https?:\/\//i.test(clean(raw?.image_url))?clean(raw.image_url).slice(0,2000):null;
+        const status=/^sold$/i.test(clean(raw?.status))?'Sold':'Active';
         const identity=listingId ? `id:${listingId}` : `url:${url}`;
         const id=crypto.createHash('sha256').update(`${b.base44_id}|${platform}|${identity}`).digest('hex');
         deduped.set(`${platform}|${identity}`,{
           id,platform,listing_id:listingId||null,title,price,
-          currency:clean(raw?.currency||'USD')||'USD',image_url:image,listing_url:url,
+          currency:clean(raw?.currency||'USD')||'USD',image_url:image,listing_url:url,status,
         });
       }
 
@@ -228,7 +229,7 @@ export default async function handler(req,res) {
           WITH incoming AS (
             SELECT * FROM jsonb_to_recordset($1::jsonb) AS x(
               id text, platform text, listing_id text, title text, price numeric,
-              currency text, image_url text, listing_url text
+              currency text, image_url text, listing_url text, status text
             )
           )
           DELETE FROM artflow.marketplace_listings existing
@@ -245,12 +246,12 @@ export default async function handler(req,res) {
           WITH incoming AS (
             SELECT * FROM jsonb_to_recordset($1::jsonb) AS x(
               id text, platform text, listing_id text, title text, price numeric,
-              currency text, image_url text, listing_url text
+              currency text, image_url text, listing_url text, status text
             )
           )
           INSERT INTO artflow.marketplace_listings
             (id,business_id,platform,listing_id,title,price,currency,image_url,listing_url,status,last_seen_at,sync_source,data)
-          SELECT id,$2,platform,listing_id,title,price,currency,image_url,listing_url,'Active',now(),'browser_listing_sync','{}'::jsonb
+          SELECT id,$2,platform,listing_id,title,price,currency,image_url,listing_url,status,now(),'browser_listing_sync','{}'::jsonb
           FROM incoming
           ON CONFLICT (business_id,platform,listing_url) DO UPDATE SET
             listing_id=EXCLUDED.listing_id,
@@ -258,7 +259,7 @@ export default async function handler(req,res) {
             price=EXCLUDED.price,
             currency=EXCLUDED.currency,
             image_url=COALESCE(NULLIF(EXCLUDED.image_url,''),artflow.marketplace_listings.image_url),
-            status='Active',
+            status=EXCLUDED.status,
             last_seen_at=now(),
             sync_source='browser_listing_sync'
         `,[JSON.stringify(rows),b.base44_id]);
