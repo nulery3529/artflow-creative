@@ -136,6 +136,23 @@ async function crawlListingsFromPage(maxListings = 500) {
     return candidates[0] || { url: '', score: 0 };
   };
 
+  const pageStatusHint = (() => {
+    let decodedUrl = location.href.toLowerCase();
+    try { decodedUrl = decodeURIComponent(location.href).toLowerCase(); } catch {}
+    if (/(?:[?&#/]|\b)(?:status|state|filter|tab)[=/:_-]*sold\b/i.test(decodedUrl) || /\/sold(?:[/?#]|$)/i.test(decodedUrl)) return 'Sold';
+
+    const selected = [...document.querySelectorAll('[aria-selected="true"], [aria-current="page"], [aria-pressed="true"], [role="tab"][data-state="active"], [data-state="active"]')];
+    const selectedText = selected.map((node) => [
+      node.innerText,
+      node.getAttribute?.('aria-label'),
+      node.getAttribute?.('title'),
+      node.getAttribute?.('data-testid'),
+    ].filter(Boolean).join(' ')).join(' ').toLowerCase();
+    if (/\bsold(?:\s+(?:items?|listings?|wardrobe))?\b/i.test(selectedText)) return 'Sold';
+    if (/\bavailable(?:\s+(?:items?|listings?|wardrobe))?\b/i.test(selectedText)) return 'Active';
+    return '';
+  })();
+
   const collect = () => {
     const candidates = [...document.querySelectorAll('a[href]')].filter((anchor) => isListingHref(anchor.href));
     for (const anchor of candidates) {
@@ -156,7 +173,25 @@ async function crawlListingsFromPage(maxListings = 500) {
       title = title.replace(/\s+/g, ' ').trim().slice(0, 300) || `${platform} listing ${id || seen.size + 1}`;
       const moneyMatch = text.match(/(?:US\s*)?\$\s*([0-9][0-9,]*(?:\.\d{1,2})?)/i);
       const price = moneyMatch ? Number(moneyMatch[1].replace(/,/g, '')) : 0;
-      const sold = lines.some((line) => /^(sold|sold out)$/i.test(line)) || /(?:^|\n)\s*(?:sold|sold out)\s*(?:\n|$)/i.test(text);
+      const statusSignals = [
+        text,
+        anchor.getAttribute('aria-label'),
+        anchor.getAttribute('title'),
+        anchor.getAttribute('data-testid'),
+        card?.getAttribute?.('aria-label'),
+        card?.getAttribute?.('title'),
+        card?.getAttribute?.('data-testid'),
+        card?.getAttribute?.('class'),
+        img?.getAttribute?.('alt'),
+        ...[...(card?.querySelectorAll?.('[aria-label], [title], [data-testid]') || [])].slice(0, 30).map((node) => [
+          node.getAttribute('aria-label'),
+          node.getAttribute('title'),
+          node.getAttribute('data-testid'),
+        ].filter(Boolean).join(' ')),
+      ].filter(Boolean).join('\n');
+      const sold = pageStatusHint === 'Sold'
+        || lines.some((line) => /^(sold|sold out|item sold)$/i.test(line))
+        || /(?:^|\b)(?:sold|sold out|item sold)(?:\b|$)/i.test(statusSignals);
       const status = sold ? 'Sold' : 'Active';
       const next = { platform, listing_id: id, title, price: Number.isFinite(price) ? price : 0, currency: 'USD', image_url: best.url, listing_url: url, status, _image_score: best.score };
       const previous = seen.get(key);
