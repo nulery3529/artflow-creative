@@ -60,4 +60,4 @@ export default function Layout() {
   const firstName =
     String(user?.full_name || user?.name || "Natasha")
       .trim()
-      .split(/\s+/)[0] || "
+      .split(/\s+/)[0] || "Natasha";
