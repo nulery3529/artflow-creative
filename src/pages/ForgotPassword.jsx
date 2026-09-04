@@ -27,7 +27,7 @@ export default function ForgotPassword() {
     try {
       const { error: requestError } = await artflowAuthClient.requestPasswordReset({
         email: email.trim(),
-        redirectTo: `${window.location.origin}/forgot-password`,
+        redirectTo: "https://artflowcreative.com/reset-password",
       });
       if (requestError) {
         throw new Error("The password reset email service is unavailable right now. Please try again shortly.");
