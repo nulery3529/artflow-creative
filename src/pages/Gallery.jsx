@@ -73,6 +73,7 @@ function photoListingForOrder(order, listings) {
 
 export default function Gallery() {
   const { records, loading, reload } = useEntity("ArtPiece", "-created_date");
+  const { records: orders, loading: ordersLoading, reload: reloadOrders } = useOrders();
   const [marketplaceListings, setMarketplaceListings] = useState([]);
   const [marketplaceLoading, setMarketplaceLoading] = useState(true);
   const reloadMarketplaceListings = useCallback(async () => {
@@ -116,20 +117,20 @@ export default function Gallery() {
     () => marketplaceListings.filter((listing) => (listing.status || "Active") === "Active"),
     [marketplaceListings]
   );
-  const soldMarketplaceListings = useMemo(
-    () => marketplaceListings.filter((listing) => listing.status === "Sold"),
-    [marketplaceListings]
+  const soldOrderCards = useMemo(
+    () => orders.map((order) => ({ order, photoListing: photoListingForOrder(order, marketplaceListings) })),
+    [orders, marketplaceListings]
   );
 
   const stats = useMemo(() => {
     const manualAvailable = records.filter((p) => (p.status || "Available") === "Available").length;
     const manualSold = records.filter((p) => p.status === "Sold").length;
     return {
-      listings: records.length + availableMarketplaceListings.length + soldMarketplaceListings.length,
+      listings: records.length + availableMarketplaceListings.length + orders.length,
       available: manualAvailable + availableMarketplaceListings.length,
-      sold: manualSold + soldMarketplaceListings.length,
+      sold: manualSold + orders.length,
     };
-  }, [records, availableMarketplaceListings, soldMarketplaceListings]);
+  }, [records, availableMarketplaceListings, orders]);
 
   const mediums = useMemo(
     () => [...new Set(records.map((p) => p.medium).filter(Boolean))].sort(),
@@ -138,17 +139,22 @@ export default function Gallery() {
 
   const filteredMarketplaceListings = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const source = filter === "Sold"
-      ? soldMarketplaceListings
-      : filter === "Available"
-        ? availableMarketplaceListings
-        : [...availableMarketplaceListings, ...soldMarketplaceListings];
-    return source.filter((listing) => {
-      if (marketplaceFilter !== "All sites" && listing.platform !== marketplaceFilter) return false;
+    if (filter === "Sold") return [];
+    return availableMarketplaceListings.filter((listing) => {
+      if (marketplaceFilter !== "All sites" && displayPlatform(listing.platform) !== marketplaceFilter) return false;
       if (!q) return true;
       return `${listing.title || ""} ${listing.platform || ""}`.toLowerCase().includes(q);
     });
-  }, [availableMarketplaceListings, soldMarketplaceListings, filter, marketplaceFilter, search]);
+  }, [availableMarketplaceListings, filter, marketplaceFilter, search]);
+
+  const filteredSoldOrders = useMemo(() => {
+    if (filter === "Available") return [];
+    const q = search.trim().toLowerCase();
+    return soldOrderCards
+      .filter(({ order }) => marketplaceFilter === "All sites" || displayPlatform(order.platform) === marketplaceFilter)
+      .filter(({ order }) => !q || `${order.product_name || ""} ${order.platform || ""} ${order.order_id || ""}`.toLowerCase().includes(q))
+      .sort((a, b) => (b.order.sale_date || "").localeCompare(a.order.sale_date || ""));
+  }, [soldOrderCards, filter, marketplaceFilter, search]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -173,10 +179,10 @@ export default function Gallery() {
   };
 
   const refreshAll = async () => {
-    await Promise.all([reload(), reloadMarketplaceListings()]);
+    await Promise.all([reload(), reloadOrders(), reloadMarketplaceListings()]);
   };
 
-  if (loading || marketplaceLoading) {
+  if (loading || ordersLoading || marketplaceLoading) {
     return (
       <div className="space-y-4">
         <PageHeader title="Gallery" />
