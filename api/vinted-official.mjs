@@ -120,7 +120,10 @@ async function upsertImported(client,businessId,items){
     ON CONFLICT (business_id,platform,listing_url) DO UPDATE SET
       listing_id=EXCLUDED.listing_id,
       title=EXCLUDED.title,
-      status='Active',
+      status=CASE
+        WHEN artflow.marketplace_listings.status='Sold' THEN 'Sold'
+        ELSE 'Active'
+      END,
       last_seen_at=now(),
       sync_source='vinted_pro_imported',
       data=EXCLUDED.data
