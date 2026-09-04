@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ExternalLink, Plus, Search, SlidersHorizontal } from "lucide-react";
 import { useEntity } from "@/lib/useBusinessData";
+import { useOrders } from "@/lib/useOrders";
 import { formatMoney } from "@/lib/format";
-import { PLATFORM_TONE } from "@/lib/platforms";
+import { PLATFORM_TONE, displayPlatform, orderSourceUrl } from "@/lib/platforms";
 import ArtPieceForm from "@/components/ArtPieceForm";
 import PullToRefresh from "@/components/PullToRefresh";
 import PageHeader from "@/components/PageHeader";
@@ -11,7 +12,7 @@ import { useModalRoute } from "@/hooks/useModalRoute";
 import { Image } from "@/components/ui/image";
 
 const tabs = ["All", "Available", "Sold"];
-const marketplaceTabs = ["All sites", "Vinted", "Depop", "Etsy", "eBay"];
+const marketplaceTabs = ["All sites", "Vinted", "Depop", "Etsy", "eBay", "Poshmark"];
 
 // Marketplace photos always load through Art Flow so seller CDNs cannot block the gallery.
 function marketplaceImageSrc(listing) {
@@ -20,6 +21,54 @@ function marketplaceImageSrc(listing) {
   if (listing.image_url) params.set("image", listing.image_url);
   if (listing.listing_url) params.set("listing", listing.listing_url);
   return `/api/listing-image?${params.toString()}`;
+}
+
+const GENERIC_TITLE_WORDS = new Set([
+  "art", "print", "wall", "framed", "frame", "quilled", "quilling", "style",
+  "decor", "new", "brand", "condition", "with", "without", "tags", "the", "and",
+]);
+
+function titleWords(value = "") {
+  return String(value || "")
+    .replace(/,\s*brand:.*$/i, "")
+    .replace(/\|\.\.\.$/, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word.length > 2 && !GENERIC_TITLE_WORDS.has(word));
+}
+
+function photoListingForOrder(order, listings) {
+  const platform = displayPlatform(order?.platform);
+  const candidates = listings.filter((listing) => displayPlatform(listing?.platform) === platform);
+  if (!candidates.length) return null;
+
+  const sourceUrl = orderSourceUrl(order);
+  if (sourceUrl) {
+    const direct = candidates.find((listing) => listing.listing_url === sourceUrl);
+    if (direct) return direct;
+  }
+
+  if (/bundle/i.test(order?.product_name || "")) return null;
+  const wanted = titleWords(order?.product_name);
+  if (!wanted.length) return null;
+  const wantedSet = new Set(wanted);
+
+  let best = null;
+  let bestScore = 0;
+  for (const listing of candidates) {
+    const candidateWords = titleWords(listing?.title);
+    if (!candidateWords.length) continue;
+    const candidateSet = new Set(candidateWords);
+    const overlap = [...wantedSet].filter((word) => candidateSet.has(word)).length;
+    const score = overlap / Math.max(1, Math.min(wantedSet.size, candidateSet.size));
+    if (overlap >= 2 && score > bestScore) {
+      best = listing;
+      bestScore = score;
+    }
+  }
+  return bestScore >= 0.55 ? best : null;
 }
 
 export default function Gallery() {
