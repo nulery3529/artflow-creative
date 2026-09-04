@@ -131,7 +131,7 @@ export default function TrackerSetupCard() {
             Every Art Flow business uses our standard Google tracker so sales, expenses, inventory, statistics, and taxes stay compatible with the app.
           </p>
         </div>
-        {status?.connected && <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-1" />}
+        {status?.connected && status?.google_connected && <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-1" />}
       </div>
 
       {loading ? (
