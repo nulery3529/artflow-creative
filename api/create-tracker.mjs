@@ -232,10 +232,12 @@ export default async function handler(req, res) {
 
     if (req.method === 'GET') {
       return res.status(200).json({
-        connected: Boolean(existingId),
+        connected: Boolean(existingId && googleConnected),
+        spreadsheet_attached: Boolean(existingId),
         spreadsheet_id: existingId || null,
         spreadsheet_url: existingId ? `https://docs.google.com/spreadsheets/d/${existingId}/edit` : null,
         google_connected: googleConnected,
+        needs_google_connection: !googleConnected,
       });
     }
 
