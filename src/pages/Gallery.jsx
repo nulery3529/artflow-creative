@@ -114,8 +114,23 @@ export default function Gallery() {
   const [editRecord, setEditRecord] = useState(null);
 
   const availableMarketplaceListings = useMemo(
-    () => marketplaceListings.filter((listing) => (listing.status || "Active") === "Active"),
-    [marketplaceListings]
+    () => marketplaceListings.filter((listing) => {
+      if ((listing.status || "Active") !== "Active") return false;
+
+      // Older Vinted browser-sync installs could save Sold-page rows as Active.
+      // If an Active Vinted listing already matches a real sold Order, do not
+      // show it under Available. Orders remain the source of truth for sales.
+      if (displayPlatform(listing.platform) === "Vinted") {
+        const matchedSoldOrder = orders.some((order) =>
+          displayPlatform(order.platform) === "Vinted"
+          && photoListingForOrder(order, [listing]) === listing
+        );
+        if (matchedSoldOrder) return false;
+      }
+
+      return true;
+    }),
+    [marketplaceListings, orders]
   );
   const soldOrderCards = useMemo(
     () => orders.map((order) => ({ order, photoListing: photoListingForOrder(order, marketplaceListings) })),
