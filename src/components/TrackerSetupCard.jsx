@@ -136,6 +136,31 @@ export default function TrackerSetupCard() {
 
       {loading ? (
         <div className="h-12 rounded-2xl bg-muted animate-pulse" />
+      ) : status?.spreadsheet_attached && !status?.google_connected ? (
+        <div className="space-y-3">
+          <div className="rounded-2xl bg-amber-50 border border-amber-200 p-3 text-amber-950">
+            <p className="text-sm font-semibold">Reconnect Google Sheets</p>
+            <p className="text-xs mt-1">Your ArtFlow tracker is still attached, but Google access expired or was disconnected. Reconnect it so new orders and expenses can sync again.</p>
+          </div>
+          {status?.spreadsheet_url && (
+            <button
+              type="button"
+              onClick={() => window.open(status.spreadsheet_url, "_blank", "noopener,noreferrer")}
+              className="w-full h-12 rounded-2xl bg-muted text-foreground font-semibold flex items-center justify-center gap-2"
+            >
+              <ExternalLink className="w-4 h-4" /> Open My ArtFlow Tracker
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={connectGoogle}
+            disabled={connecting}
+            className="w-full h-12 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
+          >
+            <RefreshCw className={`w-4 h-4 ${connecting ? "animate-spin" : ""}`} />
+            {connecting ? "Connecting Google…" : "Reconnect Google Sheets"}
+          </button>
+        </div>
       ) : status?.connected ? (
         <div className="space-y-2">
           <div className="rounded-2xl bg-muted/60 p-3">
