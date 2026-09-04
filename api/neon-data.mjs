@@ -191,7 +191,7 @@ async function listMarketplaceListings(client, session) {
        )
        id,business_id,platform,listing_id,title,price,currency,image_url,listing_url,status,last_seen_at,sync_source
        FROM artflow.marketplace_listings
-      WHERE business_id = ANY($1::text[]) AND status IN ('Active','Sold')
+      WHERE business_id = ANY($1::text[]) AND status IN ('Active','Sold','Inactive')
       ORDER BY
         platform,
         CASE
