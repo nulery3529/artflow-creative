@@ -53,7 +53,9 @@ export default function Gallery() {
     return () => window.removeEventListener("artflow:listings-synced", onSync);
   }, [reloadMarketplaceListings]);
   const navigate = useNavigate();
-  const [filter, setFilter] = useState("All");
+  // Open on Available so sold inventory is kept separate by default. The All
+  // tab remains available when the user intentionally wants the combined view.
+  const [filter, setFilter] = useState("Available");
   const [marketplaceFilter, setMarketplaceFilter] = useState("All sites");
   const [mediumFilter, setMediumFilter] = useState("All");
   const [search, setSearch] = useState("");
