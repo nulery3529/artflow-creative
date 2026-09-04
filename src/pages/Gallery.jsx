@@ -10,6 +10,7 @@ import PageHeader from "@/components/PageHeader";
 import { useNavigate } from "react-router-dom";
 import { useModalRoute } from "@/hooks/useModalRoute";
 import { Image } from "@/components/ui/image";
+import MobileMarketplaceSyncCard from "@/components/MobileMarketplaceSyncCard";
 
 const tabs = ["All", "Available", "Sold"];
 const marketplaceTabs = ["All sites", "Vinted", "Depop", "Etsy", "eBay", "Poshmark"];
@@ -442,6 +443,10 @@ export default function Gallery() {
             </button>
           ))}
         </div>
+      )}
+
+      {filter === "Available" && (
+        <MobileMarketplaceSyncCard />
       )}
 
       {filter !== "Sold" && (
