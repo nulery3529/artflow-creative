@@ -61,12 +61,7 @@ export default function IndependentLogin() {
           </div>
         </div>
         <div className="space-y-2">
-          <div className="flex items-center justify-between gap-3">
-            <Label htmlFor="independent-password">Password</Label>
-            <Link to="/forgot-password" className="text-sm text-primary font-medium hover:underline">
-              Forgot password?
-            </Link>
-          </div>
+          <Label htmlFor="independent-password">Password</Label>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input id="independent-password" type="password" autoComplete="current-password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10 h-12" minLength={8} required />
@@ -75,6 +70,12 @@ export default function IndependentLogin() {
         <Button type="submit" className="w-full h-12 font-medium" disabled={loading}>
           {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Signing in…</> : "Log in"}
         </Button>
+        <Link
+          to="/forgot-password"
+          className="flex w-full h-12 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-semibold text-primary hover:bg-accent hover:text-accent-foreground"
+        >
+          Forgot your password? Reset it here
+        </Link>
       </form>
 
       <p className="text-center text-xs text-muted-foreground mt-5">
