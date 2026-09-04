@@ -61,7 +61,12 @@ export default function IndependentLogin() {
           </div>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="independent-password">Password</Label>
+          <div className="flex items-center justify-between gap-3">
+            <Label htmlFor="independent-password">Password</Label>
+            <Link to="/forgot-password" className="text-sm text-primary font-medium hover:underline">
+              Forgot password?
+            </Link>
+          </div>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input id="independent-password" type="password" autoComplete="current-password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10 h-12" minLength={8} required />
