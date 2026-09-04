@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ExternalLink, Plus, Search, SlidersHorizontal } from "lucide-react";
 import { useEntity } from "@/lib/useBusinessData";
 import { useOrders } from "@/lib/useOrders";
@@ -39,36 +39,98 @@ function titleWords(value = "") {
     .filter((word) => word.length > 2 && !GENERIC_TITLE_WORDS.has(word));
 }
 
+function normalizedTitle(value = "") {
+  return String(value || "")
+    .replace(/,\s*brand:.*$/i, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function listingIdFromMarketplaceUrl(platform, raw = "") {
+  try {
+    const path = new URL(String(raw || "")).pathname;
+    if (platform === "Vinted") return path.match(/\/items\/(\d+)/i)?.[1] || "";
+    if (platform === "Depop") return path.match(/\/products\/([^/?#]+)/i)?.[1] || "";
+    if (platform === "Etsy") return path.match(/\/listing\/(\d+)/i)?.[1] || "";
+    if (platform === "eBay") return path.match(/\/itm\/(?:[^/]+\/)?(\d{8,16})/i)?.[1] || "";
+  } catch {}
+  return "";
+}
+
+function orderListingUrl(order) {
+  const values = [
+    order?.source_url,
+    order?.data?.source_url,
+    order?.data?.listing_url,
+    order?.data?.item_url,
+    order?.data?.product_url,
+    order?.data?.url,
+  ];
+  const platform = displayPlatform(order?.platform);
+  for (const value of values) {
+    const raw = String(value || "").trim();
+    if (!/^https:\/\//i.test(raw)) continue;
+    if (listingIdFromMarketplaceUrl(platform, raw)) return raw;
+  }
+  return "";
+}
+
 function photoListingForOrder(order, listings) {
   const platform = displayPlatform(order?.platform);
   const candidates = listings.filter((listing) => displayPlatform(listing?.platform) === platform);
   if (!candidates.length) return null;
 
-  const sourceUrl = orderSourceUrl(order);
-  if (sourceUrl) {
-    const direct = candidates.find((listing) => listing.listing_url === sourceUrl);
+  const sourceUrl = orderListingUrl(order);
+  const sourceListingId = listingIdFromMarketplaceUrl(platform, sourceUrl);
+  const explicitListingId = String(
+    order?.data?.listing_id || order?.data?.item_id || order?.data?.product_id || ""
+  ).trim();
+
+  if (sourceUrl || sourceListingId || explicitListingId) {
+    const direct = candidates.find((listing) => {
+      if (sourceUrl && listing.listing_url === sourceUrl) return true;
+      const candidateId = String(listing?.listing_id || listingIdFromMarketplaceUrl(platform, listing?.listing_url) || "").trim();
+      return Boolean(candidateId && (candidateId === sourceListingId || candidateId === explicitListingId));
+    });
     if (direct) return direct;
   }
 
   if (/bundle/i.test(order?.product_name || "")) return null;
+  const wantedText = normalizedTitle(order?.product_name);
+  if (!wantedText) return null;
+
+  const exactOrContained = candidates.find((listing) => {
+    const candidateText = normalizedTitle(listing?.title);
+    if (!candidateText) return false;
+    if (candidateText === wantedText) return true;
+    const shorter = candidateText.length < wantedText.length ? candidateText : wantedText;
+    return shorter.length >= 8 && (candidateText.includes(wantedText) || wantedText.includes(candidateText));
+  });
+  if (exactOrContained) return exactOrContained;
+
   const wanted = titleWords(order?.product_name);
   if (!wanted.length) return null;
   const wantedSet = new Set(wanted);
+  const orderTotal = Number(order?.sale_total || 0);
 
-  let best = null;
-  let bestScore = 0;
-  for (const listing of candidates) {
+  const scored = candidates.map((listing) => {
     const candidateWords = titleWords(listing?.title);
-    if (!candidateWords.length) continue;
     const candidateSet = new Set(candidateWords);
     const overlap = [...wantedSet].filter((word) => candidateSet.has(word)).length;
-    const score = overlap / Math.max(1, Math.min(wantedSet.size, candidateSet.size));
-    if (overlap >= 2 && score > bestScore) {
-      best = listing;
-      bestScore = score;
-    }
-  }
-  return bestScore >= 0.55 ? best : null;
+    const wordScore = overlap / Math.max(1, Math.min(wantedSet.size, candidateSet.size));
+    const listingPrice = Number(listing?.price || 0);
+    const priceBonus = orderTotal > 0 && listingPrice > 0 && Math.abs(orderTotal - listingPrice) < 0.01 ? 0.2 : 0;
+    return { listing, overlap, score: wordScore + priceBonus };
+  }).sort((a, b) => b.score - a.score || b.overlap - a.overlap);
+
+  const best = scored[0];
+  const second = scored[1];
+  if (!best) return null;
+  if (best.overlap >= 2 && best.score >= 0.42) return best.listing;
+  if (best.overlap === 1 && best.score >= 0.8 && (!second || best.score - second.score >= 0.25)) return best.listing;
+  return null;
 }
 
 export default function Gallery() {
