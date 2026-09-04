@@ -9,13 +9,50 @@ const vercelProductionURL = process.env.VERCEL_PROJECT_PRODUCTION_URL
 const vercelDeploymentURL = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
   : "";
-// Canonical production domain used by Better Auth on Vercel.
 const canonicalProductionURL = "https://artflowcreative.com";
 const baseURL = process.env.BETTER_AUTH_URL || (
   process.env.VERCEL_ENV === "production"
     ? canonicalProductionURL
     : vercelDeploymentURL || vercelProductionURL || canonicalProductionURL
 );
+
+async function sendPasswordResetEmail({ user, url }) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.PASSWORD_RESET_FROM || "Art Flow Creative <onboarding@resend.dev>";
+
+  if (!apiKey) {
+    throw new Error("RESEND_API_KEY is not configured");
+  }
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to: [user.email],
+      subject: "Reset your Art Flow Creative password",
+      html: `
+        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#2e2140;max-width:560px;margin:0 auto;padding:24px;">
+          <h2 style="margin:0 0 12px;color:#6d48a8;">Reset your Art Flow Creative password</h2>
+          <p>We received a request to reset the password for your Art Flow Creative account.</p>
+          <p style="margin:28px 0;">
+            <a href="${url}" style="display:inline-block;background:#8b5fc7;color:white;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:600;">Choose a new password</a>
+          </p>
+          <p style="font-size:13px;color:#6b6474;">If you did not request this, you can ignore this email. The reset link is time-limited.</p>
+        </div>
+      `,
+      text: `Reset your Art Flow Creative password: ${url}\n\nIf you did not request this, you can ignore this email.`,
+    }),
+  });
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`Password reset email failed (${response.status})${detail ? `: ${detail.slice(0, 180)}` : ""}`);
+  }
+}
 
 export const auth = betterAuth({
   appName: "Art Flow Creative",
@@ -28,15 +65,14 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     autoSignIn: true,
+    revokeSessionsOnPasswordReset: true,
+    sendResetPassword: sendPasswordResetEmail,
   },
   session: {
-    // Keep Art Flow sessions stable on mobile instead of forcing frequent re-authentication.
     expiresIn: 60 * 60 * 24 * 30,
     updateAge: 60 * 60 * 24,
   },
   advanced: {
-    // A user may enter through either the apex or www hostname. Share the same
-    // secure Better Auth cookie across both so API calls do not suddenly become 401.
     crossSubDomainCookies: {
       enabled: true,
       domain: "artflowcreative.com",

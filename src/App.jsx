@@ -8,6 +8,7 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ScrollToTop from './components/ScrollToTop';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import ForgotPassword from '@/pages/ForgotPassword';
+import ResetPassword from '@/pages/ResetPassword';
 import IndependentLogin from '@/pages/IndependentLogin';
 import IndependentRegister from '@/pages/IndependentRegister';
 import IndependentAuthTest from '@/pages/IndependentAuthTest';
@@ -51,12 +52,13 @@ const AuthenticatedApp = () => {
   }
 
   // Login and recovery pages must render even while authentication is broken or unresolved.
-  if (publicPath === '/login' || publicPath === '/register' || publicPath === '/forgot-password' || publicPath === '/new-login' || publicPath === '/new-register' || publicPath === '/new-auth-test' || publicPath === '/new-data-test') {
+  if (publicPath === '/login' || publicPath === '/register' || publicPath === '/forgot-password' || publicPath === '/reset-password' || publicPath === '/new-login' || publicPath === '/new-register' || publicPath === '/new-auth-test' || publicPath === '/new-data-test') {
     return (
       <Routes>
         <Route path="/login" element={<IndependentLogin />} />
         <Route path="/register" element={<IndependentRegister />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/new-login" element={<IndependentLogin />} />
         <Route path="/new-register" element={<IndependentRegister />} />
         <Route path="/new-auth-test" element={<IndependentAuthTest />} />
@@ -90,6 +92,7 @@ const AuthenticatedApp = () => {
       <Route path="/login" element={<IndependentLogin />} />
       <Route path="/register" element={<IndependentRegister />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/new-login" element={<IndependentLogin />} />
       <Route path="/new-register" element={<IndependentRegister />} />
       <Route path="/new-auth-test" element={<IndependentAuthTest />} />
@@ -124,7 +127,7 @@ const AuthenticatedApp = () => {
 
 function App() {
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
-  const isAuthPage = path === '/login' || path === '/register' || path === '/forgot-password' || path === '/new-login' || path === '/new-register' || path === '/new-auth-test' || path === '/new-data-test';
+  const isAuthPage = path === '/login' || path === '/register' || path === '/forgot-password' || path === '/reset-password' || path === '/new-login' || path === '/new-register' || path === '/new-auth-test' || path === '/new-data-test';
   const isLegalPage = path === '/privacy' || path === '/privacy-policy' || path === '/terms-of-service' || path === '/terms' || path === '/support';
 
   // Render public/auth recovery pages without mounting AuthProvider at all.
@@ -140,6 +143,7 @@ function App() {
               <Route path="/login" element={<IndependentLogin />} />
               <Route path="/register" element={<IndependentRegister />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/new-login" element={<IndependentLogin />} />
               <Route path="/new-register" element={<IndependentRegister />} />
               <Route path="/new-auth-test" element={<IndependentAuthTest />} />
