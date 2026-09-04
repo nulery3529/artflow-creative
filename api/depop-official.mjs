@@ -164,7 +164,12 @@ async function upsertProducts(client,businessId,products){
     SELECT id,$2,'Depop',listing_id,title,price,currency,image_url,listing_url,'Active',now(),'depop_official_oauth',data FROM incoming
     ON CONFLICT (business_id,platform,listing_url) DO UPDATE SET
       listing_id=EXCLUDED.listing_id,title=EXCLUDED.title,price=EXCLUDED.price,currency=EXCLUDED.currency,
-      image_url=COALESCE(NULLIF(EXCLUDED.image_url,''),artflow.marketplace_listings.image_url),status='Active',last_seen_at=now(),sync_source='depop_official_oauth',data=EXCLUDED.data
+      image_url=COALESCE(NULLIF(EXCLUDED.image_url,''),artflow.marketplace_listings.image_url),
+      status=CASE
+        WHEN artflow.marketplace_listings.status='Sold' THEN 'Sold'
+        ELSE 'Active'
+      END,
+      last_seen_at=now(),sync_source='depop_official_oauth',data=EXCLUDED.data
   `,[JSON.stringify(rows),businessId]);
   return rows.map(r=>r.listing_url);
 }
