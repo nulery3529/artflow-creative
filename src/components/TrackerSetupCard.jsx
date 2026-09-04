@@ -104,8 +104,14 @@ export default function TrackerSetupCard() {
       const data = await loadStatus();
       if (!active || !data) return;
       const pending = sessionStorage.getItem(PENDING_KEY) === "1";
-      if (pending && data.google_connected && !data.connected) {
-        createTracker();
+      if (pending && data.google_connected) {
+        sessionStorage.removeItem(PENDING_KEY);
+        if (!data.spreadsheet_attached) {
+          createTracker();
+        } else {
+          toast.success("Google Sheets reconnected");
+          window.dispatchEvent(new CustomEvent("artflow:tracker-ready", { detail: data }));
+        }
       }
     })();
     return () => { active = false; };
