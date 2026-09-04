@@ -214,7 +214,9 @@ export default async function handler(req,res) {
         const price=Number.isFinite(priceNum)&&priceNum>=0?priceNum:0;
         const listingId=clean(raw?.listing_id||listingIdFromUrl(platform,url)).slice(0,200);
         const image=/^https?:\/\//i.test(clean(raw?.image_url))?clean(raw.image_url).slice(0,2000):null;
-        const status=/^sold$/i.test(clean(raw?.status))?'Sold':'Active';
+        const statusText=clean(raw?.status || raw?.state || raw?.item_status || raw?.itemStatus);
+        const soldFlag = raw?.sold === true || raw?.is_sold === true || raw?.isSold === true || raw?.closed === true || raw?.is_closed === true || raw?.isClosed === true || /^(sold|closed|completed)$/i.test(statusText);
+        const status=soldFlag?'Sold':'Active';
         const identity=listingId ? `id:${listingId}` : `url:${url}`;
         const id=crypto.createHash('sha256').update(`${b.base44_id}|${platform}|${identity}`).digest('hex');
         deduped.set(`${platform}|${identity}`,{
@@ -259,7 +261,10 @@ export default async function handler(req,res) {
             price=EXCLUDED.price,
             currency=EXCLUDED.currency,
             image_url=COALESCE(NULLIF(EXCLUDED.image_url,''),artflow.marketplace_listings.image_url),
-            status=EXCLUDED.status,
+            status=CASE
+              WHEN artflow.marketplace_listings.status='Sold' AND EXCLUDED.status='Active' THEN 'Sold'
+              ELSE EXCLUDED.status
+            END,
             last_seen_at=now(),
             sync_source='browser_listing_sync'
         `,[JSON.stringify(rows),b.base44_id]);
