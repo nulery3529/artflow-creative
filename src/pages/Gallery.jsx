@@ -295,11 +295,12 @@ export default function Gallery() {
         </div>
       )}
 
-      <section className="space-y-3">
+      {filter !== "Sold" && (
+        <section className="space-y-3">
           <div className="flex items-end justify-between gap-3">
             <div>
               <h2 className="font-heading text-lg">
-                {filter === "Sold" ? "Sold marketplace listings" : filter === "Available" ? "Available marketplace listings" : "Marketplace listings"}
+                {filter === "Available" ? "Available marketplace listings" : "Marketplace listings"}
               </h2>
               <p className="text-xs text-muted-foreground">Tap any item to open the marketplace listing.</p>
             </div>
@@ -309,7 +310,7 @@ export default function Gallery() {
           {filteredMarketplaceListings.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-[hsl(var(--border))] p-5 text-center">
               <p className="font-semibold text-sm">No linked marketplace listings yet</p>
-              <p className="text-xs text-muted-foreground mt-1">Open your seller listings page in Chrome and use Art Flow Browser Sync → Sync current listings to Gallery.</p>
+              <p className="text-xs text-muted-foreground mt-1">Sync your marketplace listings to add their photos to Gallery.</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-x-1.5 gap-y-5">
@@ -332,14 +333,9 @@ export default function Gallery() {
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">No photo</div>
                     )}
-                    <span className={`absolute left-2 top-2 px-2 py-1 rounded-full text-[10px] font-bold ${PLATFORM_TONE[listing.platform] || "bg-black text-white"}`}>
-                      {listing.platform}
+                    <span className={`absolute left-2 top-2 px-2 py-1 rounded-full text-[10px] font-bold ${PLATFORM_TONE[displayPlatform(listing.platform)] || "bg-black text-white"}`}>
+                      {displayPlatform(listing.platform)}
                     </span>
-                    {listing.status === "Sold" && (
-                      <span className="absolute left-2 bottom-2 bg-black text-white px-2 py-1 text-[10px] font-bold uppercase tracking-wide">
-                        Sold
-                      </span>
-                    )}
                     <span className="absolute right-2 top-2 w-7 h-7 rounded-full bg-black/65 text-white flex items-center justify-center">
                       <ExternalLink className="w-3.5 h-3.5" />
                     </span>
@@ -355,7 +351,74 @@ export default function Gallery() {
             </div>
           )}
         </section>
+      )}
 
+      {filter !== "Available" && (
+        <section className="space-y-3">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <h2 className="font-heading text-lg">Sold orders</h2>
+              <p className="text-xs text-muted-foreground">Pulled directly from Orders. Marketplace sync only supplies the photo.</p>
+            </div>
+            <span className="text-xs font-semibold text-muted-foreground shrink-0">{filteredSoldOrders.length}</span>
+          </div>
+
+          {filteredSoldOrders.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-[hsl(var(--border))] p-5 text-center">
+              <p className="font-semibold text-sm">No sold orders match your filters</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-x-1.5 gap-y-5">
+              {filteredSoldOrders.map(({ order, photoListing }) => {
+                const sourceUrl = orderSourceUrl(order) || photoListing?.listing_url || "";
+                const photoSrc = order?.data?.image_url || marketplaceImageSrc(photoListing);
+                const platform = displayPlatform(order.platform);
+                return (
+                  <a
+                    key={order.id}
+                    href={sourceUrl || undefined}
+                    target={sourceUrl ? "_blank" : undefined}
+                    rel={sourceUrl ? "noreferrer" : undefined}
+                    onClick={(event) => { if (!sourceUrl) event.preventDefault(); }}
+                    className="text-left min-w-0 block"
+                  >
+                    <div className="relative aspect-square bg-muted overflow-hidden">
+                      {photoSrc ? (
+                        <Image
+                          src={photoSrc}
+                          fittingType="fill"
+                          className="w-full h-full object-cover"
+                          alt={order.product_name || `${platform} sold order`}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground px-3 text-center">Photo not synced yet</div>
+                      )}
+                      <span className={`absolute left-2 top-2 px-2 py-1 rounded-full text-[10px] font-bold ${PLATFORM_TONE[platform] || "bg-black text-white"}`}>
+                        {platform}
+                      </span>
+                      <span className="absolute left-2 bottom-2 bg-black text-white px-2 py-1 text-[10px] font-bold uppercase tracking-wide">
+                        Sold
+                      </span>
+                      {sourceUrl && (
+                        <span className="absolute right-2 top-2 w-7 h-7 rounded-full bg-black/65 text-white flex items-center justify-center">
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </span>
+                      )}
+                    </div>
+                    <div className="pt-2 px-0.5">
+                      <p className="text-sm leading-tight line-clamp-2 text-foreground">{order.product_name || "Sold item"}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{order.sale_date || ""}</p>
+                      <p className="text-sm font-bold mt-1.5 text-foreground">{formatMoney(order.sale_total || 0)}</p>
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
+
+      {filter !== "Sold" && (
       <section className="space-y-3">
         <div>
           <h2 className="font-heading text-lg">My gallery</h2>
@@ -402,6 +465,7 @@ export default function Gallery() {
           </div>
         )}
       </section>
+      )}
 
       <button
         onClick={openCreate}
