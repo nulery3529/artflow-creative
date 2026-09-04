@@ -247,11 +247,11 @@ $('syncListings').addEventListener('click', async () => {
   if (!key.startsWith('af_')) return setStatus('Save your Art Flow Browser Sync key first.', 'bad');
 
   $('syncListings').disabled = true;
-  setStatus('Scanning this seller page for up to 500 active listings… Keep this tab open while Art Flow scrolls through the catalog.');
+  setStatus('Scanning this seller page for up to 1,200 listings… Keep this tab open while Art Flow scrolls through the catalog.');
   try {
     const [tab] = await ext.tabs.query({ active: true, currentWindow: true });
     if (!tab?.id) throw new Error('No active tab');
-    const data = await ext.tabs.sendMessage(tab.id, { action: 'crawl-listings', max: 500 });
+    const data = await ext.tabs.sendMessage(tab.id, { action: 'crawl-listings', max: 1200 });
     if (!data.supported) throw new Error('Open your Vinted, Depop, Etsy, or eBay shop/listings page first.');
     if (!Array.isArray(data.listings) || data.listings.length === 0) {
       throw new Error('No current listing cards were found on this page. Open your seller/shop listings page and make sure the listings are visible.');
@@ -262,7 +262,7 @@ $('syncListings').addEventListener('click', async () => {
     const response = await fetch(LISTING_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'listings', sync_key: key, listings: data.listings, snapshot_complete: data.complete === true, snapshot_platform: data.platform }),
+      body: JSON.stringify({ action: 'listings', sync_key: key, listings: data.listings, snapshot_complete: data.complete === true, snapshot_platform: data.platform, snapshot_status: data.page_status || '' }),
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || `Art Flow returned ${response.status}`);

@@ -565,7 +565,11 @@ export default async function handler(req, res) {
            price=CASE WHEN EXCLUDED.price>0 THEN EXCLUDED.price ELSE artflow.marketplace_listings.price END,
            currency=EXCLUDED.currency,
            image_url=COALESCE(NULLIF(EXCLUDED.image_url,''),artflow.marketplace_listings.image_url),
-           status='Active',last_seen_at=now(),sync_source='mobile_listing_sync'`,
+           status=CASE
+             WHEN artflow.marketplace_listings.status='Sold' THEN 'Sold'
+             ELSE 'Active'
+           END,
+           last_seen_at=now(),sync_source='mobile_listing_sync'`,
         [id,b.base44_id,listing.platform,listing.listing_id || null,listing.title,listing.price || 0,listing.currency || 'USD',listing.image_url || null,listing.listing_url]
       );
       counts[listing.platform] = (counts[listing.platform] || 0) + 1;

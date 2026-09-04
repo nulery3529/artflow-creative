@@ -157,8 +157,12 @@ async function crawlListingsFromPage(maxListings = 500) {
       node.getAttribute?.('title'),
       node.getAttribute?.('data-testid'),
     ].filter(Boolean).join(' ')).join(' ').toLowerCase();
-    if (/\bsold(?:\s+(?:items?|listings?|wardrobe))?\b/i.test(selectedText)) return 'Sold';
-    if (/\bavailable(?:\s+(?:items?|listings?|wardrobe))?\b/i.test(selectedText)) return 'Active';
+    const headingText = [...document.querySelectorAll('h1,h2,h3,[role="heading"]')].slice(0,40)
+      .map((node) => [node.innerText,node.getAttribute?.('aria-label'),node.getAttribute?.('data-testid')].filter(Boolean).join(' '))
+      .join(' ').toLowerCase();
+    const pageText = `${document.title || ''} ${selectedText} ${headingText}`.toLowerCase();
+    if (/\bsold(?:\s+(?:items?|listings?|wardrobe|products?))?\b/i.test(pageText)) return 'Sold';
+    if (/\b(?:available|active)(?:\s+(?:items?|listings?|wardrobe|products?))?\b/i.test(pageText)) return 'Active';
     return '';
   })();
 
@@ -266,7 +270,7 @@ async function crawlListingsFromPage(maxListings = 500) {
   collect();
   try { window.scrollTo({ top: originalY, behavior: 'auto' }); } catch {}
   const listings = [...seen.values()].slice(0, max).map(({ _image_score, ...item }) => item);
-  return { supported: true, platform, listings, complete: seen.size < max && confirmedBottom, reached_limit: seen.size >= max };
+  return { supported: true, platform, listings, complete: seen.size < max && confirmedBottom, reached_limit: seen.size >= max, page_status: pageStatusHint || '' };
 }
 
 ext?.runtime?.onMessage?.addListener((message, sender, sendResponse) => {

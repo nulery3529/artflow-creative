@@ -201,7 +201,12 @@ export default async function handler(req,res) {
     if (!b) return res.status(401).json({error:'Invalid Art Flow Browser Sync key'});
 
     if (action === 'listings') {
-      const snapshotPlatform=body.snapshot_complete ? validPlatform(body.snapshot_platform||body.platform) : '';
+      const snapshotStatus=/^active$/i.test(clean(body.snapshot_status))?'Active':(/^sold$/i.test(clean(body.snapshot_status))?'Sold':'');
+      // Only an explicitly confirmed Active-page crawl may deactivate listings
+      // missing from the snapshot. A Sold-page crawl must never wipe current stock.
+      const snapshotPlatform=body.snapshot_complete && snapshotStatus==='Active'
+        ? validPlatform(body.snapshot_platform||body.platform)
+        : '';
       const incoming=Array.isArray(body.listings)?body.listings.slice(0,5000):[];
       if (!incoming.length && !snapshotPlatform) return res.status(400).json({error:'No listings found'});
 
