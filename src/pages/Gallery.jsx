@@ -3,7 +3,7 @@ import { ExternalLink, Plus, Search, SlidersHorizontal } from "lucide-react";
 import { useEntity } from "@/lib/useBusinessData";
 import { useOrders } from "@/lib/useOrders";
 import { formatMoney } from "@/lib/format";
-import { PLATFORM_TONE, displayPlatform, orderSourceUrl } from "@/lib/platforms";
+import { PLATFORM_TONE, displayPlatform } from "@/lib/platforms";
 import ArtPieceForm from "@/components/ArtPieceForm";
 import PullToRefresh from "@/components/PullToRefresh";
 import PageHeader from "@/components/PageHeader";
@@ -138,6 +138,52 @@ export default function Gallery() {
   const { records: orders, loading: ordersLoading, reload: reloadOrders } = useOrders();
   const [marketplaceListings, setMarketplaceListings] = useState([]);
   const [marketplaceLoading, setMarketplaceLoading] = useState(true);
+  const officialRefreshInFlight = useRef(false);
+  const lastOfficialRefresh = useRef(0);
+
+  const refreshConnectedMarketplaces = useCallback(async ({ force = false } = {}) => {
+    const now = Date.now();
+    if (officialRefreshInFlight.current) return false;
+    if (!force && now - lastOfficialRefresh.current < 60 * 1000) return false;
+
+    officialRefreshInFlight.current = true;
+    try {
+      const [depopStatusResult, vintedStatusResult] = await Promise.allSettled([
+        fetch("/api/depop-official", { credentials: "include", cache: "no-store" }).then(async (response) => ({ response, data: await response.json().catch(() => ({})) })),
+        fetch("/api/vinted-official", { credentials: "include", cache: "no-store" }).then(async (response) => ({ response, data: await response.json().catch(() => ({})) })),
+      ]);
+
+      const jobs = [];
+      if (depopStatusResult.status === "fulfilled" && depopStatusResult.value.response.ok && depopStatusResult.value.data?.connected) {
+        jobs.push(fetch("/api/depop-official", {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "sync" }),
+        }));
+      }
+      if (vintedStatusResult.status === "fulfilled" && vintedStatusResult.value.response.ok && vintedStatusResult.value.data?.connected) {
+        jobs.push(fetch("/api/vinted-official", {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "sync_imported" }),
+        }));
+      }
+
+      if (jobs.length) await Promise.allSettled(jobs);
+      lastOfficialRefresh.current = Date.now();
+      return jobs.length > 0;
+    } catch (error) {
+      console.warn("Could not refresh connected marketplace listings", error);
+      return false;
+    } finally {
+      officialRefreshInFlight.current = false;
+    }
+  }, []);
+
   const reloadMarketplaceListings = useCallback(async () => {
     try {
       const response = await fetch("/api/neon-data?op=listings", { credentials: "include", cache: "no-store" });
@@ -159,11 +205,37 @@ export default function Gallery() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     reloadMarketplaceListings();
+    refreshConnectedMarketplaces().then((didRefresh) => {
+      if (!cancelled && didRefresh) reloadMarketplaceListings();
+    });
+
+    const refreshLiveListings = () => {
+      refreshConnectedMarketplaces().then((didRefresh) => {
+        if (didRefresh) reloadMarketplaceListings();
+      });
+    };
     const onSync = () => reloadMarketplaceListings();
+    const onFocus = () => refreshLiveListings();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refreshLiveListings();
+    };
+    const id = window.setInterval(() => {
+      if (document.visibilityState === "visible") refreshLiveListings();
+    }, 5 * 60 * 1000);
+
     window.addEventListener("artflow:listings-synced", onSync);
-    return () => window.removeEventListener("artflow:listings-synced", onSync);
-  }, [reloadMarketplaceListings]);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+      window.removeEventListener("artflow:listings-synced", onSync);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [reloadMarketplaceListings, refreshConnectedMarketplaces]);
   const navigate = useNavigate();
   // Open on Available so sold inventory is kept separate by default. The All
   // tab remains available when the user intentionally wants the combined view.
@@ -447,7 +519,7 @@ export default function Gallery() {
           ) : (
             <div className="grid grid-cols-2 gap-x-1.5 gap-y-5">
               {filteredSoldOrders.map(({ order, photoListing }) => {
-                const sourceUrl = orderSourceUrl(order) || photoListing?.listing_url || "";
+                const sourceUrl = orderListingUrl(order) || photoListing?.listing_url || "";
                 const photoSrc = order?.data?.image_url || marketplaceImageSrc(photoListing);
                 const platform = displayPlatform(order.platform);
                 return (
