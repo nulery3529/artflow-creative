@@ -18,10 +18,15 @@ import { toast } from "sonner";
 export default function Orders() {
   const { records: orders, reload: reloadOrders } = useOrders();
   const { selected: trackedSites, configured: sitesConfigured, loading: sitesLoading } = useMarketplacePreferences();
-  const activeOrders = useMemo(
-    () => sitesConfigured ? orders.filter((o) => trackedSites.includes(displayPlatform(o.platform))) : [],
-    [orders, trackedSites, sitesConfigured]
-  );
+  const activeOrders = useMemo(() => {
+    // Never hide real synced orders just because an older workspace has an empty
+    // marketplace-preference array. If marketplaces are selected, honor that
+    // filter; otherwise show the synced business orders that already exist.
+    if (sitesConfigured && trackedSites.length > 0) {
+      return orders.filter((o) => trackedSites.includes(displayPlatform(o.platform)));
+    }
+    return orders;
+  }, [orders, trackedSites, sitesConfigured]);
   const { records: inventoryCosts } = useEntity("InventoryCost", "size");
   const refresh = async () => { await reloadOrders(); };
   const { pathname } = useLocation();
@@ -123,6 +128,11 @@ export default function Orders() {
   }, [activeOrders]);
 
   const isBundle = (o) => /bundle/i.test(o.product_name || "");
+  const visiblePlatformTabs = useMemo(() => {
+    if (trackedSites.length > 0) return trackedSites;
+    return Array.from(new Set(activeOrders.map((order) => displayPlatform(order.platform)).filter(Boolean)));
+  }, [trackedSites, activeOrders]);
+
   const filtered = useMemo(() => {
     return activeOrders
       .filter((o) => {
@@ -224,7 +234,7 @@ export default function Orders() {
       </div>
 
       <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1">
-        {["All", ...trackedSites, "Bundles"].map((p) => (
+        {["All", ...visiblePlatformTabs, "Bundles"].map((p) => (
           <button
             key={p}
             onClick={() => setPlatformFilter(p)}
@@ -239,7 +249,7 @@ export default function Orders() {
         ))}
       </div>
 
-      {!sitesLoading && !sitesConfigured && (
+      {!sitesLoading && !sitesConfigured && activeOrders.length === 0 && (
         <div className="rounded-2xl bg-muted p-4 text-sm text-muted-foreground">
           Choose the marketplaces you sell on in Account before starting sales tracking.
         </div>
