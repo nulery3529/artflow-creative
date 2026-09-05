@@ -169,7 +169,7 @@ async function upsertProducts(client,businessId,products){
         WHEN artflow.marketplace_listings.status='Sold' THEN 'Sold'
         ELSE 'Active'
       END,
-      last_seen_at=now(),sync_source='depop_official_oauth',data=EXCLUDED.data
+      last_seen_at=now(),sync_source='depop_official_oauth',data=COALESCE(artflow.marketplace_listings.data,'{}'::jsonb) || EXCLUDED.data
   `,[JSON.stringify(rows),businessId]);
   return rows.map(r=>r.listing_url);
 }
