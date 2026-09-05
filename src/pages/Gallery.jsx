@@ -303,16 +303,6 @@ export default function Gallery() {
       const listingUrl = String(listing?.listing_url || "");
       if (platform === "Depop" && /\/products\/create(?:\/|$)/i.test(listingUrl)) return false;
 
-      // Older Vinted imports could save Sold-page rows as Active. If an Active
-      // Vinted listing already matches a real sold Order, keep it out of Available.
-      if (platform === "Vinted") {
-        const matchedSoldOrder = orders.some((order) =>
-          displayPlatform(order.platform) === "Vinted"
-          && photoListingForOrder(order, [listing]) === listing
-        );
-        if (matchedSoldOrder) return false;
-      }
-
       return true;
     }),
     [marketplaceListings, orders]
