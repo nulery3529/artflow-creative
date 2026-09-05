@@ -10,9 +10,21 @@ export default function handler(req, res) {
   const deploymentHost = 'art-flow-creative.vercel.app';
   const headers = {};
   for (const [key, value] of Object.entries(req.headers || {})) {
-    if (value == null || HOP_BY_HOP_HEADERS.has(key.toLowerCase())) continue;
+    const lower = key.toLowerCase();
+    if (value == null || HOP_BY_HOP_HEADERS.has(lower) || lower === 'content-length') continue;
     headers[key] = value;
   }
+
+  let body = null;
+  if (Buffer.isBuffer(req.body)) {
+    body = req.body;
+  } else if (typeof req.body === 'string') {
+    body = Buffer.from(req.body);
+  } else if (req.body && typeof req.body === 'object') {
+    body = Buffer.from(JSON.stringify(req.body));
+    if (!headers['content-type'] && !headers['Content-Type']) headers['content-type'] = 'application/json';
+  }
+  if (body) headers['content-length'] = String(body.length);
 
   const upstream = https.request({
     protocol: 'https:',
@@ -36,5 +48,6 @@ export default function handler(req, res) {
     else res.end();
   });
 
-  req.pipe(upstream);
+  if (body) upstream.end(body);
+  else req.pipe(upstream);
 }
