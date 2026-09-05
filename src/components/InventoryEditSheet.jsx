@@ -8,11 +8,10 @@ import { toast } from "sonner";
 import Field from "@/components/Field";
 import { Image } from "@/components/ui/image";
 
-const categories = ["Frame", "Print", "Supply", "Packaging", "Other"];
-const sizes = ["4x4", "4x6", "5x7", "8x8", "8x10", "11x14"];
+const categories = ["Supply", "Packaging", "Other"];
 
 const emptyForm = {
-  category: "Frame",
+  category: "Supply",
   name: "",
   size: "",
   image_url: "",
@@ -33,7 +32,7 @@ export default function InventoryEditSheet({ open, onClose, record }) {
     if (open) {
       if (record) {
         setForm({
-          category: record.category || "Frame",
+          category: record.category === "Packaging" || record.category === "Other" ? record.category : "Supply",
           name: record.name || "",
           size: record.size || "",
           image_url: record.image_url || "",
@@ -50,7 +49,7 @@ export default function InventoryEditSheet({ open, onClose, record }) {
   }, [open, record]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
-  const usesSize = form.category === "Frame" || form.category === "Print";
+  const usesSize = false;
 
   const handlePhoto = async (e) => {
     const file = e.target.files?.[0];
@@ -200,35 +199,14 @@ export default function InventoryEditSheet({ open, onClose, record }) {
                 )}
               </Field>
 
-              {usesSize ? (
-                <Field label="Size">
-                  <div className="flex flex-wrap gap-2">
-                    {sizes.map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => set("size", s)}
-                        className={`px-3 h-10 rounded-full text-sm font-medium ${
-                          form.size === s
-                            ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"
-                            : "bg-muted text-foreground"
-                        }`}
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                </Field>
-              ) : (
-                <Field label="Item Name">
-                  <input
-                    value={form.name}
-                    onChange={(e) => set("name", e.target.value)}
-                    placeholder="e.g. Cello tape roll"
-                    className="form-input"
-                  />
-                </Field>
-              )}
+              <Field label="Item Name">
+                <input
+                  value={form.name}
+                  onChange={(e) => set("name", e.target.value)}
+                  placeholder="e.g. 5x7 picture frames"
+                  className="form-input"
+                />
+              </Field>
 
               <Field label="Quantity on Hand">
                 <input
