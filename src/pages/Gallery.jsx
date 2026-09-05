@@ -339,13 +339,14 @@ export default function Gallery() {
   );
   const stats = useMemo(() => {
     const manualSold = records.filter((p) => p.status === "Sold").length;
+    const marketplaceSold = marketplaceListings.filter((listing) => (listing.status || "") === "Sold").length;
     const available = availableMarketplaceListings.length;
     return {
       listings: available,
       available,
-      sold: manualSold + orders.length,
+      sold: manualSold + marketplaceSold,
     };
-  }, [records, availableMarketplaceListings, orders]);
+  }, [records, marketplaceListings, availableMarketplaceListings]);
 
   const filteredMarketplaceListings = useMemo(() => {
     const q = search.trim().toLowerCase();
