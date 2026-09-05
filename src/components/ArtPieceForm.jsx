@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Camera, Loader2, Trash2, CheckCircle2 } from "lucide-react";
-import { base44 } from "@/api/base44Client";
 import { neonEntities } from "@/lib/neonEntityClient";
+import { prepareImageForStorage } from "@/lib/imageUpload";
 import { toast } from "sonner";
 import Field from "@/components/Field";
 import { Image } from "@/components/ui/image";
@@ -59,8 +59,8 @@ export default function ArtPieceForm({ open, onClose, record }) {
     if (!file) return;
     setUploading(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      set("image_url", file_url);
+      const imageUrl = await prepareImageForStorage(file);
+      set("image_url", imageUrl);
     } catch {
       toast.error("Could not upload photo");
     } finally {
