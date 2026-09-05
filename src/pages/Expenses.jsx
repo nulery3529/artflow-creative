@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from "react";
 import { Plus, RefreshCw } from "lucide-react";
-import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { useEntity } from "@/lib/useBusinessData";
 import { useOrders } from "@/lib/useOrders";
@@ -26,42 +25,10 @@ export default function Expenses() {
   const importForwardedExpenses = async () => {
     setImportingEmail(true);
     try {
-      const messages = [];
-
-      // Primary email sources first. Each provider is optional and independent;
-      // an unconnected inbox must never block the rest of the expense sync.
-      for (const functionName of ["processExpenseEmails", "processOutlookExpenseEmails"]) {
-        try {
-          let res = await base44.functions.invoke(functionName, {});
-          let data = res?.data || {};
-          let pass = 0;
-          while (Number(data.remaining || 0) > 0 && pass < 12) {
-            await reloadExpenses();
-            await new Promise((resolve) => window.setTimeout(resolve, 350));
-            res = await base44.functions.invoke(functionName, {});
-            data = res?.data || {};
-            pass += 1;
-          }
-          if (data.message) messages.push(data.message);
-        } catch {
-          // Expected when that provider is not connected for this user.
-        }
-      }
-
-      // Google Sheets runs last by design. It only adds rows that do not match
-      // an existing expense, so it is the safety net rather than the authority.
-      try {
-        const sheetRes = await base44.functions.invoke("syncSheetExpenseFallback", {});
-        const sheetData = sheetRes?.data || {};
-        if (sheetData.message) messages.push(sheetData.message);
-      } catch {
-        // Spreadsheet backup is optional.
-      }
-
-      toast.success(messages.at(-1) || "All connected expense sources are up to date");
       await reloadExpenses();
+      toast.success("Expenses refreshed from Art Flow");
     } catch (e) {
-      toast.error("Expense import failed", { description: e?.response?.data?.error || e?.message });
+      toast.error("Expense refresh failed", { description: e?.message });
     } finally {
       setImportingEmail(false);
     }
@@ -140,8 +107,8 @@ export default function Expenses() {
 
       <section className="bg-card rounded-2xl p-4 border border-[hsl(var(--border))] space-y-3">
         <div>
-          <p className="font-medium">Automatic art expense sync</p>
-          <p className="text-xs text-muted-foreground mt-1">Art Flow checks each connected inbox for paid art-business purchases and receipts, including supplies, printing, packaging, frames, equipment, photography gear, software, shipping, and other clearly business-related art expenses. After email sync, your Google Sheet backup fills in missing expenses without overwriting or double-counting existing records.</p>
+          <p className="font-medium">Expense records</p>
+          <p className="text-xs text-muted-foreground mt-1">Your saved business expenses are stored in Art Flow's Neon database. Use Refresh to reload the latest records without relying on the retired Base44 integration.</p>
         </div>
         <button
           onClick={importForwardedExpenses}
@@ -149,7 +116,7 @@ export default function Expenses() {
           className="w-full h-11 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] flex items-center justify-center gap-2 text-sm font-semibold disabled:opacity-60"
         >
           <RefreshCw className={`w-4 h-4 ${importingEmail ? "animate-spin" : ""}`} />
-          {importingEmail ? "Checking all expense sources…" : "Sync All Art Expenses"}
+          {importingEmail ? "Refreshing expenses…" : "Refresh Expenses"}
         </button>
       </section>
 
