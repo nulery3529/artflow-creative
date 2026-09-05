@@ -26,6 +26,7 @@ export default function TrackerSetupCard({ callbackPath = "/account" }) {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Could not check tracker status");
       setStatus(data);
+      window.dispatchEvent(new CustomEvent("artflow:data-synced"));
       return data;
     } catch (error) {
       toast.error("Could not check ArtFlow Tracker", { description: error?.message });
@@ -54,6 +55,7 @@ export default function TrackerSetupCard({ callbackPath = "/account" }) {
       sessionStorage.removeItem(PENDING_KEY);
       setStatus((current) => ({ ...(current || {}), ...data, connected: true, google_connected: true }));
       window.dispatchEvent(new CustomEvent("artflow:tracker-ready", { detail: data }));
+      window.dispatchEvent(new CustomEvent("artflow:data-synced"));
       toast.success(data.message || "Your ArtFlow Creative Tracker is ready");
     } catch (error) {
       if (["GOOGLE_NOT_LINKED", "GOOGLE_RECONNECT"].includes(error?.code)) {
