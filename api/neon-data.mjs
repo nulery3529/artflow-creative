@@ -293,6 +293,19 @@ async function writeInventory(client, session, req) {
     return inserted.rows[0];
   }
 
+  if (action === 'delete') {
+    const id = String(body.id || '').trim();
+    if (!id) throw new Error('Inventory item id is required');
+    const deleted = await client.query(
+      `DELETE FROM artflow.inventory_costs
+        WHERE base44_id=$1 AND business_id = ANY($2::text[])
+        RETURNING base44_id`,
+      [id, ids]
+    );
+    if (!deleted.rows[0]) throw new Error('Inventory item not found');
+    return { id: deleted.rows[0].base44_id, deleted: true };
+  }
+
   if (action === 'update') {
     const id = String(body.id || '').trim();
     if (!id) throw new Error('Inventory item id is required');
