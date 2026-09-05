@@ -298,10 +298,6 @@ export default async function handler(req, res) {
     });
 
     if (event?.type !== 'email.received') return res.status(200).send('OK');
-    if (!isAllowedMarketplaceSender(event?.data?.from)) {
-      console.warn('Inbound order email: rejected sender', addressOnly(event?.data?.from));
-      return res.status(200).send('OK');
-    }
 
     const recipients = (Array.isArray(event?.data?.to) ? event.data.to : [event?.data?.to])
       .map(addressOnly)
@@ -314,9 +310,26 @@ export default async function handler(req, res) {
 
     const received = await resend.emails.receiving.get(event.data.email_id);
     const email = received?.data || received;
-    const subject = clean(email?.subject || event?.data?.subject || '');
+    const rawSubject = clean(email?.subject || event?.data?.subject || '');
     const text = clean(email?.text || htmlToText(email?.html || ''));
-    const parsedRows = parseSaleEmail(event?.data?.from, subject, text);
+    const outerSender = addressOnly(event?.data?.from);
+    let marketplaceSender = outerSender;
+    let subject = rawSubject;
+
+    if (!isAllowedMarketplaceSender(outerSender)) {
+      if (!isApprovedBusinessForwarder(config, outerSender)) {
+        console.warn('Inbound order email: rejected sender', outerSender);
+        return res.status(200).send('OK');
+      }
+      marketplaceSender = forwardedMarketplaceSender(text);
+      subject = originalForwardedSubject(rawSubject);
+      if (!marketplaceSender) {
+        console.warn('Inbound order email: approved forward missing marketplace sender');
+        return res.status(200).send('OK');
+      }
+    }
+
+    const parsedRows = parseSaleEmail(marketplaceSender, subject, text);
     if (!parsedRows.length) return res.status(200).send('OK');
 
     const inserted = await insertRows(client, config.business_id, event.data.email_id, email?.created_at || event?.created_at || new Date().toISOString(), parsedRows);
