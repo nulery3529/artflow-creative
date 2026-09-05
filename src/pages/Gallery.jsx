@@ -262,12 +262,23 @@ export default function Gallery() {
     () => marketplaceListings.filter((listing) => {
       if ((listing.status || "Active") !== "Active") return false;
 
-      // Show every current Active marketplace listing, whether it was imported
-      // automatically or added manually. Sold items are still excluded below.
-      // Older Vinted browser-sync installs could save Sold-page rows as Active.
-      // If an Active Vinted listing already matches a real sold Order, do not
-      // show it under Available. Orders remain the source of truth for sales.
-      if (displayPlatform(listing.platform) === "Vinted") {
+      const platform = displayPlatform(listing.platform);
+      const listingId = String(listing?.listing_id || listingIdFromMarketplaceUrl(platform, listing?.listing_url) || "").trim();
+      // Profile/shop links belong in Linked Sell Sites, not in the product grid.
+      if (!listingId) return false;
+
+      // Ignore the old bulk browser import unless it was refreshed recently.
+      // This keeps stale legacy rows from inflating Available while still
+      // allowing a fresh browser refresh to appear immediately.
+      const source = String(listing?.sync_source || "");
+      const lastSeen = listing?.last_seen_at ? new Date(listing.last_seen_at).getTime() : 0;
+      const browserFresh = source === "browser_listing_sync" && lastSeen > Date.now() - (48 * 60 * 60 * 1000);
+      const trustedCurrent = source === "mobile_listing_sync" || /official/i.test(source) || browserFresh;
+      if (!trustedCurrent) return false;
+
+      // Older Vinted imports could save Sold-page rows as Active. If an Active
+      // Vinted listing already matches a real sold Order, keep it out of Available.
+      if (platform === "Vinted") {
         const matchedSoldOrder = orders.some((order) =>
           displayPlatform(order.platform) === "Vinted"
           && photoListingForOrder(order, [listing]) === listing
