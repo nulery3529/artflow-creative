@@ -150,7 +150,7 @@ async function upsertProducts(client,businessId,products){
       currency:clean(p?.price_currency||'USD')||'USD',
       image_url:clean(p?.pictures?.[0]?.url)||null,
       listing_url:url,
-      data:{source:'depop_official_oauth',sku:p?.sku||null,brand:p?.brand||null,status:p?.status||null},
+      data:{source:'depop_official_oauth',gallery_manual:true,gallery_added_at:new Date().toISOString(),sku:p?.sku||null,brand:p?.brand||null,status:p?.status||null},
     });
   }
   if(!rows.length) return [];
