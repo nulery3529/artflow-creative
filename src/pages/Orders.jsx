@@ -2,7 +2,6 @@ import React, { useState, useMemo, useEffect } from "react";
 import { Search, Plus, RefreshCw, ExternalLink, Smartphone } from "lucide-react";
 import { useEntity } from "@/lib/useBusinessData";
 import { useOrders } from "@/lib/useOrders";
-import { base44 } from "@/api/base44Client";
 import { formatMoney, formatDate, currentMonthKey, monthShort } from "@/lib/format";
 import { EmptyRow } from "@/components/Cards";
 import OrderForm from "@/components/OrderForm";
@@ -49,68 +48,18 @@ export default function Orders() {
   const importEmailSales = async () => {
     setImportingEmail(true);
     try {
-      // Email is the primary source for marketplace sales. Vinted, Depop, Etsy,
-      // and eBay confirmations are imported from the user's connected inboxes;
-      // marketplace API access is not required.
-      const emailMessages = [];
-      try {
-        let res = await base44.functions.invoke("processSaleEmails", {});
-        let data = res?.data || {};
-        let pass = 0;
-
-        // Keep draining bounded backend batches so a user with hundreds of older
-        // orders does not have to press Sync repeatedly or wait minutes between runs.
-        while (Number(data.remaining || 0) > 0 && pass < 12) {
-          if (/already running/i.test(String(data.message || ""))) break;
-          await reloadOrders();
-          await new Promise((resolve) => window.setTimeout(resolve, 500));
-          res = await base44.functions.invoke("processSaleEmails", {});
-          data = res?.data || {};
-          pass += 1;
-        }
-        if (data.message) emailMessages.push(data.message);
-      } catch {
-        // Gmail is optional. Spreadsheet/direct sources must still get a chance.
-      }
-
-      // Microsoft/Outlook is an independent per-user inbox. If it is not
-      // connected yet, its failure is non-blocking and Gmail still completes normally.
-      try {
-        let outlookRes = await base44.functions.invoke("processOutlookSaleEmails", {});
-        let outlookData = outlookRes?.data || {};
-        let outlookPass = 0;
-        while (Number(outlookData.remaining || 0) > 0 && outlookPass < 12) {
-          await reloadOrders();
-          await new Promise((resolve) => window.setTimeout(resolve, 350));
-          outlookRes = await base44.functions.invoke("processOutlookSaleEmails", {});
-          outlookData = outlookRes?.data || {};
-          outlookPass += 1;
-        }
-        if (outlookData.message) emailMessages.push(outlookData.message);
-      } catch {
-        // Not connected is expected for users who only use Gmail.
-      }
-
-      // Google Sheets is the final fallback. It runs after marketplace/email
-      // sources and only adds rows that are still missing.
-      let sheetMessage = "";
-      try {
-        const sheetRes = await base44.functions.invoke("importFromSheets", {
-          mode: "orders",
-          sheetName: "Orders",
-        });
-        const sheetData = sheetRes?.data || {};
-        if (Number(sheetData.imported || 0) > 0) {
-          sheetMessage = `Spreadsheet added ${sheetData.imported} missing sale${Number(sheetData.imported) === 1 ? "" : "s"}`;
-        }
-      } catch {
-        // A missing/unavailable spreadsheet must not block marketplace/email sync.
-      }
-
-      toast.success(sheetMessage || emailMessages.at(-1) || "All email sales are synced");
+      const response = await fetch("/api/tracker-sync", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok && response.status !== 409) throw new Error(data.error || "Sales sync failed");
       await reloadOrders();
+      if (response.ok) toast.success(data.message || "Sales are up to date");
+      else toast.info(data.error || "Connect your ArtFlow Tracker to import new sales");
     } catch (e) {
-      toast.error("Sales sync failed", { description: e?.response?.data?.error || e?.message });
+      toast.error("Sales sync failed", { description: e?.message });
     } finally {
       setImportingEmail(false);
     }
