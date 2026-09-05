@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Trash2 } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { neonEntities } from "@/lib/neonEntityClient";
 import { toast } from "sonner";
 import Field from "@/components/Field";
 
@@ -63,10 +63,10 @@ export default function MileageForm({ open, onClose, record }) {
         notes: form.notes || null,
       };
       if (record) {
-        await base44.entities.MileageLog.update(record.id, payload);
+        await neonEntities.update("MileageLog", record.id, payload);
         toast.success("Trip updated");
       } else {
-        await base44.entities.MileageLog.create(payload);
+        await neonEntities.create("MileageLog", payload);
         toast.success("Trip added");
       }
       onClose();
@@ -81,7 +81,7 @@ export default function MileageForm({ open, onClose, record }) {
     if (!record) return;
     setSaving(true);
     try {
-      await base44.entities.MileageLog.delete(record.id);
+      await neonEntities.delete("MileageLog", record.id);
       toast.success("Trip deleted");
       onClose();
     } catch (err) {
