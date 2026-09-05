@@ -277,12 +277,22 @@ export default async function handler(req, res) {
     }
 
     if (existingId) {
+      let googleEmail = null;
+      try {
+        const existingAccessToken = await getGoogleAccessToken(req);
+        googleEmail = await attachGoogleEmailToBusiness(client, business, existingAccessToken);
+      } catch {
+        // An existing tracker remains usable even if Google needs to be reconnected.
+      }
       return res.status(200).json({
         ok: true,
         already_exists: true,
         spreadsheet_id: existingId,
         spreadsheet_url: `https://docs.google.com/spreadsheets/d/${existingId}/edit`,
-        message: 'Your ArtFlow Creative Tracker is already connected.',
+        google_email: googleEmail,
+        message: googleEmail
+          ? `Your ArtFlow Creative Tracker is connected and ${googleEmail} is linked to this business.`
+          : 'Your ArtFlow Creative Tracker is already connected.',
       });
     }
 
