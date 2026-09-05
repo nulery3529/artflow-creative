@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Trash2, AlertTriangle, LifeBuoy } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { motion, AnimatePresence } from "framer-motion";
-import { base44 } from "@/api/base44Client";
+import { artflowAuthClient } from "@/lib/artflowAuthClient";
 import { useAuth } from "@/lib/AuthContext";
 import BusinessManager from "@/components/BusinessManager";
 import ThemeSettings from "@/components/ThemeSettings";
@@ -27,8 +27,9 @@ export default function Account() {
     if (!user?.id) return;
     setDeleting(true);
     try {
-      await base44.entities.User.delete(user.id);
-      await base44.auth.logout();
+      const result = await artflowAuthClient.deleteUser();
+      if (result?.error) throw new Error(result.error.message || "Could not delete account");
+      window.location.replace("/register");
     } catch (e) {
       toast.error("Could not delete account", { description: e.message });
       setDeleting(false);
@@ -98,7 +99,7 @@ export default function Account() {
           <AlertTriangle className="w-5 h-5" /> Danger zone
         </h2>
         <p className="text-sm text-muted-foreground mt-1 mb-4">
-          Permanently delete your account and all associated data. This cannot be undone.
+          Permanently delete your Art Flow login account. This cannot be undone.
         </p>
         <button
           onClick={() => setConfirmOpen(true)}
@@ -128,7 +129,7 @@ export default function Account() {
               <div className="w-12 h-1.5 rounded-full bg-[hsl(var(--border))] mx-auto mb-5" />
               <h3 className="font-heading text-2xl mb-2">Delete account?</h3>
               <p className="text-sm text-muted-foreground mb-5">
-                This will permanently remove your account and business data. Type{" "}
+                This will permanently remove your Art Flow login account. Type{" "}
                 <span className="font-semibold text-foreground">DELETE</span> to confirm.
               </p>
               <input
