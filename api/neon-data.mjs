@@ -189,7 +189,7 @@ async function listMarketplaceListings(client, session) {
            ELSE COALESCE(NULLIF(listing_id,''), listing_url)
          END
        )
-       id,business_id,platform,listing_id,title,price,currency,image_url,listing_url,status,last_seen_at,sync_source
+       id,business_id,platform,listing_id,title,price,currency,image_url,listing_url,status,last_seen_at,sync_source,data
        FROM artflow.marketplace_listings
       WHERE business_id = ANY($1::text[]) AND status IN ('Active','Sold','Inactive')
       ORDER BY
