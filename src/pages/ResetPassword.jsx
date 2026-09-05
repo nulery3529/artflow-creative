@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Loader2, LockKeyhole, CheckCircle2 } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
-import { artflowAuthClient } from "@/lib/artflowAuthClient";
 
 export default function ResetPassword() {
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
@@ -37,12 +36,16 @@ export default function ResetPassword() {
 
     setLoading(true);
     try {
-      const { error: resetError } = await artflowAuthClient.resetPassword({
-        newPassword: password,
-        token,
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        cache: "no-store",
+        body: JSON.stringify({ newPassword: password, token }),
       });
-      if (resetError) {
-        throw new Error(resetError.message || "Could not reset your password.");
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data?.error) {
+        throw new Error(data?.message || data?.error?.message || "Could not reset your password.");
       }
       setResetDone(true);
     } catch (err) {
