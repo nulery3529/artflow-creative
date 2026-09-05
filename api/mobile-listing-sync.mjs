@@ -98,6 +98,123 @@ function isDepopProfileUrl(raw = '') {
   return false;
 }
 
+function cleanMarketplaceUsername(value = '') {
+  const raw = clean(value).replace(/^@+/, '');
+  if (!raw) return '';
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      const u = new URL(raw);
+      const segments = u.pathname.split('/').filter(Boolean);
+      if (/vinted/i.test(u.hostname)) {
+        const member = segments.find((segment) => /^\d+-/.test(segment));
+        if (member) return member.replace(/^\d+-/, '').replace(/^@+/, '');
+      }
+      if (/depop/i.test(u.hostname) && segments.length) return segments[0].replace(/^@+/, '');
+    } catch {}
+  }
+  return raw.trim();
+}
+
+function isValidMarketplaceUsername(value = '') {
+  return /^[a-z0-9](?:[a-z0-9._-]{0,38}[a-z0-9])?$/i.test(cleanMarketplaceUsername(value));
+}
+
+function parseSetCookieHeader(raw = '') {
+  const cookies = {};
+  for (const match of String(raw || '').matchAll(/(?:^|, )([A-Za-z0-9_\-]+)=([^;,]+)/g)) cookies[match[1]] = match[2];
+  return Object.entries(cookies).map(([key, value]) => `${key}=${value}`).join('; ');
+}
+
+async function vintedPublicSession() {
+  const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+  const response = await fetch('https://www.vinted.com/', {
+    redirect: 'follow',
+    headers: { 'User-Agent': userAgent, Accept: 'text/html,application/xhtml+xml' },
+  });
+  if (!response.ok) throw new Error(`Vinted session returned ${response.status}`);
+  await response.text();
+  const cookie = parseSetCookieHeader(response.headers.get('set-cookie') || '');
+  if (!cookie) throw new Error('Vinted did not provide a public session');
+  return {
+    userAgent,
+    cookie,
+    headers: {
+      'User-Agent': userAgent,
+      Accept: 'application/json, text/plain, */*',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'X-Requested-With': 'XMLHttpRequest',
+      'Sec-Fetch-Dest': 'empty',
+      'Sec-Fetch-Mode': 'cors',
+      'Sec-Fetch-Site': 'same-origin',
+      Cookie: cookie,
+    },
+  };
+}
+
+async function vintedJson(path, session, referer = 'https://www.vinted.com/') {
+  const response = await fetch(`https://www.vinted.com${path}`, {
+    headers: { ...session.headers, Referer: referer },
+  });
+  const text = await response.text();
+  let payload = {};
+  try { payload = text ? JSON.parse(text) : {}; } catch { payload = { raw: text }; }
+  if (!response.ok) {
+    const error = new Error(clean(payload?.message || payload?.message_code || `Vinted returned ${response.status}`));
+    error.status = response.status;
+    throw error;
+  }
+  return payload;
+}
+
+async function collectVintedProfileListings(usernameInput) {
+  const username = cleanMarketplaceUsername(usernameInput);
+  if (!isValidMarketplaceUsername(username)) throw new Error('Enter a valid Vinted username.');
+  const session = await vintedPublicSession();
+  const search = await vintedJson(`/api/v2/users?page=1&per_page=36&search_text=${encodeURIComponent(username)}`, session);
+  const users = Array.isArray(search?.users) ? search.users : [];
+  const user = users.find((entry) => normalize(entry?.login) === normalize(username)) || users[0];
+  if (!user?.id) throw new Error(`Vinted user @${username} was not found.`);
+  const canonicalUsername = clean(user.login || username);
+  const profileUrl = clean(user.profile_url || user.share_profile_url || `https://www.vinted.com/member/${user.id}-${canonicalUsername}`);
+  const out = [];
+  const seen = new Set();
+  let totalPages = 1;
+  for (let page = 1; page <= Math.min(totalPages, 10) && out.length < 500; page += 1) {
+    const payload = await vintedJson(
+      `/api/v2/wardrobe/${user.id}/items?page=${page}&per_page=50`,
+      session,
+      profileUrl
+    );
+    const items = Array.isArray(payload?.items) ? payload.items : [];
+    totalPages = Math.max(1, Number(payload?.pagination?.total_pages) || 1);
+    for (const item of items) {
+      if (item?.is_draft || item?.is_closed || item?.is_hidden || item?.is_reserved) continue;
+      const url = normalizeUrl(item?.url || (item?.id ? `https://www.vinted.com/items/${item.id}` : ''));
+      if (!url || seen.has(url)) continue;
+      seen.add(url);
+      const firstPhoto = Array.isArray(item?.photos) ? item.photos[0] : null;
+      const imageUrl = clean(firstPhoto?.url || firstPhoto?.full_size_url || firstPhoto?.thumbnails?.[0]?.url || '');
+      const amount = item?.price?.amount ?? item?.price ?? 0;
+      const currency = clean(item?.price?.currency_code || item?.currency || 'USD') || 'USD';
+      out.push({
+        platform: 'Vinted',
+        url,
+        meta: {
+          finalUrl: url,
+          title: clean(item?.title || `Vinted listing ${item?.id || ''}`).slice(0, 300),
+          description: [item?.brand?.title, item?.size?.title, item?.status].map(clean).filter(Boolean).join(' · ').slice(0, 800),
+          imageUrl,
+          price: amount,
+          currency,
+        },
+      });
+      if (out.length >= 500) break;
+    }
+    if (items.length < 50) break;
+  }
+  return { username: canonicalUsername, profileUrl: normalizeUrl(profileUrl) || profileUrl, listings: out };
+}
+
 function isPrivateSellerDashboard(platform, raw = '') {
   try {
     const p = new URL(raw).pathname;
