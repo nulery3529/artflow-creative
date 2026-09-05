@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { base44 } from "@/api/base44Client";
 
 const finiteNumber = (value, fallback = 0) => {
   const n = Number(value);
@@ -39,65 +38,30 @@ export function useOrders() {
             credentials: "include",
             cache: "no-store",
           });
-          // 401 means this is a legacy Base44 session; 409 means Google/Tracker
-          // is not connected yet. Both are non-blocking for the order screen.
           if (response.ok) lastTrackerSync.current = Date.now();
         } catch {
-          // Keep existing Base44/Neon data visible if Google is temporarily unavailable.
+          // The tracker is optional; existing Neon orders must stay available.
         } finally {
           trackerSyncInFlight.current = false;
         }
       }
 
-      const [baseResult, neonResult] = await Promise.allSettled([
-        base44.functions.invoke("getBusinessOrders", {}),
-        fetch("/api/neon-data?op=orders", { credentials: "include", cache: "no-store" })
-          .then(async (res) => {
-            if (!res.ok) throw new Error(`Neon orders ${res.status}`);
-            return res.json();
-          }),
-      ]);
-
-      const basePayload = baseResult.status === "fulfilled"
-        ? (baseResult.value?.data || baseResult.value || {})
-        : {};
-      const baseOrders = Array.isArray(basePayload.orders)
-        ? basePayload.orders.map(normalizeOrderRecord)
-        : [];
-      const neonOrders = neonResult.status === "fulfilled" && Array.isArray(neonResult.value?.orders)
-        ? neonResult.value.orders.map(normalizeOrderRecord)
-        : [];
-
-      // The exact-style tracker import writes canonical `sheet:exact:*` rows to
-      // Base44. When those rows are present, Base44 is the live authority and
-      // Neon is only a disaster-recovery fallback. Mixing both physical stores
-      // would double-count the same spreadsheet sale because their database IDs
-      // are intentionally different.
-      const hasCanonicalSheetOrders = baseOrders.some((order) =>
-        order?.archived !== true
-        && order?.sync_source === "google_sheet_master"
-        && /^sheet:exact:\d+$/.test(String(order?.source_email_id || ""))
-      );
-
-      if (hasCanonicalSheetOrders) {
-        setRecords(baseOrders.filter((order) => order?.archived !== true));
-      } else {
-        const merged = new Map();
-        const identity = (order) => {
-          if (order?.source_email_id) return `source:${order.source_email_id}`;
-          if (order?.id) return `id:${order.id}`;
-          return `order:${order?.platform || ""}:${order?.order_id || ""}:${order?.sale_date || ""}`;
-        };
-
-        for (const order of baseOrders) merged.set(identity(order), order);
-        for (const order of neonOrders) {
-          const key = identity(order);
-          merged.set(key, { ...(merged.get(key) || {}), ...order });
-        }
-        setRecords(Array.from(merged.values()).filter((r) => r?.archived !== true));
+      const response = await fetch("/api/neon-data?op=orders", {
+        credentials: "include",
+        cache: "no-store",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.status === 401) {
+        const returnTo = window.location.pathname + window.location.search;
+        window.location.replace(`/login?returnTo=${encodeURIComponent(returnTo)}`);
+        return;
       }
-    } catch (e) {
-      console.error("Failed to load business orders:", e);
+      if (!response.ok) throw new Error(data.error || `Neon orders ${response.status}`);
+      const orders = Array.isArray(data.orders) ? data.orders.map(normalizeOrderRecord) : [];
+      setRecords(orders.filter((order) => order?.archived !== true));
+    } catch (error) {
+      console.error("Failed to load business orders:", error);
+      setRecords([]);
     } finally {
       setLoading(false);
     }
@@ -105,16 +69,14 @@ export function useOrders() {
 
   useEffect(() => {
     reload({ syncTracker: true });
-    const onSynced = () => reload({ syncTracker: true });
+    const onSynced = () => reload({ syncTracker: false });
     const onFocus = () => reload({ syncTracker: true });
     const onVisible = () => {
       if (document.visibilityState === "visible") reload({ syncTracker: true });
     };
-    // Scheduled imports run on the server even when this tab did not initiate
-    // them, so lightly poll while visible to surface new orders within seconds.
     const id = window.setInterval(() => {
-      if (document.visibilityState === "visible") reload({ syncTracker: true });
-    }, 15 * 1000);
+      if (document.visibilityState === "visible") reload({ syncTracker: false });
+    }, 30 * 1000);
     window.addEventListener("artflow:data-synced", onSynced);
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisible);
