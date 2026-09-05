@@ -533,6 +533,7 @@ export default async function handler(req, res) {
     const directListings = [];
     const shopPages = [];
     const privateSellerPages = [];
+    const fullProfileSnapshots = [];
     const rejected = [];
 
     for (const raw of submitted) {
@@ -565,6 +566,31 @@ export default async function handler(req, res) {
     // Resolve official mobile share/short links and shop pages. A copied marketplace-app link
     // may redirect to the canonical listing instead of containing /items, /products, /listing or /itm itself.
     for (const shop of shopPages) {
+      if (shop.platform === 'Depop' && isDepopProfileUrl(shop.url)) {
+        try {
+          const profileListings = await collectDepopProfileListings(shop.url);
+          if (!profileListings.length) {
+            return send(422, {
+              error: 'That Depop profile loaded, but Art Flow could not find any available product cards to import.',
+              reason: 'depop_profile_empty',
+            });
+          }
+          directListings.push(...profileListings);
+          fullProfileSnapshots.push({
+            platform: 'Depop',
+            profileUrl: normalizeUrl(shop.url),
+            urls: profileListings.map((item) => normalizeUrl(item.url)).filter(Boolean),
+          });
+          continue;
+        } catch (error) {
+          console.warn('Depop profile browser import failed', error?.message || error);
+          return send(502, {
+            error: 'Depop blocked the full-profile import on this attempt. Your profile link is valid; Art Flow could not read the product grid from Depop.',
+            reason: 'depop_profile_blocked',
+          });
+        }
+      }
+
       try {
         const { html, finalUrl } = await fetchHtml(shop.url, 9000);
         const resolvedUrl = finalUrl || shop.url;
@@ -673,7 +699,7 @@ export default async function handler(req, res) {
       if (!item.url || seen.has(key)) continue;
       seen.add(key);
       unique.push(item);
-      if (unique.length >= 80) break;
+      if (unique.length >= 500) break;
     }
 
     if (!unique.length) {
