@@ -48,6 +48,14 @@ export function useEntity(entityName, sort = "-created_date", limit = 1000) {
           if (!deduped.has(key)) deduped.set(key, expense);
         }
         setRecords(Array.from(deduped.values()));
+      } else if (entityName === "InventoryCost") {
+        const res = await fetch("/api/neon-data?op=inventory", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!res.ok) throw new Error(`Neon inventory ${res.status}`);
+        const data = await res.json();
+        setRecords(Array.isArray(data?.inventory) ? data.inventory : []);
       } else {
         const data = await entity.list(sort, limit);
         // Archived rows are retained only as a rollback/safety copy and must
