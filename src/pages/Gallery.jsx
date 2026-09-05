@@ -1,14 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ExternalLink, Plus, Search, SlidersHorizontal } from "lucide-react";
+import { ExternalLink, Search } from "lucide-react";
 import { useEntity } from "@/lib/useBusinessData";
 import { useOrders } from "@/lib/useOrders";
 import { formatMoney } from "@/lib/format";
 import { PLATFORM_TONE, displayPlatform } from "@/lib/platforms";
-import ArtPieceForm from "@/components/ArtPieceForm";
 import PullToRefresh from "@/components/PullToRefresh";
 import PageHeader from "@/components/PageHeader";
 import { useNavigate } from "react-router-dom";
-import { useModalRoute } from "@/hooks/useModalRoute";
 import { Image } from "@/components/ui/image";
 import MobileMarketplaceSyncCard from "@/components/MobileMarketplaceSyncCard";
 
@@ -238,15 +236,12 @@ export default function Gallery() {
   }, [reloadMarketplaceListings, refreshConnectedMarketplaces]);
   const navigate = useNavigate();
   const [marketplaceFilter, setMarketplaceFilter] = useState("All sites");
-  const [mediumFilter, setMediumFilter] = useState("All");
   const [search, setSearch] = useState("");
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const { isOpen: formOpen, open: openForm, close: closeForm } = useModalRoute();
-  const [editRecord, setEditRecord] = useState(null);
 
   const availableMarketplaceListings = useMemo(
     () => marketplaceListings.filter((listing) => {
       if ((listing.status || "Active") !== "Active") return false;
+      if (listing?.data?.gallery_manual !== true) return false;
 
       // Older Vinted browser-sync installs could save Sold-page rows as Active.
       // If an Active Vinted listing already matches a real sold Order, do not
@@ -264,20 +259,14 @@ export default function Gallery() {
     [marketplaceListings, orders]
   );
   const stats = useMemo(() => {
-    const manualAvailable = records.filter((p) => (p.status || "Available") === "Available").length;
     const manualSold = records.filter((p) => p.status === "Sold").length;
-    const available = manualAvailable + availableMarketplaceListings.length;
+    const available = availableMarketplaceListings.length;
     return {
       listings: available,
       available,
       sold: manualSold + orders.length,
     };
   }, [records, availableMarketplaceListings, orders]);
-
-  const mediums = useMemo(
-    () => [...new Set(records.map((p) => p.medium).filter(Boolean))].sort(),
-    [records]
-  );
 
   const filteredMarketplaceListings = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -287,28 +276,6 @@ export default function Gallery() {
       return `${listing.title || ""} ${listing.platform || ""}`.toLowerCase().includes(q);
     });
   }, [availableMarketplaceListings, marketplaceFilter, search]);
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return records.filter((p) => {
-      if ((p.status || "Available") !== "Available") return false;
-      if (mediumFilter !== "All" && p.medium !== mediumFilter) return false;
-      if (!q) return true;
-      return `${p.title || ""} ${p.medium || ""} ${p.size || ""} ${p.platform || ""}`
-        .toLowerCase()
-        .includes(q);
-    });
-  }, [records, mediumFilter, search]);
-
-  const openCreate = () => {
-    setEditRecord(null);
-    openForm();
-  };
-
-  const openEdit = (record) => {
-    setEditRecord(record);
-    openForm();
-  };
 
   const refreshAll = async () => {
     await Promise.all([reload(), reloadOrders(), reloadMarketplaceListings()]);
@@ -368,13 +335,6 @@ export default function Gallery() {
             className="w-full h-11 pl-10 pr-3 rounded-none bg-muted/60 border-0 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
           />
         </div>
-        <button
-          onClick={() => setFiltersOpen((open) => !open)}
-          className="w-11 h-11 flex items-center justify-center border border-[hsl(var(--border))]"
-          aria-label="Filter artwork"
-        >
-          <SlidersHorizontal className="w-4 h-4" />
-        </button>
       </div>
 
       <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
@@ -392,24 +352,6 @@ export default function Gallery() {
           </button>
         ))}
       </div>
-
-      {filtersOpen && mediums.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-          {["All", ...mediums].map((medium) => (
-            <button
-              key={medium}
-              onClick={() => setMediumFilter(medium)}
-              className={`px-3.5 h-9 border text-xs font-medium shrink-0 ${
-                mediumFilter === medium
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-[hsl(var(--border))] bg-background text-foreground"
-              }`}
-            >
-              {medium === "All" ? "All mediums" : medium}
-            </button>
-          ))}
-        </div>
-      )}
 
       <MobileMarketplaceSyncCard />
 
@@ -467,57 +409,6 @@ export default function Gallery() {
           )}
         </section>
 
-      <section className="space-y-3">
-        <div>
-          <h2 className="font-heading text-lg">My gallery</h2>
-          <p className="text-xs text-muted-foreground">Artwork you added directly in Art Flow.</p>
-        </div>
-
-        {filtered.length === 0 ? (
-          <div className="py-12 text-center border border-dashed border-[hsl(var(--border))]">
-            <p className="font-semibold">No artwork here yet</p>
-            <p className="text-sm text-muted-foreground mt-1">Tap + to add a listing</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-x-1.5 gap-y-5">
-            {filtered.map((piece) => {
-              return (
-                <button key={piece.id} onClick={() => openEdit(piece)} className="text-left min-w-0">
-                  <div className="relative aspect-square bg-muted overflow-hidden">
-                    {piece.image_url ? (
-                      <Image src={piece.image_url} fittingType="fill" className="w-full h-full" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">
-                        No photo
-                      </div>
-                    )}
-                  </div>
-                  <div className="pt-2 px-0.5">
-                    <p className="text-sm leading-tight truncate text-foreground">{piece.title}</p>
-                    <p className="text-xs text-muted-foreground mt-1 truncate">
-                      {[piece.size, piece.medium].filter(Boolean).join(" · ") || "Art print"}
-                    </p>
-                    <p className="text-sm font-bold mt-1.5 text-foreground">
-                      {formatMoney(piece.price)}
-                    </p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      <button
-        onClick={openCreate}
-        className="fixed bottom-24 right-5 w-14 h-14 rounded-full bg-black text-white shadow-xl flex items-center justify-center active:scale-95 transition-transform z-30"
-        style={{ left: "50%", transform: "translateX(calc(50vw - 2.75rem - 1.25rem))" }}
-        aria-label="Add artwork"
-      >
-        <Plus className="w-6 h-6" strokeWidth={2.5} />
-      </button>
-
-      <ArtPieceForm open={formOpen} onClose={closeForm} record={editRecord} />
     </div>
   );
 }
