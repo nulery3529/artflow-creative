@@ -60,6 +60,7 @@ function listingIdFromMarketplaceUrl(platform, raw = "") {
     if (platform === "Depop") return path.match(/\/products\/([^/?#]+)/i)?.[1] || "";
     if (platform === "Etsy") return path.match(/\/listing\/(\d+)/i)?.[1] || "";
     if (platform === "eBay") return path.match(/\/itm\/(?:[^/]+\/)?(\d{8,16})/i)?.[1] || "";
+    if (platform === "Poshmark") return path.match(/-([a-f0-9]{24})$/i)?.[1] || "";
   } catch {}
   return "";
 }
