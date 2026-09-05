@@ -118,27 +118,39 @@ export const AuthProvider = ({ children }) => {
 
     // Art Flow authentication is independent from Google and Base44.
     // Better Auth on Vercel, backed by Neon, is the only login session.
+    // Ask both Better Auth and the protected Neon summary endpoint. The latter
+    // can restore the signed-in app even if the client helper fails to expose
+    // an otherwise valid HttpOnly session cookie after a deployment.
     try {
-      const sessionResult = await artflowAuthClient.getSession();
-      const session = sessionResult?.data || sessionResult;
-      if (session?.user) {
-        let summary = null;
-        try {
-          const response = await fetch('/api/neon-data?op=summary', {
-            credentials: 'include',
-            cache: 'no-store',
-          });
-          if (response.ok) summary = await response.json();
-        } catch {
-          // A summary failure must not invalidate a valid login session.
-        }
+      const [sessionResult, summaryResponse] = await Promise.all([
+        artflowAuthClient.getSession().catch(() => null),
+        fetch('/api/neon-data?op=summary', {
+          credentials: 'include',
+          cache: 'no-store',
+        }).catch(() => null),
+      ]);
 
-        const activeBusinessId = summary?.user?.activeBusinessId || null;
+      const session = sessionResult?.data || sessionResult;
+      let summary = null;
+      if (summaryResponse?.ok) {
+        summary = await summaryResponse.json().catch(() => null);
+      }
+
+      const sessionUser = session?.user || null;
+      const summaryUser = summary?.user || null;
+      const resolvedUser = sessionUser || (summaryUser ? {
+        id: summaryUser.id,
+        email: summaryUser.email,
+        name: summaryUser.name,
+      } : null);
+
+      if (resolvedUser) {
+        const activeBusinessId = summaryUser?.activeBusinessId || null;
         const currentUser = {
-          id: session.user.id,
-          email: session.user.email,
-          full_name: session.user.name || summary?.user?.name || 'Artist',
-          name: session.user.name || summary?.user?.name || 'Artist',
+          id: resolvedUser.id,
+          email: resolvedUser.email,
+          full_name: resolvedUser.name || summaryUser?.name || 'Artist',
+          name: resolvedUser.name || summaryUser?.name || 'Artist',
           role: 'user',
           active_business_id: activeBusinessId,
           data: { active_business_id: activeBusinessId },
