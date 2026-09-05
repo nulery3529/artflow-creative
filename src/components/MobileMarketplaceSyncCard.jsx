@@ -2,20 +2,33 @@ import React, { useEffect, useState } from "react";
 import { Link2, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 
-function isDepopProfileUrl(value = "") {
-  try {
-    const url = new URL(value);
-    const host = url.hostname.toLowerCase();
-    if (host !== "depop.com" && host !== "www.depop.com") return false;
-    const segments = url.pathname.split("/").filter(Boolean);
-    return segments.length === 1 && segments[0].toLowerCase() !== "products" && segments[0].toLowerCase() !== "sellinghub";
-  } catch {
-    return false;
+function cleanUsername(value = "") {
+  const raw = String(value || "").trim().replace(/^@+/, "");
+  if (!raw) return "";
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      const url = new URL(raw);
+      const segments = url.pathname.split("/").filter(Boolean);
+      if (/vinted/i.test(url.hostname)) {
+        const member = segments.find((segment) => /^\d+-/.test(segment));
+        if (member) return member.replace(/^\d+-/, "").replace(/^@+/, "");
+      }
+      if (/depop/i.test(url.hostname) && segments.length) return segments[0].replace(/^@+/, "");
+    } catch {}
   }
+  return raw;
+}
+
+function depopProfileUrl(value = "") {
+  const raw = String(value || "").trim();
+  if (/^https?:\/\//i.test(raw)) return raw;
+  const username = cleanUsername(raw);
+  return username ? `https://www.depop.com/${username}/` : "";
 }
 
 export default function MobileMarketplaceSyncCard() {
-  const [link, setLink] = useState("");
+  const [platform, setPlatform] = useState("Vinted");
+  const [username, setUsername] = useState("");
   const [result, setResult] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -25,81 +38,84 @@ export default function MobileMarketplaceSyncCard() {
       .then(async (response) => ({ response, data: await response.json().catch(() => ({})) }))
       .then(({ response, data }) => {
         if (cancelled || !response.ok) return;
-        const saved = data?.urls?.Depop || data?.urls?.depop || "";
-        if (saved) setLink((current) => current || saved);
+        const saved = data?.urls?.[platform] || data?.urls?.[platform.toLowerCase()] || "";
+        const resolved = cleanUsername(saved);
+        if (resolved) setUsername((current) => current || resolved);
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, []);
+  }, [platform]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const submittedLink = link.trim();
-    if (!submittedLink || submitting) return;
+    const submittedUsername = cleanUsername(username);
+    if (!submittedUsername || submitting) return;
     setSubmitting(true);
     setResult("");
+
     try {
-      if (isDepopProfileUrl(submittedLink)) {
-        const statusResponse = await fetch("/api/depop-official", {
-          credentials: "include",
-          cache: "no-store",
-        });
-        const statusData = await statusResponse.json().catch(() => ({}));
-        if (!statusResponse.ok) throw new Error(statusData.error || "Could not check Depop connection");
-
-        if (!statusData.configured) {
-          throw new Error("Full-profile Depop sync is ready in Art Flow, but Depop has not issued the API credentials yet. Once approved, this same profile link will pull the whole shop automatically.");
-        }
-
-        if (!statusData.connected) {
-          const connectResponse = await fetch("/api/depop-official", {
-            method: "POST",
-            credentials: "include",
-            cache: "no-store",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "start" }),
-          });
-          const connectData = await connectResponse.json().catch(() => ({}));
-          if (!connectResponse.ok || !connectData.authorization_url) {
-            throw new Error(connectData.error || "Could not start Depop connection");
-          }
-          window.location.assign(connectData.authorization_url);
-          return;
-        }
-
-        const syncResponse = await fetch("/api/depop-official", {
+      if (platform === "Vinted") {
+        const response = await fetch("/api/mobile-listing-sync", {
           method: "POST",
           credentials: "include",
           cache: "no-store",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "sync", profile_url: submittedLink }),
+          body: JSON.stringify({ platform: "Vinted", username: submittedUsername }),
         });
-        const syncData = await syncResponse.json().catch(() => ({}));
-        const message = syncData.message || syncData.error || (syncResponse.ok ? "Depop profile synced" : "Depop profile sync failed");
+        const data = await response.json().catch(() => ({}));
+        const message = data.message || data.error || (response.ok ? "Vinted profile synced" : "Vinted profile sync failed");
         setResult(message);
-        if (!syncResponse.ok || syncData.ok === false) throw new Error(message);
+        if (!response.ok || data.ok === false) throw new Error(message);
         toast.success(message);
-        window.dispatchEvent(new CustomEvent("artflow:listings-synced", { detail: { saved: syncData.saved || 0, fullProfile: true } }));
+        window.dispatchEvent(new CustomEvent("artflow:listings-synced", { detail: { saved: data.saved || 0, fullProfile: true } }));
         return;
       }
 
-      const response = await fetch("/api/mobile-listing-sync", {
+      const profileUrl = depopProfileUrl(username);
+      const statusResponse = await fetch("/api/depop-official", {
+        credentials: "include",
+        cache: "no-store",
+      });
+      const statusData = await statusResponse.json().catch(() => ({}));
+      if (!statusResponse.ok) throw new Error(statusData.error || "Could not check Depop connection");
+
+      if (!statusData.configured) {
+        throw new Error("Full-profile Depop sync is ready in Art Flow, but Depop has not issued the API credentials yet. Once approved, your username will pull the whole shop automatically.");
+      }
+
+      if (!statusData.connected) {
+        const connectResponse = await fetch("/api/depop-official", {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "start" }),
+        });
+        const connectData = await connectResponse.json().catch(() => ({}));
+        if (!connectResponse.ok || !connectData.authorization_url) {
+          throw new Error(connectData.error || "Could not start Depop connection");
+        }
+        window.location.assign(connectData.authorization_url);
+        return;
+      }
+
+      const syncResponse = await fetch("/api/depop-official", {
         method: "POST",
         credentials: "include",
         cache: "no-store",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: submittedLink }),
+        body: JSON.stringify({ action: "sync", profile_url: profileUrl }),
       });
-      const data = await response.json().catch(() => ({}));
-      const message = data.message || data.error || (response.ok ? "Listing added to Gallery" : "Listing import failed");
+      const syncData = await syncResponse.json().catch(() => ({}));
+      const message = syncData.message || syncData.error || (syncResponse.ok ? "Depop profile synced" : "Depop profile sync failed");
       setResult(message);
-      if (!response.ok || data.ok === false) throw new Error(message);
+      if (!syncResponse.ok || syncData.ok === false) throw new Error(message);
       toast.success(message);
-      window.dispatchEvent(new CustomEvent("artflow:listings-synced", { detail: { saved: data.saved || 0, fullProfile: data.full_profile === true } }));
+      window.dispatchEvent(new CustomEvent("artflow:listings-synced", { detail: { saved: syncData.saved || 0, fullProfile: true } }));
     } catch (error) {
-      const message = error?.message || "Listing import failed";
+      const message = error?.message || "Profile import failed";
       setResult(message);
-      toast.error("Listing import failed", { description: message });
+      toast.error("Profile import failed", { description: message });
     } finally {
       setSubmitting(false);
     }
@@ -112,35 +128,52 @@ export default function MobileMarketplaceSyncCard() {
           <Smartphone className="w-5 h-5" />
         </div>
         <div>
-          <h2 className="font-heading text-lg">Pull Your Full Depop Profile</h2>
+          <h2 className="font-heading text-lg">Pull Your Full Profile</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Paste your Depop profile link once. Art Flow will pull the available listings from that profile into Gallery.
+            Choose a marketplace and enter only your username. Art Flow will pull the currently available listings into Gallery.
           </p>
         </div>
       </div>
 
+      <div className="grid grid-cols-2 gap-2">
+        {["Vinted", "Depop"].map((site) => (
+          <button
+            key={site}
+            type="button"
+            onClick={() => { setPlatform(site); setUsername(""); setResult(""); }}
+            className={`h-10 rounded-xl border text-sm font-semibold transition-colors ${
+              platform === site
+                ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] border-[hsl(var(--primary))]"
+                : "bg-background border-[hsl(var(--border))] text-foreground"
+            }`}
+          >
+            {site}
+          </button>
+        ))}
+      </div>
+
       <div className="rounded-2xl bg-muted/60 p-3 text-xs text-muted-foreground space-y-1">
-        <p><strong className="text-foreground">Use your public Depop profile link:</strong> for example, https://www.depop.com/your_username/</p>
-        <p>Art Flow scans the profile for current product cards, so you do not need to paste every listing.</p>
-        <p>When you run it again, listings no longer on the profile are removed from Available.</p>
+        <p><strong className="text-foreground">No website link needed.</strong> Enter your {platform} username, with or without the @.</p>
+        <p>Example: <strong className="text-foreground">natashaulery</strong></p>
+        <p>Running the sync again refreshes the Available Gallery to match the marketplace profile.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-3">
         <input
-          name="url"
-          type="url"
-          value={link}
-          onChange={(e) => setLink(e.target.value)}
+          name="username"
+          type="text"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
           required
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
-          placeholder="https://www.depop.com/your_username/"
+          placeholder={`${platform} username`}
           className="w-full h-12 rounded-2xl border border-[hsl(var(--border))] bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-[hsl(var(--primary))]"
         />
         <button
           type="submit"
-          disabled={submitting || !link.trim()}
+          disabled={submitting || !username.trim()}
           style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
           className="w-full h-12 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold flex items-center justify-center gap-2 active:scale-[0.99] transition-transform disabled:opacity-60"
         >
