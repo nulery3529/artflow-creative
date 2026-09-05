@@ -25,33 +25,29 @@ export function useEntity(entityName, sort = "-created_date", limit = 1000) {
   const reload = useCallback(async () => {
     try {
       if (entityName === "Expense") {
-        const [baseResult, neonResult] = await Promise.allSettled([
-          entity.list(sort, limit),
-          fetch("/api/neon-data?op=expenses", { credentials: "include", cache: "no-store" })
-            .then(async (res) => {
-              if (!res.ok) throw new Error(`Neon expenses ${res.status}`);
-              return res.json();
-            }),
-        ]);
-        const baseExpenses = baseResult.status === "fulfilled" && Array.isArray(baseResult.value)
-          ? baseResult.value.map(normalizeExpenseRecord)
+        // Expenses are authoritative in Neon. Do not wait on the legacy Base44
+        // entity list: an unavailable legacy backend used to block the entire
+        // Expenses page even after /api/neon-data had returned successfully.
+        const res = await fetch("/api/neon-data?op=expenses", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!res.ok) throw new Error(`Neon expenses ${res.status}`);
+        const data = await res.json();
+        const neonExpenses = Array.isArray(data?.expenses)
+          ? data.expenses.map(normalizeExpenseRecord).filter((expense) => expense?.archived !== true)
           : [];
-        const neonExpenses = neonResult.status === "fulfilled" && Array.isArray(neonResult.value?.expenses)
-          ? neonResult.value.expenses.map(normalizeExpenseRecord)
-          : [];
-        const merged = new Map();
-        const identity = (record) => {
-          if (record?.receipt_id) return `receipt:${record.receipt_id}`;
-          if (record?.id) return `id:${record.id}`;
-          return `expense:${record?.date || ""}:${Number(record?.amount || 0).toFixed(2)}:${record?.description || ""}`;
-        };
-        for (const expense of baseExpenses) {
-          if (expense?.archived !== true) merged.set(identity(expense), expense);
-        }
+
+        // A historical importer produced duplicate rows with the same receipt id.
+        // Keep one display record per receipt without deleting any database rows.
+        const deduped = new Map();
         for (const expense of neonExpenses) {
-          if (expense?.archived !== true) merged.set(identity(expense), { ...(merged.get(identity(expense)) || {}), ...expense });
+          const key = expense?.receipt_id
+            ? `receipt:${expense.receipt_id}`
+            : `id:${expense?.id || `${expense?.date || ""}:${expense?.amount || 0}:${expense?.description || ""}`}`;
+          if (!deduped.has(key)) deduped.set(key, expense);
         }
-        setRecords(Array.from(merged.values()));
+        setRecords(Array.from(deduped.values()));
       } else {
         const data = await entity.list(sort, limit);
         // Archived rows are retained only as a rollback/safety copy and must
