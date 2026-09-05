@@ -271,9 +271,13 @@ export default function Gallery() {
       // This keeps stale legacy rows from inflating Available while still
       // allowing a fresh browser refresh to appear immediately.
       const source = String(listing?.sync_source || "");
+      const listingUrl = String(listing?.listing_url || "");
+      if (platform === "Depop" && /\/products\/create(?:\/|$)/i.test(listingUrl)) return false;
+
       const lastSeen = listing?.last_seen_at ? new Date(listing.last_seen_at).getTime() : 0;
       const browserFresh = source === "browser_listing_sync" && lastSeen > Date.now() - (48 * 60 * 60 * 1000);
-      const trustedCurrent = source === "mobile_listing_sync" || /official/i.test(source) || browserFresh;
+      const depopSnapshot = platform === "Depop" && source === "browser_listing_sync";
+      const trustedCurrent = source === "mobile_listing_sync" || /official/i.test(source) || browserFresh || depopSnapshot;
       if (!trustedCurrent) return false;
 
       // Older Vinted imports could save Sold-page rows as Active. If an Active
