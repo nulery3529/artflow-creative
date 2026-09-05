@@ -81,11 +81,20 @@ export const auth = betterAuth({
   account: {
     accountLinking: {
       enabled: true,
-      trustedProviders: ["email-password"],
-      allowDifferentEmails: false,
+      trustedProviders: ["email-password", "google"],
+      // Google is used as a linked inbox/tracker connection, not as the primary
+      // Art Flow login. Allow a user to attach more than one Gmail address.
+      allowDifferentEmails: true,
     },
   },
-  socialProviders: {},
+  socialProviders: process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET ? {
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      accessType: "offline",
+      prompt: "select_account consent",
+    },
+  } : {},
   trustedOrigins: [
     baseURL,
     vercelProductionURL,
