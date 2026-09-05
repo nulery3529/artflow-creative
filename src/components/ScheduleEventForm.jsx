@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trash2 } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { neonEntities } from "@/lib/neonEntityClient";
 import { toast } from "sonner";
 
 const TYPES = ["Deadline", "Market", "Meeting", "Drop", "Other"];
@@ -49,10 +49,10 @@ export default function ScheduleEventForm({ open, onClose, date, event }) {
         notes: form.notes || "",
       };
       if (event?.id) {
-        await base44.entities.ScheduleEvent.update(event.id, payload);
+        await neonEntities.update("ScheduleEvent", event.id, payload);
         toast.success("Event updated");
       } else {
-        await base44.entities.ScheduleEvent.create(payload);
+        await neonEntities.create("ScheduleEvent", payload);
         toast.success("Event added");
       }
       onClose();
@@ -66,7 +66,7 @@ export default function ScheduleEventForm({ open, onClose, date, event }) {
   const remove = async () => {
     setSaving(true);
     try {
-      await base44.entities.ScheduleEvent.delete(event.id);
+      await neonEntities.delete("ScheduleEvent", event.id);
       toast.success("Event deleted");
       onClose();
     } catch (e) {
