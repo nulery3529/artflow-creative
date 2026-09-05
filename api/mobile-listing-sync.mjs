@@ -540,6 +540,17 @@ export default async function handler(req, res) {
           const metaPlatform = platformFrom(metaUrl) || shop.platform;
           if (allowedHost(metaPlatform, metaUrl) && isListingUrl(metaPlatform, metaUrl)) {
             directListings.push({ platform: metaPlatform, url: metaUrl, meta });
+          } else if (allowedHost(shop.platform, shop.url)) {
+            directListings.push({
+              platform: shop.platform,
+              url: normalizeUrl(shop.url),
+              meta: {
+                finalUrl: normalizeUrl(shop.url),
+                title: `${shop.platform} listing`,
+                description: '',
+                imageUrl: '',
+              },
+            });
           }
         } catch (fallbackError) {
           console.warn('browser metadata fallback failed', shop.platform, fallbackError?.message || fallbackError);
