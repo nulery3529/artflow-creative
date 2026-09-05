@@ -1,0 +1,15 @@
+{
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "business_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "name": "InventoryCategory"
+}

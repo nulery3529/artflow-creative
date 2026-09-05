@@ -24,6 +24,7 @@ const emptyForm = {
 
 export default function InventoryEditSheet({ open, onClose, record }) {
   const [form, setForm] = useState(emptyForm);
+  const [customCategory, setCustomCategory] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const isCreate = !record;
@@ -31,8 +32,12 @@ export default function InventoryEditSheet({ open, onClose, record }) {
   useEffect(() => {
     if (open) {
       if (record) {
+        const rawCategory = record.category || "Supply";
+        const isLegacySupply = rawCategory === "Frame" || rawCategory === "Print";
+        const isStandardCategory = ["Supply", "Packaging", "Other"].includes(rawCategory);
+        setCustomCategory(!isLegacySupply && !isStandardCategory ? rawCategory : "");
         setForm({
-          category: record.category === "Packaging" || record.category === "Other" ? record.category : "Supply",
+          category: isLegacySupply ? "Supply" : (isStandardCategory ? rawCategory : "Other"),
           name: record.name || "",
           size: record.size || "",
           image_url: record.image_url || "",
@@ -44,6 +49,7 @@ export default function InventoryEditSheet({ open, onClose, record }) {
         });
       } else {
         setForm(emptyForm);
+        setCustomCategory("");
       }
     }
   }, [open, record]);
@@ -83,9 +89,10 @@ export default function InventoryEditSheet({ open, onClose, record }) {
     setSaving(true);
     try {
       const businessId = await getCurrentBusinessId();
+      const chosenCategory = customCategory.trim() || form.category;
       const payload = {
         business_id: record?.business_id || businessId,
-        category: form.category,
+        category: chosenCategory,
         name: usesSize ? form.size : form.name.trim(),
         size: usesSize ? form.size : null,
         base_item_cost: Number(form.base_item_cost) || 0,
@@ -148,7 +155,7 @@ export default function InventoryEditSheet({ open, onClose, record }) {
                     <button
                       key={c}
                       type="button"
-                      onClick={() => set("category", c)}
+                      onClick={() => { set("category", c); setCustomCategory(""); }}
                       className={`px-3.5 h-10 rounded-full text-sm font-medium ${
                         form.category === c
                           ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"
@@ -158,6 +165,24 @@ export default function InventoryEditSheet({ open, onClose, record }) {
                       {c}
                     </button>
                   ))}
+                </div>
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={() => { set("category", "Other"); setCustomCategory((current) => current || " "); }}
+                    className="text-sm font-bold text-foreground underline underline-offset-4"
+                  >
+                    + Add New Type
+                  </button>
+                  {customCategory !== "" && (
+                    <input
+                      value={customCategory.trimStart()}
+                      onChange={(e) => setCustomCategory(e.target.value)}
+                      placeholder="New inventory type, e.g. Frames"
+                      className="form-input mt-3"
+                      autoFocus
+                    />
+                  )}
                 </div>
               </Field>
 
