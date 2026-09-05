@@ -177,10 +177,7 @@ async function countBusinessRows(client, table, ids, email, archivedColumn = fal
 }
 
 async function listOrders(client, session) {
-  const profile = await getLegacyProfile(client, session.user);
-  const businesses = await getAccessibleBusinesses(client, profile, session.user);
-  const ids = businessIds(businesses);
-  const email = normalize(session.user.email);
+  const { ids, email } = await ensureWorkspace(client, session.user);
   const result = await client.query(
     `SELECT
        base44_id AS id,
@@ -226,10 +223,7 @@ async function listOrders(client, session) {
 }
 
 async function listExpenses(client, session) {
-  const profile = await getLegacyProfile(client, session.user);
-  const businesses = await getAccessibleBusinesses(client, profile, session.user);
-  const ids = businessIds(businesses);
-  const email = normalize(session.user.email);
+  const { ids, email } = await ensureWorkspace(client, session.user);
   const result = await client.query(
     `SELECT
        e.base44_id AS id,
@@ -268,9 +262,7 @@ async function listExpenses(client, session) {
 }
 
 async function listInventory(client, session) {
-  const profile = await getLegacyProfile(client, session.user);
-  const businesses = await getAccessibleBusinesses(client, profile, session.user);
-  const ids = businessIds(businesses);
+  const { ids } = await ensureWorkspace(client, session.user);
   const result = await client.query(
     `SELECT
        base44_id AS id,
@@ -396,9 +388,7 @@ async function writeInventory(client, session, req) {
 }
 
 async function listMarketplaceListings(client, session) {
-  const profile = await getLegacyProfile(client, session.user);
-  const businesses = await getAccessibleBusinesses(client, profile, session.user);
-  const ids = businessIds(businesses);
+  const { ids } = await ensureWorkspace(client, session.user);
   await client.query(`CREATE TABLE IF NOT EXISTS artflow.marketplace_listings (
     id text PRIMARY KEY,
     business_id text NOT NULL,
