@@ -2,7 +2,6 @@ import React, { useMemo, useState } from "react";
 import { ArrowLeft, ClipboardPaste, Send, Smartphone, CheckCircle2, Sparkles } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { artflowAuthClient } from "@/lib/artflowAuthClient";
-import { useAuth } from "@/lib/AuthContext";
 import { useMarketplacePreferences } from "@/lib/useMarketplacePreferences";
 import { toast } from "sonner";
 
@@ -152,7 +151,6 @@ const parseDetails = ({ text = "", url = "", title = "" }) => {
 
 export default function MobileSaleCapture() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { selected: trackedSites, configured: sitesConfigured } = useMarketplacePreferences();
   const [params] = useSearchParams();
   const incomingUrl = params.get("url") || "";
