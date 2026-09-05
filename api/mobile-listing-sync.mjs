@@ -84,17 +84,25 @@ function isListingUrl(platform, raw = '') {
   return false;
 }
 
-function isPrivateSellerDashboard(platform, raw = '') {
+function isDepopProfileUrl(raw = '') {
   try {
     const u = new URL(raw);
-    const p = u.pathname;
-    if (platform !== 'Depop') return false;
-    if (/^\/sellinghub(?:\/|$)/i.test(p)) return true;
     const host = u.hostname.toLowerCase();
-    if ((host === 'depop.com' || host === 'www.depop.com') && !isListingUrl('Depop', raw)) {
-      const segments = p.split('/').filter(Boolean);
-      if (segments.length === 1) return true;
-    }
+    if (!['depop.com', 'www.depop.com'].includes(host)) return false;
+    const segments = u.pathname.split('/').filter(Boolean);
+    if (segments.length !== 1) return false;
+    const username = segments[0];
+    if (!/^[a-z0-9._-]{2,40}$/i.test(username)) return false;
+    return !['products', 'sellinghub', 'search', 'login', 'signup', 'settings', 'help'].includes(username.toLowerCase());
+  } catch {}
+  return false;
+}
+
+function isPrivateSellerDashboard(platform, raw = '') {
+  try {
+    const p = new URL(raw).pathname;
+    if (platform !== 'Depop') return false;
+    return /^\/sellinghub(?:\/|$)/i.test(p);
   } catch {}
   return false;
 }
