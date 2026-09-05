@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { neonEntities } from "@/lib/neonEntityClient";
 import { calculateOrderCosts } from "@/lib/orderCost";
-import { getCurrentBusinessWorkspace } from "@/lib/businessWorkspace";
 import { useMarketplacePreferences } from "@/lib/useMarketplacePreferences";
 import { toast } from "sonner";
 import Field from "@/components/Field";
@@ -62,10 +61,7 @@ export default function OrderForm({ open, onClose, inventoryCosts }) {
           estimated_profit: +(costs.sale_total - manualCost).toFixed(2),
         };
       }
-      const { businessId, accessEmails } = await getCurrentBusinessWorkspace();
-      await base44.entities.Order.create({
-        business_id: businessId,
-        access_emails: accessEmails,
+      await neonEntities.create("Order", {
         sale_date: form.sale_date,
         platform: form.platform,
         order_id: form.order_id || null,
@@ -78,7 +74,7 @@ export default function OrderForm({ open, onClose, inventoryCosts }) {
       });
       if (inv) {
         const newQty = Math.max(0, (inv.quantity_on_hand || 0) - Number(form.quantity));
-        await base44.entities.InventoryCost.update(inv.id, { quantity_on_hand: newQty });
+        await neonEntities.update("InventoryCost", inv.id, { quantity_on_hand: newQty });
       }
       toast.success("Order added");
       setForm({ ...empty, sale_date: new Date().toISOString().slice(0, 10) });
