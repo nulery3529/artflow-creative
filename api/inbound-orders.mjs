@@ -37,6 +37,34 @@ function isAllowedMarketplaceSender(value = '') {
   ].some((suffix) => email.endsWith(suffix));
 }
 
+function approvedBusinessForwarders(config = {}) {
+  const data = config?.business_data || {};
+  return [
+    config?.primary_email,
+    data.primary_email,
+    ...(Array.isArray(data.sales_emails) ? data.sales_emails : []),
+  ].map(addressOnly).filter(Boolean);
+}
+
+function isApprovedBusinessForwarder(config, value = '') {
+  const email = addressOnly(value);
+  return Boolean(email && approvedBusinessForwarders(config).includes(email));
+}
+
+function forwardedMarketplaceSender(text = '') {
+  const fromLines = [...String(text || '').matchAll(/(?:^|\n)\s*From:\s*([^\n]+)/gim)];
+  for (const match of fromLines) {
+    const sender = addressOnly(match?.[1] || '');
+    if (isAllowedMarketplaceSender(sender)) return sender;
+  }
+  const addresses = String(text || '').match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [];
+  return addresses.map(addressOnly).find(isAllowedMarketplaceSender) || '';
+}
+
+function originalForwardedSubject(subject = '') {
+  return clean(subject).replace(/^(?:(?:fwd?|fw):\s*)+/i, '');
+}
+
 function htmlToText(value = '') {
   return clean(value)
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
