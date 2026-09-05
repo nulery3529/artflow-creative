@@ -365,6 +365,181 @@ async function listMarketplaceListings(client, session) {
   return result.rows;
 }
 
+function userCreatorIds(profile, user) {
+  return Array.from(new Set([profile?.base44_id, user?.id].filter(Boolean)));
+}
+
+function selectedBusinessId(profile, ids, requested) {
+  if (requested && ids.includes(requested)) return requested;
+  if (profile?.active_business_id && ids.includes(profile.active_business_id)) return profile.active_business_id;
+  return ids[0] || null;
+}
+
+async function listArtPieces(client, session) {
+  const { profile, email } = await ensureWorkspace(client, session.user);
+  const creators = userCreatorIds(profile, session.user);
+  const result = await client.query(
+    `SELECT base44_id AS id,title,medium,size,price,status,sale_price,sale_date,buyer,platform,created_by_id,created_date,updated_date,data
+       FROM artflow.art_pieces
+      WHERE created_by_id = ANY($1::text[])
+         OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(data->'access_emails')='array' THEN data->'access_emails' ELSE '[]'::jsonb END) e(value) WHERE lower(e.value)=$2)
+      ORDER BY created_date DESC NULLS LAST`,
+    [creators, email]
+  );
+  return result.rows.map((row) => ({ ...row, ...(row.data || {}), id: row.id }));
+}
+
+async function writeArtPiece(client, session, req) {
+  const { profile, email } = await ensureWorkspace(client, session.user);
+  const creators = userCreatorIds(profile, session.user);
+  const body = requestBody(req);
+  const action = String(body.action || '').toLowerCase();
+  if (action === 'delete') {
+    const deleted = await client.query(
+      `DELETE FROM artflow.art_pieces WHERE base44_id=$1 AND (created_by_id = ANY($2::text[]) OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(data->'access_emails')='array' THEN data->'access_emails' ELSE '[]'::jsonb END) e(value) WHERE lower(e.value)=$3)) RETURNING base44_id`,
+      [String(body.id || ''), creators, email]
+    );
+    if (!deleted.rows[0]) throw new Error('Artwork not found');
+    return { id: deleted.rows[0].base44_id, deleted: true };
+  }
+  const id = String(body.id || crypto.randomUUID());
+  const data = {
+    ...(body.data && typeof body.data === 'object' ? body.data : {}),
+    image_url: body.image_url || null,
+    notes: body.notes || null,
+    access_emails: Array.isArray(body.access_emails) ? body.access_emails : (email ? [email] : []),
+  };
+  const values = [body.title || null, body.medium || null, body.size || null, Number(body.price) || 0, body.status || 'Available', body.sale_price == null ? null : Number(body.sale_price) || 0, body.sale_date || null, body.buyer || null, body.platform || null, JSON.stringify(data)];
+  if (action === 'update') {
+    const updated = await client.query(
+      `UPDATE artflow.art_pieces SET title=$3,medium=$4,size=$5,price=$6,status=$7,sale_price=$8,sale_date=$9,buyer=$10,platform=$11,data=COALESCE(data,'{}'::jsonb)||$12::jsonb,updated_date=now() WHERE base44_id=$1 AND created_by_id = ANY($2::text[]) RETURNING base44_id AS id,*`,
+      [id, creators, ...values]
+    );
+    if (!updated.rows[0]) throw new Error('Artwork not found');
+    return { ...updated.rows[0], ...(updated.rows[0].data || {}) };
+  }
+  const inserted = await client.query(
+    `INSERT INTO artflow.art_pieces (base44_id,title,medium,size,price,status,sale_price,sale_date,buyer,platform,created_by_id,created_date,updated_date,data) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,now(),now(),$12::jsonb) RETURNING base44_id AS id,*`,
+    [id, ...values.slice(0,9), profile?.base44_id || session.user.id, values[9]]
+  );
+  return { ...inserted.rows[0], ...(inserted.rows[0].data || {}) };
+}
+
+async function listMileage(client, session) {
+  const { profile, email } = await ensureWorkspace(client, session.user);
+  const creators = userCreatorIds(profile, session.user);
+  const result = await client.query(
+    `SELECT base44_id AS id,log_date AS date,destination,purpose,miles,rate,deduction,created_by_id,created_date,updated_date,data FROM artflow.mileage_logs WHERE created_by_id = ANY($1::text[]) OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(data->'access_emails')='array' THEN data->'access_emails' ELSE '[]'::jsonb END) e(value) WHERE lower(e.value)=$2) ORDER BY log_date DESC NULLS LAST`,
+    [creators, email]
+  );
+  return result.rows.map((row) => ({ ...row, ...(row.data || {}), id: row.id, date: row.date }));
+}
+
+async function writeMileage(client, session, req) {
+  const { profile, email } = await ensureWorkspace(client, session.user);
+  const creators = userCreatorIds(profile, session.user);
+  const body = requestBody(req);
+  const action = String(body.action || '').toLowerCase();
+  const id = String(body.id || crypto.randomUUID());
+  if (action === 'delete') {
+    const result = await client.query(`DELETE FROM artflow.mileage_logs WHERE base44_id=$1 AND created_by_id = ANY($2::text[]) RETURNING base44_id`, [id, creators]);
+    if (!result.rows[0]) throw new Error('Mileage entry not found');
+    return { id, deleted: true };
+  }
+  const data = JSON.stringify({ ...(body.data || {}), notes: body.notes || null, access_emails: Array.isArray(body.access_emails) ? body.access_emails : (email ? [email] : []) });
+  if (action === 'update') {
+    const result = await client.query(`UPDATE artflow.mileage_logs SET log_date=$3,destination=$4,purpose=$5,miles=$6,rate=$7,deduction=$8,data=COALESCE(data,'{}'::jsonb)||$9::jsonb,updated_date=now() WHERE base44_id=$1 AND created_by_id = ANY($2::text[]) RETURNING base44_id AS id,*`, [id, creators, body.date || null, body.destination || null, body.purpose || null, Number(body.miles) || 0, Number(body.rate) || 0, Number(body.deduction) || 0, data]);
+    if (!result.rows[0]) throw new Error('Mileage entry not found');
+    return { ...result.rows[0], ...(result.rows[0].data || {}), date: result.rows[0].log_date };
+  }
+  const result = await client.query(`INSERT INTO artflow.mileage_logs (base44_id,log_date,destination,purpose,miles,rate,deduction,created_by_id,created_date,updated_date,data) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,now(),now(),$9::jsonb) RETURNING base44_id AS id,*`, [id, body.date || null, body.destination || null, body.purpose || null, Number(body.miles) || 0, Number(body.rate) || 0, Number(body.deduction) || 0, profile?.base44_id || session.user.id, data]);
+  return { ...result.rows[0], ...(result.rows[0].data || {}), date: result.rows[0].log_date };
+}
+
+async function listSchedule(client, session) {
+  const { profile, email } = await ensureWorkspace(client, session.user);
+  const creators = userCreatorIds(profile, session.user);
+  const result = await client.query(`SELECT base44_id AS id,title,event_date AS date,event_time AS time,type,google_event_id,created_by_id,created_date,updated_date,data FROM artflow.schedule_events WHERE created_by_id = ANY($1::text[]) OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(data->'access_emails')='array' THEN data->'access_emails' ELSE '[]'::jsonb END) e(value) WHERE lower(e.value)=$2) ORDER BY event_date ASC NULLS LAST,event_time ASC NULLS LAST`, [creators,email]);
+  return result.rows.map((row) => ({ ...row, ...(row.data || {}), id: row.id, date: row.date, time: row.time }));
+}
+
+async function writeSchedule(client, session, req) {
+  const { profile, email } = await ensureWorkspace(client, session.user);
+  const creators = userCreatorIds(profile, session.user);
+  const body = requestBody(req);
+  const action = String(body.action || '').toLowerCase();
+  const id = String(body.id || crypto.randomUUID());
+  if (action === 'delete') {
+    const result = await client.query(`DELETE FROM artflow.schedule_events WHERE base44_id=$1 AND created_by_id = ANY($2::text[]) RETURNING base44_id`, [id, creators]);
+    if (!result.rows[0]) throw new Error('Event not found');
+    return { id, deleted: true };
+  }
+  const data = JSON.stringify({ ...(body.data || {}), notes: body.notes || '', access_emails: Array.isArray(body.access_emails) ? body.access_emails : (email ? [email] : []) });
+  if (action === 'update') {
+    const result = await client.query(`UPDATE artflow.schedule_events SET title=$3,event_date=$4,event_time=$5,type=$6,data=COALESCE(data,'{}'::jsonb)||$7::jsonb,updated_date=now() WHERE base44_id=$1 AND created_by_id = ANY($2::text[]) RETURNING base44_id AS id,*`, [id,creators,body.title || null,body.date || null,body.time || '',body.type || 'Other',data]);
+    if (!result.rows[0]) throw new Error('Event not found');
+    return { ...result.rows[0], ...(result.rows[0].data || {}), date: result.rows[0].event_date, time: result.rows[0].event_time };
+  }
+  const result = await client.query(`INSERT INTO artflow.schedule_events (base44_id,title,event_date,event_time,type,created_by_id,created_date,updated_date,data) VALUES ($1,$2,$3,$4,$5,$6,now(),now(),$7::jsonb) RETURNING base44_id AS id,*`, [id,body.title || null,body.date || null,body.time || '',body.type || 'Other',profile?.base44_id || session.user.id,data]);
+  return { ...result.rows[0], ...(result.rows[0].data || {}), date: result.rows[0].event_date, time: result.rows[0].event_time };
+}
+
+async function listBusinesses(client, session) {
+  const { businesses } = await ensureWorkspace(client, session.user);
+  return businesses.map((row) => ({ id: row.base44_id, ...row.data, name: row.name || row.data?.name || 'Business', primary_email: row.primary_email || row.data?.primary_email || session.user.email }));
+}
+
+async function writeBusiness(client, session, req) {
+  const { businesses, ids } = await ensureWorkspace(client, session.user);
+  const body = requestBody(req);
+  const id = String(body.id || '').trim();
+  if (!id || !ids.includes(id)) throw new Error('Business workspace not found');
+  const current = businesses.find((item) => item.base44_id === id);
+  const dataFields = ['member_emails','sales_emails','expense_emails','tracked_marketplaces','spreadsheet_id'];
+  const patch = { ...(current?.data || {}) };
+  for (const key of dataFields) if (Object.prototype.hasOwnProperty.call(body,key)) patch[key] = body[key];
+  const result = await client.query(`UPDATE artflow.businesses SET name=COALESCE($2,name),primary_email=COALESCE($3,primary_email),data=$4::jsonb,updated_date=now() WHERE base44_id=$1 RETURNING base44_id AS id,name,primary_email,data`, [id, body.name || null, body.primary_email || null, JSON.stringify(patch)]);
+  return { ...result.rows[0], ...(result.rows[0]?.data || {}) };
+}
+
+async function writeExpense(client, session, req) {
+  const { profile, ids, email } = await ensureWorkspace(client, session.user);
+  const body = requestBody(req);
+  const action = String(body.action || '').toLowerCase();
+  const id = String(body.id || crypto.randomUUID());
+  const businessId = selectedBusinessId(profile, ids, body.business_id);
+  if (!businessId) throw new Error('Business workspace not found');
+  if (action === 'delete') {
+    const result = await client.query(`UPDATE artflow.expenses SET archived=true,updated_date=now() WHERE base44_id=$1 AND business_id = ANY($2::text[]) RETURNING base44_id`, [id,ids]);
+    if (!result.rows[0]) throw new Error('Expense not found');
+    return { id, deleted: true };
+  }
+  const data = JSON.stringify({ ...(body.data || {}), description: body.description || '', deductible_percent: body.deductible_percent == null ? 100 : Number(body.deductible_percent), deductible_amount: body.deductible_amount == null ? null : Number(body.deductible_amount), notes: body.notes || null, access_emails: Array.isArray(body.access_emails) ? body.access_emails : (email ? [email] : []) });
+  if (action === 'update') {
+    const result = await client.query(`UPDATE artflow.expenses SET expense_date=$3,category=$4,amount=$5,source=COALESCE($6,source),data=COALESCE(data,'{}'::jsonb)||$7::jsonb,updated_date=now() WHERE base44_id=$1 AND business_id = ANY($2::text[]) RETURNING base44_id AS id,*`, [id,ids,body.date || null,body.category || null,Number(body.amount)||0,body.source || null,data]);
+    if (!result.rows[0]) throw new Error('Expense not found');
+    return result.rows[0];
+  }
+  const result = await client.query(`INSERT INTO artflow.expenses (base44_id,business_id,expense_date,category,amount,archived,source,created_by_id,created_date,updated_date,data) VALUES ($1,$2,$3,$4,$5,false,$6,$7,now(),now(),$8::jsonb) RETURNING base44_id AS id,*`, [id,businessId,body.date||null,body.category||null,Number(body.amount)||0,body.source||'manual',profile?.base44_id||session.user.id,data]);
+  return result.rows[0];
+}
+
+async function writeOrder(client, session, req) {
+  const { profile, ids, email } = await ensureWorkspace(client, session.user);
+  const body = requestBody(req);
+  const businessId = selectedBusinessId(profile, ids, body.business_id);
+  if (!businessId) throw new Error('Business workspace not found');
+  const id = String(body.id || crypto.randomUUID());
+  const quantity = Math.max(1, Number(body.quantity) || 1);
+  const unitPrice = Number(body.unit_price) || 0;
+  const saleTotal = body.sale_total == null ? quantity * unitPrice : Number(body.sale_total) || 0;
+  const totalCost = Number(body.total_cost) || 0;
+  const estimatedProfit = body.estimated_profit == null ? saleTotal - totalCost : Number(body.estimated_profit) || 0;
+  const data = JSON.stringify({ ...(body.data || {}), access_emails: Array.isArray(body.access_emails) ? body.access_emails : (email ? [email] : []) });
+  const result = await client.query(`INSERT INTO artflow.orders (base44_id,business_id,sale_date,platform,archived,order_id,source_email_id,created_by_id,created_date,updated_date,data,product_name,quantity,size,unit_price,sale_total,buyer,base_item_cost,paper_ink_cost,packaging_cost,total_cost,estimated_profit,sync_source) VALUES ($1,$2,$3,$4,false,$5,$6,$7,now(),now(),$8::jsonb,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,'manual') RETURNING base44_id AS id,*`, [id,businessId,body.sale_date||null,body.platform||null,body.order_id||null,body.source_email_id||null,profile?.base44_id||session.user.id,data,body.product_name||null,quantity,body.size||null,unitPrice,saleTotal,body.buyer||null,Number(body.base_item_cost)||0,Number(body.paper_ink_cost)||0,Number(body.packaging_cost)||0,totalCost,estimatedProfit]);
+  return result.rows[0];
+}
+
 async function summary(client, session) {
   const profile = await getLegacyProfile(client, session.user);
   const businesses = await getAccessibleBusinesses(client, profile, session.user);
