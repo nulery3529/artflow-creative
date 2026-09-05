@@ -166,6 +166,41 @@ async function googleRequest(accessToken, url, options = {}) {
   return data;
 }
 
+function addUniqueEmail(values, email) {
+  return Array.from(new Set([
+    ...(Array.isArray(values) ? values : []),
+    email,
+  ].map(normalize).filter(Boolean)));
+}
+
+async function attachGoogleEmailToBusiness(client, business, accessToken) {
+  try {
+    const profile = await googleRequest(
+      accessToken,
+      'https://gmail.googleapis.com/gmail/v1/users/me/profile'
+    );
+    const googleEmail = normalize(profile?.emailAddress);
+    if (!googleEmail) return null;
+
+    const current = business.data || {};
+    const nextData = {
+      ...current,
+      member_emails: addUniqueEmail(current.member_emails, googleEmail),
+      sales_emails: addUniqueEmail(current.sales_emails, googleEmail),
+      expense_emails: addUniqueEmail(current.expense_emails, googleEmail),
+    };
+    await client.query(
+      `UPDATE artflow.businesses SET data=$2::jsonb WHERE base44_id=$1`,
+      [business.base44_id, JSON.stringify(nextData)]
+    );
+    business.data = nextData;
+    return googleEmail;
+  } catch (error) {
+    console.warn('Could not attach connected Google email to business workspace', error?.message || error);
+    return null;
+  }
+}
+
 async function createSpreadsheet(accessToken, businessName) {
   const response = await fetch(
     `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(TRACKER_TEMPLATE_ID)}/copy?supportsAllDrives=true`,
@@ -258,6 +293,7 @@ export default async function handler(req, res) {
       return res.status(409).json({ error: error.message, code: error.code || 'GOOGLE_NOT_LINKED' });
     }
 
+    const googleEmail = await attachGoogleEmailToBusiness(client, business, accessToken);
     const spreadsheetId = await createSpreadsheet(accessToken, business.name || 'My Business');
     await saveSpreadsheetId(client, business, profile, spreadsheetId);
 
@@ -266,7 +302,10 @@ export default async function handler(req, res) {
       created: true,
       spreadsheet_id: spreadsheetId,
       spreadsheet_url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`,
-      message: 'Your ArtFlow Creative Tracker was created and connected automatically.',
+      google_email: googleEmail || null,
+      message: googleEmail
+        ? `Your ArtFlow Creative Tracker was created and ${googleEmail} was linked to this business.`
+        : 'Your ArtFlow Creative Tracker was created and connected automatically.',
     });
   } catch (error) {
     console.error('create tracker error', error?.message || error);
