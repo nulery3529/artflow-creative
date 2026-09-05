@@ -53,6 +53,7 @@ const OFFICIAL_HOSTS = {
     'ebay.ca','www.ebay.ca','ebay.com.au','www.ebay.com.au','ebay.de','www.ebay.de',
     'ebay.fr','www.ebay.fr','ebay.it','www.ebay.it','ebay.es','www.ebay.es'
   ],
+  Poshmark: ['poshmark.com','www.poshmark.com'],
 };
 
 function allowedHost(platform, raw = '') {
@@ -82,6 +83,7 @@ function isListingUrl(platform, raw = '') {
     if (platform === 'Depop') return /\/products\/[^/?#]+/i.test(p);
     if (platform === 'Etsy') return /\/listing\/\d+/i.test(p);
     if (platform === 'eBay') return /\/itm\//i.test(p);
+    if (platform === 'Poshmark') return /\/listing\/[^/?#]+-[a-f0-9]{24}$/i.test(p);
   } catch {}
   return false;
 }
@@ -254,6 +256,7 @@ function listingIdFromUrl(platform, raw = '') {
     if (platform === 'Depop') return p.match(/\/products\/([^/?#]+)/i)?.[1] || '';
     if (platform === 'Etsy') return p.match(/\/listing\/(\d+)/i)?.[1] || '';
     if (platform === 'eBay') return p.match(/\/itm\/(?:[^/]+\/)?(\d{8,16})/i)?.[1] || '';
+    if (platform === 'Poshmark') return p.match(/-([a-f0-9]{24})$/i)?.[1] || '';
   } catch {}
   return '';
 }
@@ -385,6 +388,7 @@ function extractListingLinks(platform, html = '', baseUrl = '') {
     Depop: /\/products\/[^"'<>\\\s?]+/gi,
     Etsy: /\/listing\/\d+(?:\/[^"'<>\\\s?]*)?/gi,
     eBay: /\/itm\/(?:[^"'<>\\\s?]+\/)?\d{8,16}/gi,
+    Poshmark: /\/listing\/[^"'<>\\\s?]+-[a-f0-9]{24}/gi,
   };
   const re = pathPatterns[platform];
   if (re) for (const match of decoded.matchAll(re)) add(match[0]);
