@@ -17,10 +17,10 @@ const HOP_BY_HOP_HEADERS = new Set([
 ]);
 
 export default function handler(req, res) {
-  const deploymentHost = process.env.VERCEL_URL;
-  if (!deploymentHost) {
-    return res.status(503).json({ error: 'Auth deployment target unavailable' });
-  }
+  // Use the stable public production alias instead of VERCEL_URL. The latter
+  // changes on every deployment and may be protected by Vercel Authentication,
+  // which can lock the custom domain out of Better Auth after a deploy.
+  const deploymentHost = 'art-flow-creative.vercel.app';
 
   const authPath = String(req.query?.__path || '').replace(/^\/+/, '');
   const query = new URLSearchParams();
