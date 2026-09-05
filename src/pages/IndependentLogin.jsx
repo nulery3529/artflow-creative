@@ -31,16 +31,13 @@ export default function IndependentLogin() {
       });
       if (signInError) throw new Error(signInError.message || "Email or password is incorrect.");
 
-      // Do not open the app until the same session can reach the Neon workspace.
-      // This prevents a successful-looking auth response from landing the user
-      // on a blank dashboard with no business data.
-      const verifyResponse = await fetch("/api/neon-data?op=summary", {
-        credentials: "include",
-        cache: "no-store",
-      });
-      const verifyData = await verifyResponse.json().catch(() => ({}));
-      if (!verifyResponse.ok || !verifyData?.user?.id) {
-        throw new Error("Signed in, but your Art Flow data session could not be opened. Please sign in again.");
+      // Authentication success should not be blocked by a temporary data refresh.
+      // Confirm the Better Auth session exists, then let the app's normal Neon
+      // workspace recovery load the user's data after navigation.
+      const sessionResult = await artflowAuthClient.getSession().catch(() => null);
+      const session = sessionResult?.data || sessionResult;
+      if (!session?.user?.id) {
+        throw new Error("Your sign-in completed, but the session was not saved. Please try again.");
       }
 
       finish();
@@ -77,7 +74,7 @@ export default function IndependentLogin() {
           <Label htmlFor="independent-password">Password</Label>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input id="independent-password" type="password" autoComplete="current-password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10 h-12" minLength={8} required />
+            <Input id="independent-password" type="password" autoComplete="current-password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10 h-12" required />
           </div>
         </div>
         <Button type="submit" className="w-full h-12 font-medium" disabled={loading}>
