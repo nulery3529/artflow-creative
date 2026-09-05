@@ -146,6 +146,7 @@ export default function Gallery() {
   const [linkedSellSites, setLinkedSellSites] = useState({});
   const officialRefreshInFlight = useRef(false);
   const lastOfficialRefresh = useRef(0);
+  const vintedProfileRefreshAttempted = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -221,6 +222,34 @@ export default function Gallery() {
       setMarketplaceLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (vintedProfileRefreshAttempted.current) return;
+    const profileUrl = linkedSellSites?.Vinted || linkedSellSites?.vinted || "";
+    if (!profileUrl) return;
+
+    let username = "";
+    try {
+      const parts = new URL(profileUrl).pathname.split("/").filter(Boolean);
+      const memberPart = parts.find((part) => /^\d+-/.test(part)) || "";
+      username = memberPart.replace(/^\d+-/, "").replace(/^@+/, "");
+    } catch {}
+    if (!username) return;
+
+    vintedProfileRefreshAttempted.current = true;
+    fetch("/api/mobile-listing-sync", {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ platform: "Vinted", username }),
+    })
+      .then(async (response) => ({ response, data: await response.json().catch(() => ({})) }))
+      .then(({ response }) => {
+        if (response.ok) reloadMarketplaceListings();
+      })
+      .catch((error) => console.warn("Could not refresh saved Vinted profile", error));
+  }, [linkedSellSites, reloadMarketplaceListings]);
 
   useEffect(() => {
     let cancelled = false;
