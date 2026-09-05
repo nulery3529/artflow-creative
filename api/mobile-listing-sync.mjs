@@ -5,7 +5,7 @@ import { fromNodeHeaders } from 'better-auth/node';
 
 const { Pool } = pg;
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 4 });
-const SUPPORTED = ['Vinted', 'Depop', 'Etsy', 'eBay'];
+const SUPPORTED = ['Vinted', 'Depop', 'Etsy', 'eBay', 'Poshmark'];
 const LINKED_SITE_PLATFORMS = ['Vinted', 'Depop', 'Etsy', 'eBay', 'Poshmark'];
 const clean = (v = '') => String(v || '').trim();
 const normalize = (v = '') => clean(v).toLowerCase();
@@ -34,6 +34,7 @@ function platformFrom(value = '') {
   if (/depop/i.test(value)) return 'Depop';
   if (/etsy/i.test(value)) return 'Etsy';
   if (/ebay/i.test(value)) return 'eBay';
+  if (/poshmark/i.test(value)) return 'Poshmark';
   return '';
 }
 
