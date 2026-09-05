@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Camera, Loader2 } from "lucide-react";
-import { base44 } from "@/api/base44Client";
 import { calculateUnitCost } from "@/lib/orderCost";
+import { prepareImageForStorage } from "@/lib/imageUpload";
 import { getCurrentBusinessId } from "@/lib/businessWorkspace";
 import { toast } from "sonner";
 import Field from "@/components/Field";
@@ -62,8 +62,8 @@ export default function InventoryEditSheet({ open, onClose, record }) {
     if (!file) return;
     setUploading(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      set("image_url", file_url);
+      const imageUrl = await prepareImageForStorage(file);
+      set("image_url", imageUrl);
     } catch (err) {
       toast.error("Could not upload photo");
     } finally {
