@@ -193,13 +193,29 @@ export default function Inventory() {
                   </p>
                   </div>
                 </div>
-                <button
-                  onClick={() => openEdit(rec)}
-                  className="w-11 h-11 rounded-full bg-white/70 flex items-center justify-center shrink-0"
-                  aria-label="Edit"
-                >
-                  <Pencil className="w-4 h-4 text-muted-foreground" />
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => deleteItem(rec)}
+                    disabled={deletingId === rec.id}
+                    className="w-11 h-11 rounded-full bg-white/70 border border-rose-200 flex items-center justify-center disabled:opacity-60"
+                    aria-label={`Delete ${title}`}
+                    title="Delete inventory item"
+                  >
+                    {deletingId === rec.id ? (
+                      <Loader2 className="w-4 h-4 text-rose-600 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4 text-rose-600" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => openEdit(rec)}
+                    disabled={deletingId === rec.id}
+                    className="w-11 h-11 rounded-full bg-white/70 flex items-center justify-center"
+                    aria-label="Edit"
+                  >
+                    <Pencil className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-center justify-between">
