@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Camera, Loader2, Trash2, CheckCircle2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { neonEntities } from "@/lib/neonEntityClient";
 import { toast } from "sonner";
 import Field from "@/components/Field";
 import { Image } from "@/components/ui/image";
@@ -103,10 +104,10 @@ export default function ArtPieceForm({ open, onClose, record }) {
         notes: form.notes.trim() || null,
       };
       if (isCreate) {
-        await base44.entities.ArtPiece.create(payload);
+        await neonEntities.create("ArtPiece", payload);
         toast.success("Artwork added to gallery");
       } else {
-        await base44.entities.ArtPiece.update(record.id, payload);
+        await neonEntities.update("ArtPiece", record.id, payload);
         toast.success("Artwork updated");
       }
       onClose();
@@ -121,7 +122,7 @@ export default function ArtPieceForm({ open, onClose, record }) {
     if (!record) return;
     setSaving(true);
     try {
-      await base44.entities.ArtPiece.delete(record.id);
+      await neonEntities.delete("ArtPiece", record.id);
       toast.success("Artwork removed");
       onClose();
     } catch {
