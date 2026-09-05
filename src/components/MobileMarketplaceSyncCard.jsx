@@ -2,6 +2,18 @@ import React, { useEffect, useState } from "react";
 import { Link2, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 
+function isDepopProfileUrl(value = "") {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase();
+    if (host !== "depop.com" && host !== "www.depop.com") return false;
+    const segments = url.pathname.split("/").filter(Boolean);
+    return segments.length === 1 && segments[0].toLowerCase() !== "products" && segments[0].toLowerCase() !== "sellinghub";
+  } catch {
+    return false;
+  }
+}
+
 export default function MobileMarketplaceSyncCard() {
   const [link, setLink] = useState("");
   const [result, setResult] = useState("");
@@ -22,16 +34,61 @@ export default function MobileMarketplaceSyncCard() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!link.trim() || submitting) return;
+    const submittedLink = link.trim();
+    if (!submittedLink || submitting) return;
     setSubmitting(true);
     setResult("");
     try {
+      if (isDepopProfileUrl(submittedLink)) {
+        const statusResponse = await fetch("/api/depop-official", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const statusData = await statusResponse.json().catch(() => ({}));
+        if (!statusResponse.ok) throw new Error(statusData.error || "Could not check Depop connection");
+
+        if (!statusData.configured) {
+          throw new Error("Full-profile Depop sync is ready in Art Flow, but Depop has not issued the API credentials yet. Once approved, this same profile link will pull the whole shop automatically.");
+        }
+
+        if (!statusData.connected) {
+          const connectResponse = await fetch("/api/depop-official", {
+            method: "POST",
+            credentials: "include",
+            cache: "no-store",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "start" }),
+          });
+          const connectData = await connectResponse.json().catch(() => ({}));
+          if (!connectResponse.ok || !connectData.authorization_url) {
+            throw new Error(connectData.error || "Could not start Depop connection");
+          }
+          window.location.assign(connectData.authorization_url);
+          return;
+        }
+
+        const syncResponse = await fetch("/api/depop-official", {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "sync", profile_url: submittedLink }),
+        });
+        const syncData = await syncResponse.json().catch(() => ({}));
+        const message = syncData.message || syncData.error || (syncResponse.ok ? "Depop profile synced" : "Depop profile sync failed");
+        setResult(message);
+        if (!syncResponse.ok || syncData.ok === false) throw new Error(message);
+        toast.success(message);
+        window.dispatchEvent(new CustomEvent("artflow:listings-synced", { detail: { saved: syncData.saved || 0, fullProfile: true } }));
+        return;
+      }
+
       const response = await fetch("/api/mobile-listing-sync", {
         method: "POST",
         credentials: "include",
         cache: "no-store",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: link.trim() }),
+        body: JSON.stringify({ url: submittedLink }),
       });
       const data = await response.json().catch(() => ({}));
       const message = data.message || data.error || (response.ok ? "Listing added to Gallery" : "Listing import failed");
