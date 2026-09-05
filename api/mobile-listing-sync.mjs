@@ -558,7 +558,7 @@ export default async function handler(req, res) {
       const id = crypto.createHash('sha256').update(`${b.base44_id}|${listing.platform}|${listing.listing_url}`).digest('hex');
       await client.query(
         `INSERT INTO artflow.marketplace_listings (id,business_id,platform,listing_id,title,price,currency,image_url,listing_url,status,last_seen_at,sync_source,data)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'Active',now(),'mobile_listing_sync','{}'::jsonb)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'Active',now(),'mobile_listing_sync',jsonb_build_object('gallery_manual',true,'gallery_added_at',now()))
          ON CONFLICT (business_id,platform,listing_url) DO UPDATE SET
            listing_id=EXCLUDED.listing_id,
            title=CASE WHEN EXCLUDED.title LIKE '% listing' THEN artflow.marketplace_listings.title ELSE EXCLUDED.title END,
@@ -569,7 +569,8 @@ export default async function handler(req, res) {
              WHEN artflow.marketplace_listings.status='Sold' THEN 'Sold'
              ELSE 'Active'
            END,
-           last_seen_at=now(),sync_source='mobile_listing_sync'`,
+           last_seen_at=now(),sync_source='mobile_listing_sync',
+           data=COALESCE(artflow.marketplace_listings.data,'{}'::jsonb) || jsonb_build_object('gallery_manual',true,'gallery_added_at',now())`,
         [id,b.base44_id,listing.platform,listing.listing_id || null,listing.title,listing.price || 0,listing.currency || 'USD',listing.image_url || null,listing.listing_url]
       );
       counts[listing.platform] = (counts[listing.platform] || 0) + 1;
