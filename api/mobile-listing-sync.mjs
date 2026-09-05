@@ -746,12 +746,36 @@ export default async function handler(req, res) {
       saved++;
     }
 
+    let deactivated = 0;
+    for (const snapshot of fullProfileSnapshots) {
+      if (!snapshot.urls.length || snapshot.urls.length >= 500) continue;
+      const result = await client.query(
+        `UPDATE artflow.marketplace_listings
+         SET status='Inactive',last_seen_at=now(),sync_source='depop_profile_snapshot'
+         WHERE business_id=$1 AND platform=$2 AND status='Active' AND NOT (listing_url = ANY($3::text[]))`,
+        [b.base44_id, snapshot.platform, snapshot.urls]
+      );
+      deactivated += Number(result.rowCount || 0);
+    }
+
+    if (fullProfileSnapshots.length) {
+      const mobileShopUrls = { ...(b.data?.mobile_shop_urls || {}) };
+      for (const snapshot of fullProfileSnapshots) mobileShopUrls[snapshot.platform] = snapshot.profileUrl;
+      const nextData = { ...(b.data || {}), mobile_shop_urls: mobileShopUrls };
+      await client.query(`UPDATE artflow.businesses SET data=$2::jsonb WHERE base44_id=$1`, [b.base44_id, JSON.stringify(nextData)]);
+      b.data = nextData;
+    }
+
     const breakdown = Object.entries(counts).map(([site, count]) => `${site}: ${count}`).join(' · ');
+    const profileNote = fullProfileSnapshots.length ? ' pulled from your full profile' : ' added to Gallery';
+    const removedNote = deactivated ? ` · ${deactivated} old listing${deactivated === 1 ? '' : 's'} removed from Available` : '';
     return send(200, {
       ok: true,
       saved,
+      deactivated,
       counts,
-      message: `${saved} listing${saved === 1 ? '' : 's'} added to Gallery${breakdown ? ` (${breakdown})` : ''}.`,
+      full_profile: fullProfileSnapshots.length > 0,
+      message: `${saved} listing${saved === 1 ? '' : 's'}${profileNote}${breakdown ? ` (${breakdown})` : ''}${removedNote}.`,
     });
   } catch (error) {
     console.error('mobile listing sync error', error?.message || error);
