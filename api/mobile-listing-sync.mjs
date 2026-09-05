@@ -643,14 +643,44 @@ export default async function handler(req, res) {
       });
     }
 
+    const requestedPlatform = clean(body.platform);
+    const requestedUsername = cleanMarketplaceUsername(body.username || body.profile_username || '');
+    const isVintedUsernameRequest = requestedPlatform === 'Vinted' && Boolean(requestedUsername);
     const submitted = splitUrls(body.urls || body.url || '');
-    if (!submitted.length) return send(400, { error: 'Paste one or more Vinted, Depop, Etsy, or eBay listing links' });
+    if (!submitted.length && !isVintedUsernameRequest) {
+      return send(400, { error: 'Enter a Vinted username or paste a supported marketplace link.' });
+    }
 
     const directListings = [];
     const shopPages = [];
     const privateSellerPages = [];
     const fullProfileSnapshots = [];
     const rejected = [];
+
+    if (isVintedUsernameRequest) {
+      try {
+        const profile = await collectVintedProfileListings(requestedUsername);
+        if (!profile.listings.length) {
+          return send(422, {
+            error: `@${profile.username || requestedUsername} does not have any currently available Vinted items.`,
+            reason: 'vinted_profile_empty',
+          });
+        }
+        directListings.push(...profile.listings);
+        fullProfileSnapshots.push({
+          platform: 'Vinted',
+          profileUrl: profile.profileUrl,
+          username: profile.username,
+          urls: profile.listings.map((item) => normalizeUrl(item.url)).filter(Boolean),
+        });
+      } catch (error) {
+        console.warn('Vinted full-profile import failed', error?.message || error);
+        return send(error?.status === 429 ? 429 : 502, {
+          error: clean(error?.message || 'Vinted full-profile import failed.'),
+          reason: 'vinted_profile_import_failed',
+        });
+      }
+    }
 
     for (const raw of submitted) {
       const platform = platformFrom(raw);
@@ -873,9 +903,9 @@ export default async function handler(req, res) {
       if (!snapshot.urls.length || snapshot.urls.length >= 500) continue;
       const result = await client.query(
         `UPDATE artflow.marketplace_listings
-         SET status='Inactive',last_seen_at=now(),sync_source='depop_profile_snapshot'
+         SET status='Inactive',last_seen_at=now(),sync_source=$4
          WHERE business_id=$1 AND platform=$2 AND status='Active' AND NOT (listing_url = ANY($3::text[]))`,
-        [b.base44_id, snapshot.platform, snapshot.urls]
+        [b.base44_id, snapshot.platform, snapshot.urls, `${normalize(snapshot.platform)}_profile_snapshot`]
       );
       deactivated += Number(result.rowCount || 0);
     }
