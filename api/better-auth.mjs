@@ -9,6 +9,12 @@ export default function handler(req, res) {
     const authPath = url.searchParams.get("__path") || "";
     url.searchParams.delete("__path");
     req.url = `/api/auth/${authPath}${url.search}`;
+    if (authPath === "get-session") {
+      console.log("artflow auth session check", {
+        hasCookie: Boolean(req.headers?.cookie),
+        host: req.headers?.host || null,
+      });
+    }
   } catch {
     // Leave the URL unchanged; Better Auth will return a normal error response.
   }
