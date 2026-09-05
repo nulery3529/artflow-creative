@@ -381,8 +381,25 @@ export default function Gallery() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Could not link seller profile");
       setLinkedSellSites(data.urls || {});
+
+      if (["Etsy", "eBay", "Poshmark"].includes(linkSite)) {
+        const importResponse = await fetch("/api/mobile-listing-sync", {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ platform: linkSite, username: linkUsername.trim() }),
+        });
+        const importData = await importResponse.json().catch(() => ({}));
+        if (!importResponse.ok || importData.ok === false) {
+          throw new Error(importData.error || `${linkSite} profile linked, but its listings could not be imported.`);
+        }
+        await reloadMarketplaceListings();
+        setLinkMessage(importData.message || `${linkSite} profile linked and listings imported.`);
+      } else {
+        setLinkMessage(data.message || `${linkSite} profile linked.`);
+      }
       setLinkUsername("");
-      setLinkMessage(data.message || `${linkSite} profile linked.`);
     } catch (error) {
       setLinkMessage(error?.message || "Could not link seller profile");
     } finally {
