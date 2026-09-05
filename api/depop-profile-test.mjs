@@ -23,11 +23,19 @@ export default async function handler(req, res) {
       viewport: { width: 1280, height: 1600 },
       userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
     });
-    await page.goto(parsed.toString(), { waitUntil: 'domcontentloaded', timeout: 30000 });
+    const nav = await page.goto(parsed.toString(), { waitUntil: 'domcontentloaded', timeout: 30000 });
     for (let i = 0; i < 8; i += 1) {
       await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
       await page.waitForTimeout(700);
     }
+    const debug = await page.evaluate(() => ({
+      title: document.title,
+      finalUrl: location.href,
+      bodyText: (document.body?.innerText || '').trim().replace(/\s+/g, ' ').slice(0, 1200),
+      anchorCount: document.querySelectorAll('a').length,
+      productAnchorCount: document.querySelectorAll('a[href*="/products/"]').length,
+    }));
+    const cookies = await page.context().cookies();
     const result = await page.evaluate(() => {
       const links = [...document.querySelectorAll('a[href*="/products/"]')]
         .map((a) => ({
@@ -42,7 +50,14 @@ export default async function handler(req, res) {
         return true;
       });
     });
-    return res.status(200).json({ ok: true, count: result.length, products: result.slice(0, 500) });
+    return res.status(200).json({
+      ok: true,
+      httpStatus: nav?.status?.() || null,
+      debug,
+      cookieNames: cookies.map((cookie) => cookie.name),
+      count: result.length,
+      products: result.slice(0, 500),
+    });
   } catch (error) {
     console.error('depop profile browser test failed', error?.message || error);
     return res.status(500).json({ error: clean(error?.message || 'Depop profile browser failed') });
