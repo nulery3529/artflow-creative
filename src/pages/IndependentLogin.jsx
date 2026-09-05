@@ -30,6 +30,19 @@ export default function IndependentLogin() {
         rememberMe: true,
       });
       if (signInError) throw new Error(signInError.message || "Email or password is incorrect.");
+
+      // Do not open the app until the same session can reach the Neon workspace.
+      // This prevents a successful-looking auth response from landing the user
+      // on a blank dashboard with no business data.
+      const verifyResponse = await fetch("/api/neon-data?op=summary", {
+        credentials: "include",
+        cache: "no-store",
+      });
+      const verifyData = await verifyResponse.json().catch(() => ({}));
+      if (!verifyResponse.ok || !verifyData?.user?.id) {
+        throw new Error("Signed in, but your Art Flow data session could not be opened. Please sign in again.");
+      }
+
       finish();
     } catch (err) {
       setError(err?.message || "Could not sign in.");
