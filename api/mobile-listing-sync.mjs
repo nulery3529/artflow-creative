@@ -114,6 +114,18 @@ function cleanMarketplaceUsername(value = '') {
         if (member) return member.replace(/^\d+-/, '').replace(/^@+/, '');
       }
       if (/depop/i.test(u.hostname) && segments.length) return segments[0].replace(/^@+/, '');
+      if (/etsy/i.test(u.hostname)) {
+        const shopIndex = segments.findIndex((segment) => segment.toLowerCase() === 'shop');
+        if (shopIndex >= 0 && segments[shopIndex + 1]) return segments[shopIndex + 1].replace(/^@+/, '');
+      }
+      if (/ebay/i.test(u.hostname)) {
+        const userIndex = segments.findIndex((segment) => ['usr', 'str'].includes(segment.toLowerCase()));
+        if (userIndex >= 0 && segments[userIndex + 1]) return segments[userIndex + 1].replace(/^@+/, '');
+      }
+      if (/poshmark/i.test(u.hostname)) {
+        const closetIndex = segments.findIndex((segment) => segment.toLowerCase() === 'closet');
+        if (closetIndex >= 0 && segments[closetIndex + 1]) return segments[closetIndex + 1].replace(/^@+/, '');
+      }
     } catch {}
   }
   return raw.trim();
@@ -765,8 +777,9 @@ export default async function handler(req, res) {
     const requestedUsername = cleanMarketplaceUsername(body.username || body.profile_username || '');
     const isVintedUsernameRequest = requestedPlatform === 'Vinted' && Boolean(requestedUsername);
     const isPoshmarkUsernameRequest = requestedPlatform === 'Poshmark' && Boolean(requestedUsername);
+    const isPublicShopUsernameRequest = ['Etsy', 'eBay'].includes(requestedPlatform) && Boolean(requestedUsername);
     const submitted = splitUrls(body.urls || body.url || '');
-    if (!submitted.length && !isVintedUsernameRequest && !isPoshmarkUsernameRequest) {
+    if (!submitted.length && !isVintedUsernameRequest && !isPoshmarkUsernameRequest && !isPublicShopUsernameRequest) {
       return send(400, { error: 'Enter a marketplace username or paste a supported marketplace link.' });
     }
 
@@ -775,6 +788,12 @@ export default async function handler(req, res) {
     const privateSellerPages = [];
     const fullProfileSnapshots = [];
     const rejected = [];
+
+    if (isPublicShopUsernameRequest) {
+      const profileUrl = linkedSiteProfileUrl(requestedPlatform, requestedUsername);
+      if (!profileUrl) return send(400, { error: `Enter a valid ${requestedPlatform} username or shop name.` });
+      shopPages.push({ platform: requestedPlatform, url: profileUrl, profileUsername: requestedUsername });
+    }
 
     if (isVintedUsernameRequest) {
       try {
@@ -907,6 +926,15 @@ export default async function handler(req, res) {
         const found = extractListingLinks(resolvedPlatform, html, resolvedUrl);
         if (found.length) {
           for (const url of found) directListings.push({ platform: resolvedPlatform, url });
+          if (shop.profileUsername && ['Etsy', 'eBay'].includes(resolvedPlatform)) {
+            fullProfileSnapshots.push({
+              platform: resolvedPlatform,
+              profileUrl: normalizeUrl(resolvedUrl) || shop.url,
+              username: shop.profileUsername,
+              urls: found.map((url) => normalizeUrl(url)).filter(Boolean),
+              partial: true,
+            });
+          }
           continue;
         }
 
