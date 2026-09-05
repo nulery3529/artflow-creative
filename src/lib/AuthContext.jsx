@@ -153,11 +153,14 @@ export const AuthProvider = ({ children }) => {
   }, [publishSyncState]);
 
   useEffect(() => {
-    if (!isAuthenticated || authBackend !== 'base44') return undefined;
+    if (!isAuthenticated) return undefined;
 
-    // Pull sales and expenses from every connected email source every five
-    // minutes while the app is open. Server-side Gmail schedules use the same
-    // five-minute cadence for accounts whose connector can run without a browser session.
+    // Automatic syncing belongs to the Art Flow session, not the legacy auth
+    // provider. Run once after login and then every five minutes while the app
+    // is open, regardless of whether the user signed in through Neon/Better Auth
+    // or an older Base44 session. Individual providers remain isolated so an
+    // unavailable connector never blocks the rest of the app.
+    triggerLoginSync();
     const syncId = window.setInterval(() => triggerLoginSync(), 5 * 60 * 1000);
     const syncWhenActive = () => {
       if (document.visibilityState === 'visible') triggerLoginSync();
