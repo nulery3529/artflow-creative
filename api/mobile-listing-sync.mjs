@@ -877,23 +877,52 @@ export default async function handler(req, res) {
     for (const listing of listings) {
       if (!listing.listing_url || !listing.platform) continue;
       const id = crypto.createHash('sha256').update(`${b.base44_id}|${listing.platform}|${listing.listing_url}`).digest('hex');
-      await client.query(
-        `INSERT INTO artflow.marketplace_listings (id,business_id,platform,listing_id,title,price,currency,image_url,listing_url,status,last_seen_at,sync_source,data)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'Active',now(),'mobile_listing_sync',jsonb_build_object('gallery_manual',true,'gallery_added_at',now()))
-         ON CONFLICT (business_id,platform,listing_url) DO UPDATE SET
-           listing_id=EXCLUDED.listing_id,
-           title=CASE WHEN EXCLUDED.title LIKE '% listing' THEN artflow.marketplace_listings.title ELSE EXCLUDED.title END,
-           price=CASE WHEN EXCLUDED.price>0 THEN EXCLUDED.price ELSE artflow.marketplace_listings.price END,
-           currency=EXCLUDED.currency,
-           image_url=COALESCE(NULLIF(EXCLUDED.image_url,''),artflow.marketplace_listings.image_url),
-           status=CASE
-             WHEN artflow.marketplace_listings.status='Sold' THEN 'Sold'
-             ELSE 'Active'
-           END,
-           last_seen_at=now(),sync_source='mobile_listing_sync',
-           data=COALESCE(artflow.marketplace_listings.data,'{}'::jsonb) || jsonb_build_object('gallery_manual',true,'gallery_added_at',now())`,
-        [id,b.base44_id,listing.platform,listing.listing_id || null,listing.title,listing.price || 0,listing.currency || 'USD',listing.image_url || null,listing.listing_url]
-      );
+
+      let updatedExistingId = false;
+      if (listing.listing_id) {
+        const existingByListingId = await client.query(
+          `SELECT id FROM artflow.marketplace_listings
+           WHERE business_id=$1 AND platform=$2 AND listing_id=$3
+           LIMIT 1`,
+          [b.base44_id, listing.platform, listing.listing_id]
+        );
+        if (existingByListingId.rows[0]?.id) {
+          await client.query(
+            `UPDATE artflow.marketplace_listings SET
+               title=CASE WHEN $2 LIKE '% listing' THEN title ELSE $2 END,
+               price=CASE WHEN $3::numeric>0 THEN $3::numeric ELSE price END,
+               currency=$4,
+               image_url=COALESCE(NULLIF($5,''),image_url),
+               listing_url=$6,
+               status=CASE WHEN status='Sold' THEN 'Sold' ELSE 'Active' END,
+               last_seen_at=now(),sync_source='mobile_listing_sync',
+               data=COALESCE(data,'{}'::jsonb) || jsonb_build_object('gallery_manual',true,'gallery_added_at',now())
+             WHERE id=$1`,
+            [existingByListingId.rows[0].id, listing.title, listing.price || 0, listing.currency || 'USD', listing.image_url || '', listing.listing_url]
+          );
+          updatedExistingId = true;
+        }
+      }
+
+      if (!updatedExistingId) {
+        await client.query(
+          `INSERT INTO artflow.marketplace_listings (id,business_id,platform,listing_id,title,price,currency,image_url,listing_url,status,last_seen_at,sync_source,data)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'Active',now(),'mobile_listing_sync',jsonb_build_object('gallery_manual',true,'gallery_added_at',now()))
+           ON CONFLICT (business_id,platform,listing_url) DO UPDATE SET
+             listing_id=EXCLUDED.listing_id,
+             title=CASE WHEN EXCLUDED.title LIKE '% listing' THEN artflow.marketplace_listings.title ELSE EXCLUDED.title END,
+             price=CASE WHEN EXCLUDED.price>0 THEN EXCLUDED.price ELSE artflow.marketplace_listings.price END,
+             currency=EXCLUDED.currency,
+             image_url=COALESCE(NULLIF(EXCLUDED.image_url,''),artflow.marketplace_listings.image_url),
+             status=CASE
+               WHEN artflow.marketplace_listings.status='Sold' THEN 'Sold'
+               ELSE 'Active'
+             END,
+             last_seen_at=now(),sync_source='mobile_listing_sync',
+             data=COALESCE(artflow.marketplace_listings.data,'{}'::jsonb) || jsonb_build_object('gallery_manual',true,'gallery_added_at',now())`,
+          [id,b.base44_id,listing.platform,listing.listing_id || null,listing.title,listing.price || 0,listing.currency || 'USD',listing.image_url || null,listing.listing_url]
+        );
+      }
       counts[listing.platform] = (counts[listing.platform] || 0) + 1;
       saved++;
     }
