@@ -240,6 +240,66 @@ async function collectVintedProfileListings(usernameInput) {
   return { username: canonicalUsername, profileUrl: normalizeUrl(profileUrl) || profileUrl, listings: out };
 }
 
+function poshmarkListingUrl(item = {}) {
+  const id = clean(item?.id);
+  if (!/^[a-f0-9]{24}$/i.test(id)) return '';
+  const slug = clean(item?.title || 'listing')
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 170) || 'listing';
+  return normalizeUrl(`https://poshmark.com/listing/${slug}-${id}`);
+}
+
+async function collectPoshmarkProfileListings(usernameInput) {
+  const username = cleanMarketplaceUsername(usernameInput);
+  if (!isValidMarketplaceUsername(username)) throw new Error('Enter a valid Poshmark username.');
+  const profileUrl = `https://poshmark.com/closet/${encodeURIComponent(username)}`;
+  const { html, finalUrl } = await fetchHtml(profileUrl, 12000);
+  const marker = 'window.__INITIAL_STATE__=';
+  const start = html.indexOf(marker);
+  if (start < 0) throw new Error(`Poshmark closet @${username} could not be read.`);
+  const jsonStart = start + marker.length;
+  let jsonEnd = html.indexOf('};(function', jsonStart);
+  if (jsonEnd < 0) jsonEnd = html.indexOf('</script>', jsonStart);
+  if (jsonEnd < 0) throw new Error(`Poshmark closet @${username} did not return listing data.`);
+  if (html.slice(jsonEnd, jsonEnd + 2) === '};') jsonEnd += 1;
+  let state;
+  try {
+    state = JSON.parse(html.slice(jsonStart, jsonEnd));
+  } catch {
+    throw new Error(`Poshmark closet @${username} returned unreadable listing data.`);
+  }
+  const rows = Array.isArray(state?.$_closet?.listingsPostData?.data) ? state.$_closet.listingsPostData.data : [];
+  const listings = [];
+  for (const item of rows) {
+    if (normalize(item?.status) !== 'published') continue;
+    if (normalize(item?.inventory?.status) !== 'available') continue;
+    if (item?.active_item === false) continue;
+    const url = poshmarkListingUrl(item);
+    if (!url) continue;
+    listings.push({
+      platform: 'Poshmark',
+      url,
+      meta: {
+        finalUrl: url,
+        title: clean(item?.title || `Poshmark listing ${item?.id || ''}`).slice(0, 300),
+        description: clean(item?.description || '').slice(0, 800),
+        imageUrl: clean(item?.cover_shot?.url || item?.picture_url || ''),
+        price: item?.price_amount?.val ?? item?.price ?? 0,
+        currency: clean(item?.price_amount?.currency_code || 'USD') || 'USD',
+      },
+    });
+    if (listings.length >= 500) break;
+  }
+  return {
+    username,
+    profileUrl: normalizeUrl(finalUrl || profileUrl) || profileUrl,
+    listings,
+    total: Number(state?.$_closet?.listingsPostData?.more?.total) || listings.length,
+  };
+}
+
 function isPrivateSellerDashboard(platform, raw = '') {
   try {
     const p = new URL(raw).pathname;
