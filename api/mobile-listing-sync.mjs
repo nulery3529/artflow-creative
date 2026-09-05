@@ -6,6 +6,7 @@ import { fromNodeHeaders } from 'better-auth/node';
 const { Pool } = pg;
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 4 });
 const SUPPORTED = ['Vinted', 'Depop', 'Etsy', 'eBay'];
+const LINKED_SITE_PLATFORMS = ['Vinted', 'Depop', 'Etsy', 'eBay', 'Poshmark'];
 const clean = (v = '') => String(v || '').trim();
 const normalize = (v = '') => clean(v).toLowerCase();
 
@@ -117,6 +118,27 @@ function cleanMarketplaceUsername(value = '') {
 
 function isValidMarketplaceUsername(value = '') {
   return /^[a-z0-9](?:[a-z0-9._-]{0,38}[a-z0-9])?$/i.test(cleanMarketplaceUsername(value));
+}
+
+function linkedSitePlatform(value = '') {
+  const normalized = normalize(value);
+  if (normalized === 'vinted') return 'Vinted';
+  if (normalized === 'depop') return 'Depop';
+  if (normalized === 'etsy') return 'Etsy';
+  if (normalized === 'ebay') return 'eBay';
+  if (normalized === 'poshmark') return 'Poshmark';
+  return '';
+}
+
+function linkedSiteProfileUrl(platform, usernameInput = '') {
+  const username = cleanMarketplaceUsername(usernameInput);
+  if (!isValidMarketplaceUsername(username)) return '';
+  const encoded = encodeURIComponent(username);
+  if (platform === 'Depop') return `https://www.depop.com/${encoded}/`;
+  if (platform === 'Etsy') return `https://www.etsy.com/shop/${encoded}`;
+  if (platform === 'eBay') return `https://www.ebay.com/usr/${encoded}`;
+  if (platform === 'Poshmark') return `https://poshmark.com/closet/${encoded}`;
+  return '';
 }
 
 function parseSetCookieHeader(raw = '') {
@@ -640,6 +662,37 @@ export default async function handler(req, res) {
       return res.status(200).json({
         supported: SUPPORTED,
         urls: b.data?.mobile_shop_urls || {},
+      });
+    }
+
+    const action = clean(body.action);
+    if (action === 'link_site' || action === 'unlink_site') {
+      const platform = linkedSitePlatform(body.platform);
+      if (!platform || !LINKED_SITE_PLATFORMS.includes(platform)) {
+        return send(400, { error: 'Choose a supported selling site.' });
+      }
+
+      const mobileShopUrls = { ...(b.data?.mobile_shop_urls || {}) };
+      if (action === 'unlink_site') {
+        delete mobileShopUrls[platform];
+        delete mobileShopUrls[normalize(platform)];
+      } else {
+        if (platform === 'Vinted') {
+          return send(400, { error: 'Use Pull Full Profile for Vinted so Art Flow can resolve the correct member page.' });
+        }
+        const username = cleanMarketplaceUsername(body.username || body.profile_username || '');
+        const profileUrl = linkedSiteProfileUrl(platform, username);
+        if (!profileUrl) return send(400, { error: `Enter a valid ${platform} username or shop name.` });
+        mobileShopUrls[platform] = profileUrl;
+      }
+
+      const nextData = { ...(b.data || {}), mobile_shop_urls: mobileShopUrls };
+      await client.query(`UPDATE artflow.businesses SET data=$2::jsonb WHERE base44_id=$1`, [b.base44_id, JSON.stringify(nextData)]);
+      b.data = nextData;
+      return send(200, {
+        ok: true,
+        urls: mobileShopUrls,
+        message: action === 'unlink_site' ? `${platform} profile unlinked.` : `${platform} profile linked.`,
       });
     }
 
