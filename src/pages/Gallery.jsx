@@ -151,6 +151,7 @@ export default function Gallery() {
   const officialRefreshInFlight = useRef(false);
   const lastOfficialRefresh = useRef(0);
   const vintedProfileRefreshAttempted = useRef(false);
+  const poshmarkProfileRefreshAttempted = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -253,6 +254,34 @@ export default function Gallery() {
         if (response.ok) reloadMarketplaceListings();
       })
       .catch((error) => console.warn("Could not refresh saved Vinted profile", error));
+  }, [linkedSellSites, reloadMarketplaceListings]);
+
+  useEffect(() => {
+    if (poshmarkProfileRefreshAttempted.current) return;
+    const profileUrl = linkedSellSites?.Poshmark || linkedSellSites?.poshmark || "";
+    if (!profileUrl) return;
+
+    let username = "";
+    try {
+      const parts = new URL(profileUrl).pathname.split("/").filter(Boolean);
+      const closetIndex = parts.findIndex((part) => part.toLowerCase() === "closet");
+      username = closetIndex >= 0 ? (parts[closetIndex + 1] || "").replace(/^@+/, "") : "";
+    } catch {}
+    if (!username) return;
+
+    poshmarkProfileRefreshAttempted.current = true;
+    fetch("/api/mobile-listing-sync", {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ platform: "Poshmark", username }),
+    })
+      .then(async (response) => ({ response, data: await response.json().catch(() => ({})) }))
+      .then(({ response }) => {
+        if (response.ok) reloadMarketplaceListings();
+      })
+      .catch((error) => console.warn("Could not refresh saved Poshmark profile", error));
   }, [linkedSellSites, reloadMarketplaceListings]);
 
   useEffect(() => {
