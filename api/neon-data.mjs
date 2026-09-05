@@ -31,7 +31,37 @@ async function getLegacyProfile(client, user) {
     await client.query(`UPDATE artflow.legacy_users SET auth_user_id=$2 WHERE base44_id=$1`, [row.base44_id, user.id]);
     row.auth_user_id = user.id;
   }
+
+  // A previous auth migration can leave more than one legacy profile for the
+  // same email. If the canonical profile already knows the real workspace,
+  // inherit that link onto any duplicate instead of letting a later login
+  // fall back to a new/empty workspace.
+  if (row?.active_business_id) {
+    await client.query(
+      `UPDATE artflow.legacy_users
+          SET active_business_id=$3, updated_date=now()
+        WHERE lower(email)=$2
+          AND (auth_user_id=$1 OR auth_user_id IS NULL)
+          AND active_business_id IS NULL`,
+      [user.id, email, row.active_business_id]
+    );
+  }
   return row;
+}
+
+function businessEmails(row) {
+  const d = row?.data || {};
+  return [
+    row?.primary_email,
+    d.primary_email,
+    ...(d.member_emails || []),
+    ...(d.sales_emails || []),
+    ...(d.expense_emails || []),
+  ].map(normalize).filter(Boolean);
+}
+
+function businessMatchesEmail(row, email) {
+  return Boolean(email && businessEmails(row).includes(normalize(email)));
 }
 
 async function getAccessibleBusinesses(client, profile, user) {
@@ -40,11 +70,7 @@ async function getAccessibleBusinesses(client, profile, user) {
   const result = await client.query(`SELECT base44_id, name, primary_email, data FROM artflow.businesses ORDER BY name NULLS LAST`);
   return result.rows.filter((row) => {
     if (active && row.base44_id === active) return true;
-    const d = row.data || {};
-    const emails = [row.primary_email, d.primary_email, ...(d.member_emails || []), ...(d.sales_emails || [])]
-      .map(normalize)
-      .filter(Boolean);
-    return email && emails.includes(email);
+    return businessMatchesEmail(row, email);
   });
 }
 
@@ -94,12 +120,17 @@ async function ensureWorkspace(client, user) {
   }
 
   const ids = businessIds(businesses);
-  if (!profile?.active_business_id && ids[0] && profile?.base44_id) {
+  // Prefer a workspace that explicitly belongs to the signed-in email. This
+  // prevents old placeholder "My Business" rows from becoming active merely
+  // because they were created during an earlier auth/setup attempt.
+  const canonicalBusiness = businesses.find((business) => businessMatchesEmail(business, email)) || null;
+  const preferredBusinessId = canonicalBusiness?.base44_id || ids[0] || null;
+  if (preferredBusinessId && profile?.base44_id && profile.active_business_id !== preferredBusinessId) {
     await client.query(
       `UPDATE artflow.legacy_users SET active_business_id=$2, updated_date=now() WHERE base44_id=$1`,
-      [profile.base44_id, ids[0]]
+      [profile.base44_id, preferredBusinessId]
     );
-    profile.active_business_id = ids[0];
+    profile.active_business_id = preferredBusinessId;
   }
   return { profile, businesses, ids, email };
 }
