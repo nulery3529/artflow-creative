@@ -52,6 +52,58 @@ function businessIds(businesses) {
   return Array.from(new Set((businesses || []).map((b) => b.base44_id).filter(Boolean)));
 }
 
+async function ensureWorkspace(client, user) {
+  let profile = await getLegacyProfile(client, user);
+  const email = normalize(user?.email);
+
+  if (!profile) {
+    const profileId = `neon-user:${user.id}`;
+    await client.query(
+      `INSERT INTO artflow.legacy_users
+       (base44_id,email,full_name,role,active_business_id,disabled,auth_user_id,created_date,updated_date,data)
+       VALUES ($1,$2,$3,'user',NULL,false,$4,now(),now(),'{}'::jsonb)
+       ON CONFLICT (base44_id) DO NOTHING`,
+      [profileId, user.email, user.name || null, user.id]
+    );
+    profile = await getLegacyProfile(client, user);
+  }
+
+  let businesses = await getAccessibleBusinesses(client, profile, user);
+  if (!businesses.length) {
+    const businessId = `business:${crypto.randomUUID()}`;
+    const data = {
+      member_emails: email ? [email] : [],
+      sales_emails: email ? [email] : [],
+      expense_emails: email ? [email] : [],
+      tracked_marketplaces: [],
+    };
+    await client.query(
+      `INSERT INTO artflow.businesses
+       (base44_id,name,primary_email,created_by_id,created_date,updated_date,data)
+       VALUES ($1,$2,$3,$4,now(),now(),$5::jsonb)`,
+      [businessId, user.name ? `${user.name}'s Art Business` : 'My Art Business', user.email, profile?.base44_id || user.id, JSON.stringify(data)]
+    );
+    if (profile?.base44_id) {
+      await client.query(
+        `UPDATE artflow.legacy_users SET active_business_id=$2, updated_date=now() WHERE base44_id=$1`,
+        [profile.base44_id, businessId]
+      );
+      profile.active_business_id = businessId;
+    }
+    businesses = await getAccessibleBusinesses(client, profile, user);
+  }
+
+  const ids = businessIds(businesses);
+  if (!profile?.active_business_id && ids[0] && profile?.base44_id) {
+    await client.query(
+      `UPDATE artflow.legacy_users SET active_business_id=$2, updated_date=now() WHERE base44_id=$1`,
+      [profile.base44_id, ids[0]]
+    );
+    profile.active_business_id = ids[0];
+  }
+  return { profile, businesses, ids, email };
+}
+
 async function countBusinessRows(client, table, ids, email, archivedColumn = false) {
   const params = [ids, email];
   const archived = archivedColumn ? `AND archived IS NOT TRUE` : '';
