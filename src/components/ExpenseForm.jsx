@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Trash2 } from "lucide-react";
-import { base44 } from "@/api/base44Client";
-import { getCurrentBusinessWorkspace } from "@/lib/businessWorkspace";
+import { neonEntities } from "@/lib/neonEntityClient";
 import { toast } from "sonner";
 import Field from "@/components/Field";
 import { EXPENSE_CATEGORIES } from "@/lib/expenseCategories";
@@ -60,10 +59,8 @@ export default function ExpenseForm({ open, onClose, record }) {
     }
     setSaving(true);
     try {
-      const workspace = await getCurrentBusinessWorkspace();
       const payload = {
-        business_id: record?.business_id || workspace.businessId,
-        access_emails: record?.access_emails || workspace.accessEmails,
+        business_id: record?.business_id || null,
         date: form.date,
         description: form.description,
         category: form.category,
@@ -74,10 +71,10 @@ export default function ExpenseForm({ open, onClose, record }) {
         source: record?.source || "manual",
       };
       if (record) {
-        await base44.entities.Expense.update(record.id, payload);
+        await neonEntities.update("Expense", record.id, payload);
         toast.success("Expense updated");
       } else {
-        await base44.entities.Expense.create(payload);
+        await neonEntities.create("Expense", payload);
         toast.success("Expense added");
       }
       onClose();
@@ -92,7 +89,7 @@ export default function ExpenseForm({ open, onClose, record }) {
     if (!record) return;
     setSaving(true);
     try {
-      await base44.entities.Expense.delete(record.id);
+      await neonEntities.delete("Expense", record.id);
       toast.success("Expense deleted");
       onClose();
     } catch (err) {
