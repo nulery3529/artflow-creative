@@ -11,6 +11,13 @@ import { Image } from "@/components/ui/image";
 import MobileMarketplaceSyncCard from "@/components/MobileMarketplaceSyncCard";
 
 const marketplaceTabs = ["All sites", "Vinted", "Depop", "Etsy", "eBay", "Poshmark"];
+const SELL_SITE_URLS = {
+  Vinted: "https://www.vinted.com/",
+  Depop: "https://www.depop.com/",
+  Etsy: "https://www.etsy.com/",
+  eBay: "https://www.ebay.com/",
+  Poshmark: "https://poshmark.com/",
+};
 
 // Marketplace photos always load through Art Flow so seller CDNs cannot block the gallery.
 function marketplaceImageSrc(listing) {
@@ -136,8 +143,21 @@ export default function Gallery() {
   const { records: orders, loading: ordersLoading, reload: reloadOrders } = useOrders();
   const [marketplaceListings, setMarketplaceListings] = useState([]);
   const [marketplaceLoading, setMarketplaceLoading] = useState(true);
+  const [linkedSellSites, setLinkedSellSites] = useState({});
   const officialRefreshInFlight = useRef(false);
   const lastOfficialRefresh = useRef(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/mobile-listing-sync", { credentials: "include", cache: "no-store" })
+      .then(async (response) => ({ response, data: await response.json().catch(() => ({})) }))
+      .then(({ response, data }) => {
+        if (cancelled || !response.ok) return;
+        setLinkedSellSites(data?.urls || {});
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   const refreshConnectedMarketplaces = useCallback(async ({ force = false } = {}) => {
     const now = Date.now();
@@ -306,7 +326,21 @@ export default function Gallery() {
           </div>
           <div className="min-w-0">
             <h1 className="text-xl font-bold tracking-tight truncate">Art Flow Creative</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Your art across every marketplace</p>
+            <p className="text-sm font-semibold mt-0.5">Linked Sell Sites</p>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {["Vinted", "Depop", "Etsy", "eBay", "Poshmark"].map((site) => (
+                <a
+                  key={site}
+                  href={linkedSellSites?.[site] || linkedSellSites?.[site.toLowerCase()] || SELL_SITE_URLS[site]}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 rounded-full border border-[hsl(var(--border))] px-2.5 py-1 text-[11px] font-semibold bg-muted/50"
+                >
+                  {site}
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              ))}
+            </div>
             <div className="flex gap-5 mt-3">
               <div>
                 <p className="font-bold text-sm">{stats.listings}</p>
