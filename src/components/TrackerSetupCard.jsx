@@ -107,12 +107,7 @@ export default function TrackerSetupCard({ callbackPath = "/account" }) {
       const pending = sessionStorage.getItem(PENDING_KEY) === "1";
       if (pending && data.google_connected) {
         sessionStorage.removeItem(PENDING_KEY);
-        if (!data.spreadsheet_attached) {
-          createTracker();
-        } else {
-          toast.success("Google Sheets reconnected");
-          window.dispatchEvent(new CustomEvent("artflow:tracker-ready", { detail: data }));
-        }
+        createTracker();
       }
     })();
     return () => { active = false; };
