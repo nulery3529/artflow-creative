@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Minus, Plus, Pencil } from "lucide-react";
+import { Minus, Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import { useEntity } from "@/lib/useBusinessData";
 import { formatMoney } from "@/lib/format";
 import { calculateUnitCost as calcUnit } from "@/lib/orderCost";
@@ -16,6 +16,7 @@ export default function Inventory() {
   const { isOpen: formOpen, open: openForm, close: closeForm } = useModalRoute();
   const [filter, setFilter] = useState("All");
   const [overrides, setOverrides] = useState({});
+  const [deletingId, setDeletingId] = useState(null);
 
   const refresh = async () => { await reloadInventory(); };
 
@@ -40,6 +41,38 @@ export default function Inventory() {
         return next;
       });
       toast.error("Could not update quantity");
+    }
+  };
+
+  const deleteItem = async (rec) => {
+    const title = rec.name || rec.size || "this item";
+    const confirmed = window.confirm(
+      `Delete ${title} from inventory? This removes the inventory item only. Past orders and expenses will stay unchanged.`
+    );
+    if (!confirmed) return;
+
+    setDeletingId(rec.id);
+    try {
+      const response = await fetch("/api/neon-data?op=inventory", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete", id: rec.id }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Inventory delete failed");
+      setOverrides((current) => {
+        const next = { ...current };
+        delete next[rec.id];
+        return next;
+      });
+      await reloadInventory();
+      toast.success(`${title} removed from inventory`);
+    } catch (e) {
+      toast.error("Could not delete inventory item", { description: e?.message });
+    } finally {
+      setDeletingId(null);
     }
   };
 
