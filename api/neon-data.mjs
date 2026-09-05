@@ -235,6 +235,7 @@ async function listInventory(client, session) {
        created_by_id,
        created_date,
        updated_date,
+       data->>'image_url' AS image_url,
        data
      FROM artflow.inventory_costs
      WHERE business_id = ANY($1::text[])
@@ -267,7 +268,10 @@ async function writeInventory(client, session, req) {
     const active = profile?.active_business_id || profile?.data?.active_business_id || null;
     const businessId = ids.includes(body.business_id) ? body.business_id : (ids.includes(active) ? active : ids[0]);
     const id = String(body.id || crypto.randomUUID());
-    const data = body.data && typeof body.data === 'object' ? body.data : {};
+    const data = {
+      ...(body.data && typeof body.data === 'object' ? body.data : {}),
+      ...(Object.prototype.hasOwnProperty.call(body, 'image_url') ? { image_url: body.image_url || null } : {}),
+    };
     const values = {
       name: String(body.name || '').trim() || null,
       category: String(body.category || 'Supply').trim() || 'Supply',
@@ -303,8 +307,11 @@ async function writeInventory(client, session, req) {
         fields.push(`${key}=$${p++}`);
         params.push(Number(value) || 0);
       } else if (key === 'data' && value && typeof value === 'object') {
-        fields.push(`data=$${p++}::jsonb`);
+        fields.push(`data=COALESCE(data,'{}'::jsonb)||$${p++}::jsonb`);
         params.push(JSON.stringify(value));
+      } else if (key === 'image_url') {
+        fields.push(`data=COALESCE(data,'{}'::jsonb)||$${p++}::jsonb`);
+        params.push(JSON.stringify({ image_url: value || null }));
       }
     }
     if (!fields.length) throw new Error('No inventory fields to update');
