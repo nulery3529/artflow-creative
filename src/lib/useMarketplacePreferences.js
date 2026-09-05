@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 
-export const TRACKABLE_MARKETPLACES = ["Vinted", "Depop", "Etsy", "eBay"];
+export const TRACKABLE_MARKETPLACES = ["Vinted", "Depop", "Etsy", "eBay", "Poshmark"];
 
 const normalizeSelection = (items = []) =>
   TRACKABLE_MARKETPLACES.filter((name) => Array.isArray(items) && items.includes(name));
