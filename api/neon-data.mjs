@@ -67,7 +67,16 @@ function businessMatchesEmail(row, email) {
 async function getAccessibleBusinesses(client, profile, user) {
   const email = normalize(user?.email);
   const active = profile?.active_business_id || profile?.data?.active_business_id || null;
-  const result = await client.query(`SELECT base44_id, name, primary_email, data FROM artflow.businesses ORDER BY name NULLS LAST`);
+  const result = await client.query(`
+    SELECT b.base44_id, b.name, b.primary_email, b.data,
+           (
+             (SELECT count(*) FROM artflow.orders o WHERE o.business_id = b.base44_id AND o.archived IS NOT TRUE) +
+             (SELECT count(*) FROM artflow.marketplace_listings m WHERE m.business_id = b.base44_id) +
+             (SELECT count(*) FROM artflow.expenses e WHERE e.business_id = b.base44_id AND e.archived IS NOT TRUE)
+           )::int AS activity_score
+      FROM artflow.businesses b
+     ORDER BY activity_score DESC, b.name NULLS LAST
+  `);
   return result.rows.filter((row) => {
     if (active && row.base44_id === active) return true;
     return businessMatchesEmail(row, email);
@@ -131,6 +140,19 @@ async function ensureWorkspace(client, user) {
       [profile.base44_id, preferredBusinessId]
     );
     profile.active_business_id = preferredBusinessId;
+  }
+
+  // Keep every legacy profile for this email pinned to the same canonical
+  // workspace. This prevents a duplicate auth-migration row from selecting an
+  // older empty workspace on a later login.
+  if (preferredBusinessId && email) {
+    await client.query(
+      `UPDATE artflow.legacy_users
+          SET active_business_id=$2, updated_date=now()
+        WHERE lower(email)=$1
+          AND active_business_id IS DISTINCT FROM $2`,
+      [email, preferredBusinessId]
+    );
   }
   return { profile, businesses, ids, email };
 }
