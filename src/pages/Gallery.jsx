@@ -261,8 +261,9 @@ export default function Gallery() {
   const availableMarketplaceListings = useMemo(
     () => marketplaceListings.filter((listing) => {
       if ((listing.status || "Active") !== "Active") return false;
-      if (listing?.data?.gallery_manual !== true) return false;
 
+      // Show every current Active marketplace listing, whether it was imported
+      // automatically or added manually. Sold items are still excluded below.
       // Older Vinted browser-sync installs could save Sold-page rows as Active.
       // If an Active Vinted listing already matches a real sold Order, do not
       // show it under Available. Orders remain the source of truth for sales.
