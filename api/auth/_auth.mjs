@@ -68,6 +68,11 @@ export const auth = betterAuth({
     revokeSessionsOnPasswordReset: true,
     sendResetPassword: sendPasswordResetEmail,
   },
+  user: {
+    deleteUser: {
+      enabled: true,
+    },
+  },
   session: {
     expiresIn: 60 * 60 * 24 * 30,
     updateAge: 60 * 60 * 24,
