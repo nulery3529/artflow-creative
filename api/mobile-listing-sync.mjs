@@ -86,8 +86,15 @@ function isListingUrl(platform, raw = '') {
 
 function isPrivateSellerDashboard(platform, raw = '') {
   try {
-    const p = new URL(raw).pathname;
-    return platform === 'Depop' && /^\/sellinghub(?:\/|$)/i.test(p);
+    const u = new URL(raw);
+    const p = u.pathname;
+    if (platform !== 'Depop') return false;
+    if (/^\/sellinghub(?:\/|$)/i.test(p)) return true;
+    const host = u.hostname.toLowerCase();
+    if ((host === 'depop.com' || host === 'www.depop.com') && !isListingUrl('Depop', raw)) {
+      const segments = p.split('/').filter(Boolean);
+      if (segments.length === 1) return true;
+    }
   } catch {}
   return false;
 }
