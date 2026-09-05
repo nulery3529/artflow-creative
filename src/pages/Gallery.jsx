@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ExternalLink, Search } from "lucide-react";
+import { ExternalLink, Search, X } from "lucide-react";
 import { useEntity } from "@/lib/useBusinessData";
 import { useOrders } from "@/lib/useOrders";
 import { formatMoney } from "@/lib/format";
@@ -144,6 +144,10 @@ export default function Gallery() {
   const [marketplaceListings, setMarketplaceListings] = useState([]);
   const [marketplaceLoading, setMarketplaceLoading] = useState(true);
   const [linkedSellSites, setLinkedSellSites] = useState({});
+  const [linkSite, setLinkSite] = useState("Etsy");
+  const [linkUsername, setLinkUsername] = useState("");
+  const [linkSaving, setLinkSaving] = useState(false);
+  const [linkMessage, setLinkMessage] = useState("");
   const officialRefreshInFlight = useRef(false);
   const lastOfficialRefresh = useRef(0);
   const vintedProfileRefreshAttempted = useRef(false);
@@ -346,6 +350,59 @@ export default function Gallery() {
     await Promise.all([reload(), reloadOrders(), reloadMarketplaceListings()]);
   };
 
+  const linkedSiteOrder = ["Vinted", "Depop", "Etsy", "eBay", "Poshmark"];
+  const linkedSiteEntries = linkedSiteOrder
+    .map((site) => [site, linkedSellSites?.[site] || linkedSellSites?.[site.toLowerCase()] || ""])
+    .filter(([, url]) => Boolean(url));
+
+  const saveLinkedSite = async (event) => {
+    event.preventDefault();
+    if (!linkUsername.trim() || linkSaving) return;
+    setLinkSaving(true);
+    setLinkMessage("");
+    try {
+      const response = await fetch("/api/mobile-listing-sync", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "link_site", platform: linkSite, username: linkUsername.trim() }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Could not link seller profile");
+      setLinkedSellSites(data.urls || {});
+      setLinkUsername("");
+      setLinkMessage(data.message || `${linkSite} profile linked.`);
+    } catch (error) {
+      setLinkMessage(error?.message || "Could not link seller profile");
+    } finally {
+      setLinkSaving(false);
+    }
+  };
+
+  const unlinkSellerProfile = async (site) => {
+    if (linkSaving) return;
+    setLinkSaving(true);
+    setLinkMessage("");
+    try {
+      const response = await fetch("/api/mobile-listing-sync", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "unlink_site", platform: site }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || `Could not unlink ${site}`);
+      setLinkedSellSites(data.urls || {});
+      setLinkMessage(data.message || `${site} profile unlinked.`);
+    } catch (error) {
+      setLinkMessage(error?.message || `Could not unlink ${site}`);
+    } finally {
+      setLinkSaving(false);
+    }
+  };
+
   if (loading || ordersLoading || marketplaceLoading) {
     return (
       <div className="space-y-4">
@@ -373,19 +430,61 @@ export default function Gallery() {
             <h1 className="text-xl font-bold tracking-tight truncate">Art Flow Creative</h1>
             <p className="text-sm font-semibold mt-0.5">Linked Sell Sites</p>
             <div className="flex flex-wrap gap-2 mt-2">
-              {["Vinted", "Depop", "Etsy", "eBay", "Poshmark"].map((site) => (
-                <a
+              {linkedSiteEntries.length === 0 ? (
+                <span className="text-[11px] text-muted-foreground">No seller profiles linked yet</span>
+              ) : linkedSiteEntries.map(([site, url]) => (
+                <span
                   key={site}
-                  href={linkedSellSites?.[site] || linkedSellSites?.[site.toLowerCase()] || SELL_SITE_URLS[site]}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 rounded-full border border-[hsl(var(--border))] px-2.5 py-1 text-[11px] font-semibold bg-muted/50"
+                  className="inline-flex items-center rounded-full border border-[hsl(var(--border))] bg-muted/50 overflow-hidden"
                 >
-                  {site}
-                  <ExternalLink className="w-3 h-3" />
-                </a>
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold"
+                  >
+                    {site}
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => unlinkSellerProfile(site)}
+                    disabled={linkSaving}
+                    className="h-7 w-7 inline-flex items-center justify-center border-l border-[hsl(var(--border))] text-muted-foreground disabled:opacity-50"
+                    aria-label={`Unlink ${site}`}
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
               ))}
             </div>
+            <form onSubmit={saveLinkedSite} className="mt-2 flex gap-1.5">
+              <select
+                value={linkSite}
+                onChange={(event) => setLinkSite(event.target.value)}
+                className="h-9 rounded-xl border border-[hsl(var(--border))] bg-background px-2 text-[11px] font-semibold"
+              >
+                <option value="Etsy">Etsy</option>
+                <option value="eBay">eBay</option>
+                <option value="Poshmark">Poshmark</option>
+              </select>
+              <input
+                value={linkUsername}
+                onChange={(event) => setLinkUsername(event.target.value)}
+                placeholder="username / shop name"
+                autoCapitalize="none"
+                autoCorrect="off"
+                className="min-w-0 flex-1 h-9 rounded-xl border border-[hsl(var(--border))] bg-background px-2.5 text-[11px]"
+              />
+              <button
+                type="submit"
+                disabled={linkSaving || !linkUsername.trim()}
+                className="h-9 px-3 rounded-xl bg-foreground text-background text-[11px] font-semibold disabled:opacity-50"
+              >
+                {linkSaving ? "Saving…" : "Add"}
+              </button>
+            </form>
+            {linkMessage && <p className="text-[11px] text-muted-foreground mt-1.5">{linkMessage}</p>}
             <div className="flex gap-5 mt-3">
               <div>
                 <p className="font-bold text-sm">{stats.listings}</p>
