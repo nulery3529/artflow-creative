@@ -5,28 +5,36 @@ import { toast } from "sonner";
 export default function MobileMarketplaceSyncCard() {
   const [links, setLinks] = useState("");
   const [result, setResult] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    const onMessage = (event) => {
-      if (event.origin !== window.location.origin) return;
-      const data = event.data || {};
-      if (data.type !== "artflow-listing-sync-result") return;
-
-      const message = data.message || data.error || "Listing import finished";
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!links.trim() || submitting) return;
+    setSubmitting(true);
+    setResult("");
+    try {
+      const response = await fetch("/api/mobile-listing-sync", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ urls: links }),
+      });
+      const data = await response.json().catch(() => ({}));
+      const message = data.message || data.error || (response.ok ? "Listing added to Gallery" : "Listing import failed");
       setResult(message);
-
-      if (data.status >= 200 && data.status < 300 && data.ok !== false) {
-        toast.success(message);
-        setLinks("");
-        window.dispatchEvent(new CustomEvent("artflow:listings-synced", { detail: { saved: data.saved || 0 } }));
-      } else {
-        toast.error("Listing import failed", { description: message });
-      }
-    };
-
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
-  }, []);
+      if (!response.ok || data.ok === false) throw new Error(message);
+      toast.success(message);
+      setLinks("");
+      window.dispatchEvent(new CustomEvent("artflow:listings-synced", { detail: { saved: data.saved || 0 } }));
+    } catch (error) {
+      const message = error?.message || "Listing import failed";
+      setResult(message);
+      toast.error("Listing import failed", { description: message });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <section className="bg-card rounded-3xl p-5 border border-[hsl(var(--border))] space-y-4">
