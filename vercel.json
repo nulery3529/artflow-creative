@@ -23,7 +23,7 @@
     }
   ],
   "routes": [
-    { "src": "/api/auth/(.*)", "dest": "/api/better-auth?__path=$1" },
+    { "src": "/api/auth/(.*)", "dest": "/api/auth-proxy?__path=$1" },
     { "handle": "filesystem" },
     { "src": "/.*", "dest": "/index.html" }
   ]
