@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { ArrowLeft, ClipboardPaste, Send, Smartphone, CheckCircle2, Sparkles } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
 import { artflowAuthClient } from "@/lib/artflowAuthClient";
 import { useAuth } from "@/lib/AuthContext";
 import { useMarketplacePreferences } from "@/lib/useMarketplacePreferences";
@@ -249,25 +248,17 @@ export default function MobileSaleCapture() {
 
     try {
       let data = {};
-      if (user?.auth_backend === "neon") {
-        const response = await fetch("/api/mobile-sale", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          const err = new Error(data.error || "Could not send sale");
-          err.code = data.code;
-          throw err;
-        }
-      } else {
-        // Temporary compatibility path while remaining accounts migrate from Base44.
-        const response = await base44.functions.invoke("mobileOrderCapture", payload);
-        data = response?.data || {};
-        if (data?.error) throw new Error(data.error);
-        await base44.functions.invoke("importFromSheets", { mode: "orders", sheetName: "Orders" }).catch(() => null);
+      const response = await fetch("/api/mobile-sale", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const err = new Error(data.error || "Could not send sale");
+        err.code = data.code;
+        throw err;
       }
 
       window.dispatchEvent(new CustomEvent("artflow:data-synced", { detail: { source: "mobile_sale_capture" } }));
