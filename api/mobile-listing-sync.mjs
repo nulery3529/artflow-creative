@@ -307,85 +307,81 @@ async function fetchBrowserMetadata(url, timeoutMs = 12000) {
   }
 }
 
-async function collectDepopProfileListings(profileUrl) {
-  const [{ default: chromium }, { chromium: playwright }] = await Promise.all([
-    import('@sparticuz/chromium'),
-    import('playwright-core'),
-  ]);
-
-  let browser;
+function depopUsernameFromProfile(profileUrl = '') {
   try {
-    browser = await playwright.launch({
-      args: chromium.args,
-      executablePath: await chromium.executablePath(),
-      headless: true,
-    });
-    const page = await browser.newPage({
-      viewport: { width: 1280, height: 1800 },
-      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
-      locale: 'en-US',
-    });
+    const u = new URL(profileUrl);
+    return u.pathname.split('/').filter(Boolean)[0] || '';
+  } catch { return ''; }
+}
 
-    await page.goto(profileUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForTimeout(900);
-
-    let stablePasses = 0;
-    let previousCount = -1;
-    for (let pass = 0; pass < 24 && stablePasses < 4; pass += 1) {
-      const count = await page.locator('a[href*="/products/"]').count().catch(() => 0);
-      stablePasses = count === previousCount ? stablePasses + 1 : 0;
-      previousCount = count;
-      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-      await page.waitForTimeout(450);
-    }
-
-    const products = await page.evaluate(() => {
-      const rows = [...document.querySelectorAll('a[href*="/products/"]')];
-      const seen = new Set();
-      const out = [];
-      const cleanText = (value = '') => String(value || '').replace(/\s+/g, ' ').trim();
-
-      for (const anchor of rows) {
-        let url = '';
-        try { url = new URL(anchor.getAttribute('href') || '', location.origin).toString().replace(/\/$/, ''); } catch {}
-        if (!url || !/\/products\//i.test(url) || seen.has(url)) continue;
-
-        const card = anchor.closest('li, article, [role="listitem"], div[data-testid]') || anchor.parentElement || anchor;
-        const cardText = cleanText(card?.innerText || anchor.textContent || '');
-        if (/(^|\s)sold(?:\s|$)/i.test(cardText)) continue;
-
-        const image = anchor.querySelector('img') || card?.querySelector?.('img');
-        const alt = cleanText(image?.getAttribute('alt') || '');
-        const aria = cleanText(anchor.getAttribute('aria-label') || '');
-        const textTitle = cleanText(anchor.textContent || '').replace(/(?:US\s*)?\$\s*[0-9][0-9,.]*/gi, '').trim();
-        const title = [aria, alt, textTitle].find((value) => value && !/^image\b/i.test(value)) || 'Depop listing';
-
-        seen.add(url);
-        out.push({
-          platform: 'Depop',
-          url,
-          meta: {
-            finalUrl: url,
-            title: title.slice(0, 300),
-            description: cardText.slice(0, 800),
-            imageUrl: image?.currentSrc || image?.src || '',
-          },
-        });
-        if (out.length >= 500) break;
-      }
-      return out;
-    });
-
-    if (!products.length) {
-      const bodyText = await page.locator('body').innerText().catch(() => '');
-      if (/access denied|blocked|captcha|verify you are human/i.test(bodyText)) {
-        throw new Error('Depop blocked the profile browser request');
-      }
-    }
-    return products;
-  } finally {
-    try { await browser?.close(); } catch {}
+async function collectDepopProfileListings(profileUrl) {
+  const apiKey = clean(process.env.SCRAPEBADGER_API_KEY);
+  if (!apiKey) {
+    const error = new Error('Full-profile Depop import is not connected yet. Art Flow needs a server-side Depop catalog key before it can pull an entire profile from one link.');
+    error.code = 'DEPOP_PROFILE_SERVICE_NOT_CONFIGURED';
+    throw error;
   }
+
+  const username = depopUsernameFromProfile(profileUrl);
+  if (!username) throw new Error('Could not read the Depop username from that profile link.');
+
+  const out = [];
+  const seen = new Set();
+  let cursor = '';
+  for (let page = 0; page < 25 && out.length < 500; page += 1) {
+    const endpoint = new URL(`https://scrapebadger.com/v1/depop/users/${encodeURIComponent(username)}/products`);
+    endpoint.searchParams.set('market', 'us');
+    endpoint.searchParams.set('per_page', '100');
+    if (cursor) endpoint.searchParams.set('cursor', cursor);
+
+    const response = await fetch(endpoint, {
+      headers: { 'x-api-key': apiKey, accept: 'application/json' },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message = clean(payload?.detail || payload?.error || `Depop catalog service returned ${response.status}`);
+      const error = new Error(message || 'Depop catalog service failed');
+      error.status = response.status;
+      throw error;
+    }
+
+    const products = Array.isArray(payload?.data)
+      ? payload.data
+      : Array.isArray(payload?.products)
+        ? payload.products
+        : Array.isArray(payload?.results)
+          ? payload.results
+          : [];
+
+    for (const product of products) {
+      if (product?.is_sold === true) continue;
+      const url = normalizeUrl(product?.url || (product?.slug ? `https://www.depop.com/products/${product.slug}/` : ''));
+      if (!url || seen.has(url)) continue;
+      seen.add(url);
+      const title = clean(product?.title || [product?.brand, product?.size].filter(Boolean).join(' · ') || product?.slug || 'Depop listing');
+      const description = clean(product?.description || [product?.brand, product?.size, product?.condition].filter(Boolean).join(' · '));
+      out.push({
+        platform: 'Depop',
+        url,
+        meta: {
+          finalUrl: url,
+          title: title.slice(0, 300),
+          description: description.slice(0, 800),
+          imageUrl: clean(product?.image || product?.image_url || product?.thumbnail || ''),
+          price: product?.price || null,
+          currency: product?.currency || 'USD',
+        },
+      });
+      if (out.length >= 500) break;
+    }
+
+    const meta = payload?.meta || {};
+    const nextCursor = clean(meta?.cursor || meta?.next_cursor || meta?.nextCursor || payload?.cursor || '');
+    const hasMore = meta?.has_more === true || meta?.hasMore === true || Boolean(nextCursor);
+    if (!hasMore || !nextCursor || nextCursor === cursor) break;
+    cursor = nextCursor;
+  }
+  return out;
 }
 
 async function session(req) {
@@ -583,10 +579,16 @@ export default async function handler(req, res) {
           });
           continue;
         } catch (error) {
-          console.warn('Depop profile browser import failed', error?.message || error);
-          return send(502, {
-            error: 'Depop blocked the full-profile import on this attempt. Your profile link is valid; Art Flow could not read the product grid from Depop.',
-            reason: 'depop_profile_blocked',
+          console.warn('Depop full-profile import failed', error?.message || error);
+          if (error?.code === 'DEPOP_PROFILE_SERVICE_NOT_CONFIGURED') {
+            return send(503, {
+              error: error.message,
+              reason: 'depop_profile_service_not_configured',
+            });
+          }
+          return send(error?.status === 401 ? 503 : 502, {
+            error: clean(error?.message || 'Depop full-profile import failed.'),
+            reason: 'depop_profile_import_failed',
           });
         }
       }
