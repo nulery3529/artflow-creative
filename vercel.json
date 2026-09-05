@@ -24,6 +24,7 @@
   ],
   "routes": [
     { "src": "/api/auth/(.*)", "dest": "/api/auth-proxy?__path=$1" },
+    { "src": "/api/mobile-listing-sync", "dest": "/api/mobile-listing-proxy" },
     { "handle": "filesystem" },
     { "src": "/.*", "dest": "/index.html" }
   ]
