@@ -14,6 +14,18 @@ function cleanUsername(value = "") {
         if (member) return member.replace(/^\d+-/, "").replace(/^@+/, "");
       }
       if (/depop/i.test(url.hostname) && segments.length) return segments[0].replace(/^@+/, "");
+      if (/etsy/i.test(url.hostname)) {
+        const shopIndex = segments.findIndex((segment) => segment.toLowerCase() === "shop");
+        if (shopIndex >= 0 && segments[shopIndex + 1]) return segments[shopIndex + 1].replace(/^@+/, "");
+      }
+      if (/ebay/i.test(url.hostname)) {
+        const userIndex = segments.findIndex((segment) => ["usr", "str"].includes(segment.toLowerCase()));
+        if (userIndex >= 0 && segments[userIndex + 1]) return segments[userIndex + 1].replace(/^@+/, "");
+      }
+      if (/poshmark/i.test(url.hostname)) {
+        const closetIndex = segments.findIndex((segment) => segment.toLowerCase() === "closet");
+        if (closetIndex >= 0 && segments[closetIndex + 1]) return segments[closetIndex + 1].replace(/^@+/, "");
+      }
     } catch {}
   }
   return raw;
@@ -54,16 +66,16 @@ export default function MobileMarketplaceSyncCard() {
     setResult("");
 
     try {
-      if (platform === "Vinted") {
+      if (platform !== "Depop") {
         const response = await fetch("/api/mobile-listing-sync", {
           method: "POST",
           credentials: "include",
           cache: "no-store",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ platform: "Vinted", username: submittedUsername }),
+          body: JSON.stringify({ platform, username: submittedUsername }),
         });
         const data = await response.json().catch(() => ({}));
-        const message = data.message || data.error || (response.ok ? "Vinted profile synced" : "Vinted profile sync failed");
+        const message = data.message || data.error || (response.ok ? `${platform} profile synced` : `${platform} profile sync failed`);
         setResult(message);
         if (!response.ok || data.ok === false) throw new Error(message);
         toast.success(message);
@@ -135,8 +147,8 @@ export default function MobileMarketplaceSyncCard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        {["Vinted", "Depop"].map((site) => (
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {["Vinted", "Depop", "Etsy", "eBay", "Poshmark"].map((site) => (
           <button
             key={site}
             type="button"
