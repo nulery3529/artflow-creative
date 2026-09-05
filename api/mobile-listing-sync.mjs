@@ -607,7 +607,7 @@ async function session(req) {
 async function profile(client, user) {
   const email = normalize(user?.email);
   const r = await client.query(
-    `SELECT * FROM artflow.legacy_users WHERE auth_user_id=$1 OR lower(email)=$2 ORDER BY CASE WHEN auth_user_id=$1 THEN 0 ELSE 1 END LIMIT 1`,
+    `SELECT * FROM artflow.legacy_users WHERE auth_user_id=$1 OR lower(email)=$2 ORDER BY CASE WHEN active_business_id IS NOT NULL THEN 0 ELSE 1 END, CASE WHEN auth_user_id=$1 THEN 0 ELSE 1 END LIMIT 1`,
     [user.id, email]
   );
   return r.rows[0] || null;
