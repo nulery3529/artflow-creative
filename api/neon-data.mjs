@@ -615,12 +615,70 @@ async function writeOrder(client, session, req) {
 
 async function summary(client, session) {
   const { profile, businesses, ids } = await ensureWorkspace(client, session.user);
-  const [orders, expenses, emailImports, syncStates] = await Promise.all([
-    countBusinessRows(client, 'orders', ids, session.user.email, true),
-    countBusinessRows(client, 'expenses', ids, session.user.email, true),
-    countBusinessRows(client, 'email_import_messages', ids, session.user.email, false),
-    countBusinessRows(client, 'sync_states', ids, session.user.email, false),
+  const email = normalize(session.user.email);
+  const [orders, expenses, emailImports, syncStates, orderMetrics, expenseMetrics] = await Promise.all([
+    countBusinessRows(client, 'orders', ids, email, true),
+    countBusinessRows(client, 'expenses', ids, email, true),
+    countBusinessRows(client, 'email_import_messages', ids, email, false),
+    countBusinessRows(client, 'sync_states', ids, email, false),
+    client.query(
+      `SELECT
+         COALESCE(sum(sale_total),0)::numeric AS total_sales,
+         count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(source_email_id,''), base44_id))::int AS total_orders,
+         COALESCE(sum(COALESCE(quantity,1)),0)::numeric AS total_items,
+         COALESCE(sum(total_cost),0)::numeric AS order_costs,
+         COALESCE(sum(sale_total) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM')),0)::numeric AS month_sales,
+         COALESCE(sum(total_cost) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM')),0)::numeric AS month_costs
+       FROM artflow.orders
+       WHERE archived IS NOT TRUE
+         AND (
+           business_id = ANY($1::text[])
+           OR EXISTS (
+             SELECT 1
+               FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(data->'access_emails')='array' THEN data->'access_emails' ELSE '[]'::jsonb END) e(value)
+              WHERE lower(e.value) = $2
+           )
+         )`,
+      [ids, email]
+    ),
+    client.query(
+      `SELECT
+         COALESCE(sum(
+           COALESCE(
+             NULLIF(data->>'deductible_amount','')::numeric,
+             amount * COALESCE(NULLIF(data->>'deductible_percent','')::numeric,100) / 100
+           )
+         ),0)::numeric AS deductible_expenses,
+         COALESCE(sum(
+           COALESCE(
+             NULLIF(data->>'deductible_amount','')::numeric,
+             amount * COALESCE(NULLIF(data->>'deductible_percent','')::numeric,100) / 100
+           )
+         ) FILTER (WHERE left(COALESCE(expense_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM')),0)::numeric AS month_deductions
+       FROM artflow.expenses
+       WHERE archived IS NOT TRUE
+         AND (
+           business_id = ANY($1::text[])
+           OR EXISTS (
+             SELECT 1
+               FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(data->'access_emails')='array' THEN data->'access_emails' ELSE '[]'::jsonb END) e(value)
+              WHERE lower(e.value) = $2
+           )
+         )`,
+      [ids, email]
+    ),
   ]);
+
+  const om = orderMetrics.rows[0] || {};
+  const em = expenseMetrics.rows[0] || {};
+  const totalSales = Number(om.total_sales) || 0;
+  const totalOrders = Number(om.total_orders) || 0;
+  const totalItems = Number(om.total_items) || 0;
+  const orderCosts = Number(om.order_costs) || 0;
+  const deductibleExpenses = Number(em.deductible_expenses) || 0;
+  const monthSales = Number(om.month_sales) || 0;
+  const monthCosts = Number(om.month_costs) || 0;
+  const monthDeductions = Number(em.month_deductions) || 0;
 
   return {
     user: {
@@ -633,6 +691,19 @@ async function summary(client, session) {
     },
     businesses: businesses.map((b) => ({ id: b.base44_id, name: b.name || b.data?.name || 'Business' })),
     counts: { orders, expenses, emailImports, syncStates },
+    metrics: {
+      totalSales,
+      totalOrders,
+      totalItems,
+      orderCosts,
+      deductibleExpenses,
+      netProfit: totalSales - orderCosts - deductibleExpenses,
+      monthSales,
+      monthCosts,
+      monthDeductions,
+      monthNet: monthSales - monthCosts - monthDeductions,
+      averageOrder: totalOrders ? totalSales / totalOrders : 0,
+    },
   };
 }
 

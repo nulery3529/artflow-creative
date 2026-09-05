@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   DollarSign,
@@ -341,8 +341,34 @@ export default function Dashboard() {
   } = useMarketplacePreferences();
 
   const { user } = useAuth();
+  const [serverMetrics, setServerMetrics] = useState(null);
+  const [metricsLoading, setMetricsLoading] = useState(true);
 
-  const loading = ordersLoading || expensesLoading;
+  const loadServerMetrics = React.useCallback(async () => {
+    try {
+      const response = await fetch("/api/neon-data?op=summary", {
+        credentials: "include",
+        cache: "no-store",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || `Dashboard summary ${response.status}`);
+      setServerMetrics(data.metrics || null);
+    } catch (error) {
+      console.error("Failed to load dashboard summary:", error);
+      setServerMetrics(null);
+    } finally {
+      setMetricsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadServerMetrics();
+    const onSynced = () => loadServerMetrics();
+    window.addEventListener("artflow:data-synced", onSynced);
+    return () => window.removeEventListener("artflow:data-synced", onSynced);
+  }, [loadServerMetrics]);
+
+  const loading = (ordersLoading || expensesLoading) && metricsLoading;
   const currentMonth = currentMonthKey();
 
   const activeOrders = useMemo(() => {
@@ -625,7 +651,18 @@ export default function Dashboard() {
         syncTracker: true,
       }),
       reloadExpenses?.(),
+      loadServerMetrics(),
     ]);
+  };
+
+  const kpis = serverMetrics || {
+    totalSales: dashboard.totalSales,
+    totalOrders: dashboard.totalOrders,
+    totalItems: dashboard.totalItems,
+    netProfit: dashboard.netProfit,
+    monthSales: dashboard.monthSales,
+    monthNet: dashboard.monthNet,
+    averageOrder: dashboard.averageOrder,
   };
 
   const firstName =
@@ -692,10 +729,10 @@ export default function Dashboard() {
           icon={DollarSign}
           title="Total Sales"
           value={formatMoney(
-            dashboard.totalSales
+            kpis.totalSales
           )}
           subtitle={`${formatMoney(
-            dashboard.monthSales
+            kpis.monthSales
           )} this month`}
           loading={loading}
           accent="bg-purple-100 text-purple-600 dark:bg-purple-500/15"
@@ -705,9 +742,9 @@ export default function Dashboard() {
           icon={ShoppingBag}
           title="Orders"
           value={String(
-            dashboard.totalOrders
+            kpis.totalOrders
           )}
-          subtitle={`${dashboard.totalItems} items sold`}
+          subtitle={`${kpis.totalItems} items sold`}
           loading={loading}
           accent="bg-pink-100 text-pink-600 dark:bg-pink-500/15"
         />
@@ -716,7 +753,7 @@ export default function Dashboard() {
           icon={Package}
           title="Items Sold"
           value={String(
-            dashboard.totalItems
+            kpis.totalItems
           )}
           subtitle="Across all marketplaces"
           loading={loading}
@@ -727,10 +764,10 @@ export default function Dashboard() {
           icon={TrendingUp}
           title="Net Profit"
           value={formatMoney(
-            dashboard.netProfit
+            kpis.netProfit
           )}
           subtitle={`${formatMoney(
-            dashboard.monthNet
+            kpis.monthNet
           )} this month`}
           loading={loading}
           accent="bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15"
@@ -741,7 +778,7 @@ export default function Dashboard() {
             icon={Receipt}
             title="Avg. Order"
             value={formatMoney(
-              dashboard.averageOrder
+              kpis.averageOrder
             )}
             subtitle="Average order value"
             loading={loading}
@@ -1207,11 +1244,11 @@ export default function Dashboard() {
 
               <p className="text-[9px] text-muted-foreground mt-1">
                 {formatMoney(
-                  dashboard.monthSales
+                  kpis.monthSales
                 )}{" "}
                 sales ·{" "}
                 {formatMoney(
-                  dashboard.monthNet
+                  kpis.monthNet
                 )}{" "}
                 net
               </p>
