@@ -209,10 +209,11 @@ function parseSaleEmail(from, subject, text) {
 
 async function readWebhookConfig(client) {
   const result = await client.query(`
-    SELECT business_id, data
-    FROM artflow.sync_states
-    WHERE source='resend_inbound_orders'
-    ORDER BY updated_date DESC NULLS LAST, created_date DESC NULLS LAST
+    SELECT s.business_id, s.data, b.primary_email, b.data AS business_data
+    FROM artflow.sync_states s
+    LEFT JOIN artflow.businesses b ON b.base44_id = s.business_id
+    WHERE s.source='resend_inbound_orders'
+    ORDER BY s.updated_date DESC NULLS LAST, s.created_date DESC NULLS LAST
   `);
   return result.rows;
 }
