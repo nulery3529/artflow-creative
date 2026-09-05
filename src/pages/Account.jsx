@@ -9,10 +9,8 @@ import BusinessManager from "@/components/BusinessManager";
 import ThemeSettings from "@/components/ThemeSettings";
 import TrackerSetupCard from "@/components/TrackerSetupCard";
 import MarketplaceTrackingCard from "@/components/MarketplaceTrackingCard";
-import BrowserSyncCard from "@/components/BrowserSyncCard";
 import MobileMarketplaceSyncCard from "@/components/MobileMarketplaceSyncCard";
 import { toast } from "sonner";
-import { useMarketplacePreferences } from "@/lib/useMarketplacePreferences";
 
 export default function Account() {
   const navigate = useNavigate();
@@ -20,7 +18,6 @@ export default function Account() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
-  const { selected: trackedSites, loading: loadingTrackedSites } = useMarketplacePreferences();
 
   const handleDelete = async () => {
     if (confirmText !== "DELETE") return;
@@ -61,8 +58,6 @@ export default function Account() {
       <MarketplaceTrackingCard />
 
       <TrackerSetupCard />
-
-      {!loadingTrackedSites && (trackedSites.includes("Depop") || trackedSites.includes("Vinted")) && <BrowserSyncCard />}
 
       <MobileMarketplaceSyncCard />
 
