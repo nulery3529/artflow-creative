@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 const PENDING_KEY = "artflow_create_tracker_after_google";
 
-export default function TrackerSetupCard({ callbackPath = "/account" }) {
+export default function TrackerSetupCard() {
   const { user } = useAuth();
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -26,7 +26,6 @@ export default function TrackerSetupCard({ callbackPath = "/account" }) {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Could not check tracker status");
       setStatus(data);
-      window.dispatchEvent(new CustomEvent("artflow:data-synced"));
       return data;
     } catch (error) {
       toast.error("Could not check ArtFlow Tracker", { description: error?.message });
@@ -55,7 +54,6 @@ export default function TrackerSetupCard({ callbackPath = "/account" }) {
       sessionStorage.removeItem(PENDING_KEY);
       setStatus((current) => ({ ...(current || {}), ...data, connected: true, google_connected: true }));
       window.dispatchEvent(new CustomEvent("artflow:tracker-ready", { detail: data }));
-      window.dispatchEvent(new CustomEvent("artflow:data-synced"));
       toast.success(data.message || "Your ArtFlow Creative Tracker is ready");
     } catch (error) {
       if (["GOOGLE_NOT_LINKED", "GOOGLE_RECONNECT"].includes(error?.code)) {
@@ -76,7 +74,7 @@ export default function TrackerSetupCard({ callbackPath = "/account" }) {
       sessionStorage.setItem(PENDING_KEY, "1");
       const result = await artflowAuthClient.linkSocial({
         provider: "google",
-        callbackURL: `${window.location.origin}${callbackPath.startsWith("/") ? callbackPath : `/${callbackPath}`}`,
+        callbackURL: `${window.location.origin}/account`,
         scopes: [
           "https://www.googleapis.com/auth/spreadsheets",
           "https://www.googleapis.com/auth/drive.file",
@@ -109,7 +107,12 @@ export default function TrackerSetupCard({ callbackPath = "/account" }) {
       const pending = sessionStorage.getItem(PENDING_KEY) === "1";
       if (pending && data.google_connected) {
         sessionStorage.removeItem(PENDING_KEY);
-        createTracker();
+        if (!data.spreadsheet_attached) {
+          createTracker();
+        } else {
+          toast.success("Google Sheets reconnected");
+          window.dispatchEvent(new CustomEvent("artflow:tracker-ready", { detail: data }));
+        }
       }
     })();
     return () => { active = false; };

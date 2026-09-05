@@ -32,10 +32,10 @@ export default function IndependentRegister() {
         name: name.trim() || email.trim().split("@")[0],
         email: email.trim(),
         password,
-        callbackURL: `${window.location.origin}/setup`,
+        callbackURL: `${window.location.origin}/`,
       });
       if (signUpError) throw new Error(signUpError.message || "Could not create account.");
-      window.location.replace("/setup");
+      window.location.replace("/");
     } catch (err) {
       setError(err?.message || "Could not create account.");
     } finally {
