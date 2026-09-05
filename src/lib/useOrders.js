@@ -33,14 +33,21 @@ export function useOrders() {
       if (shouldSyncTracker) {
         trackerSyncInFlight.current = true;
         try {
-          const response = await fetch("/api/tracker-sync", {
-            method: "POST",
-            credentials: "include",
-            cache: "no-store",
-          });
-          if (response.ok) lastTrackerSync.current = Date.now();
+          await Promise.allSettled([
+            fetch("/api/gmail-sales-sync", {
+              method: "POST",
+              credentials: "include",
+              cache: "no-store",
+            }),
+            fetch("/api/tracker-sync", {
+              method: "POST",
+              credentials: "include",
+              cache: "no-store",
+            }),
+          ]);
+          lastTrackerSync.current = Date.now();
         } catch {
-          // The tracker is optional; existing Neon orders must stay available.
+          // Connectors are optional; existing Neon orders must stay available.
         } finally {
           trackerSyncInFlight.current = false;
         }

@@ -211,6 +211,7 @@ export default function MobileSaleCapture() {
         scopes: [
           "https://www.googleapis.com/auth/spreadsheets",
           "https://www.googleapis.com/auth/drive.file",
+          "https://www.googleapis.com/auth/gmail.readonly",
         ],
         additionalParams: {
           access_type: "offline",

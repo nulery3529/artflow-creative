@@ -48,16 +48,24 @@ export default function Orders() {
   const importEmailSales = async () => {
     setImportingEmail(true);
     try {
-      const response = await fetch("/api/tracker-sync", {
-        method: "POST",
-        credentials: "include",
-        cache: "no-store",
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok && response.status !== 409) throw new Error(data.error || "Sales sync failed");
+      const runSync = async (url) => {
+        const response = await fetch(url, {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+        });
+        return { response, data: await response.json().catch(() => ({})) };
+      };
+      const [gmail, tracker] = await Promise.all([
+        runSync("/api/gmail-sales-sync"),
+        runSync("/api/tracker-sync"),
+      ]);
+      const usable = [gmail, tracker].filter(({ response }) => response.ok || response.status === 409);
+      if (!usable.length) throw new Error(gmail.data?.error || tracker.data?.error || "Sales sync failed");
       await reloadOrders();
-      if (response.ok) toast.success(data.message || "Sales are up to date");
-      else toast.info(data.error || "Connect your ArtFlow Tracker to import new sales");
+      const success = [gmail, tracker].find(({ response }) => response.ok);
+      if (success) toast.success(success.data?.message || "Sales are up to date");
+      else toast.info(gmail.data?.error || tracker.data?.error || "Reconnect Google to resume automatic sales sync");
     } catch (e) {
       toast.error("Sales sync failed", { description: e?.message });
     } finally {

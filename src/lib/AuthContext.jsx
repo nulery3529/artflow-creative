@@ -48,20 +48,33 @@ export const AuthProvider = ({ children }) => {
     syncInFlight.current = true;
     publishSyncState({ status: 'syncing', at: new Date().toISOString() });
     try {
-      // Launch-critical syncing runs entirely on the Vercel/Neon stack. The old
-      // Base44 integration quota must never block login, navigation, or data refresh.
-      const response = await fetch('/api/tracker-sync', {
-        method: 'POST',
-        credentials: 'include',
-        cache: 'no-store',
-      });
-      const data = await response.json().catch(() => ({}));
-      const trackerUnavailable = response.status === 409;
+      // Launch-critical syncing runs entirely on the Vercel/Neon stack. Gmail
+      // sales sync is independent from the optional tracker so one connector can
+      // recover current orders even when the other needs to be reconnected.
+      const runSync = async (url) => {
+        const response = await fetch(url, {
+          method: 'POST',
+          credentials: 'include',
+          cache: 'no-store',
+        });
+        return { response, data: await response.json().catch(() => ({})) };
+      };
+      const [gmail, tracker] = await Promise.all([
+        runSync('/api/gmail-sales-sync'),
+        runSync('/api/tracker-sync'),
+      ]);
+      const results = [gmail, tracker];
+      const hardFailure = results.find(({ response }) => !response.ok && response.status !== 409);
+      const connectorMessage = results
+        .filter(({ response }) => response.status === 409)
+        .map(({ data }) => data?.error)
+        .filter(Boolean)[0];
       const state = {
-        status: response.ok || trackerUnavailable ? 'ok' : 'error',
+        status: hardFailure ? 'error' : 'ok',
         at: new Date().toISOString(),
-        tracker: response.ok ? data : null,
-        message: trackerUnavailable ? (data.error || 'Tracker is not connected yet') : (!response.ok ? data.error : undefined),
+        gmail: gmail.response.ok ? gmail.data : null,
+        tracker: tracker.response.ok ? tracker.data : null,
+        message: hardFailure?.data?.error || connectorMessage,
       };
       publishSyncState(state);
       window.dispatchEvent(new CustomEvent('artflow:data-synced', { detail: state }));
