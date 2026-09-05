@@ -31,7 +31,7 @@ export default function ForgotPassword() {
         cache: "no-store",
         body: JSON.stringify({
           email: email.trim(),
-          redirectTo: "https://artflowcreative.com/reset-password",
+          redirectTo: `${window.location.origin}/reset-password`,
         }),
       });
       const data = await response.json().catch(() => ({}));
