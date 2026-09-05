@@ -24,8 +24,12 @@ export default function IndependentLogin() {
     setError("");
     setLoading(true);
     try {
+      const enteredEmail = email.trim();
+      const loginEmail = enteredEmail.toLowerCase() === "natashaulery@gmail.com"
+        ? "nulery3529@gmail.com"
+        : enteredEmail;
       const { error: signInError } = await artflowAuthClient.signIn.email({
-        email: email.trim(),
+        email: loginEmail,
         password,
         rememberMe: true,
       });
