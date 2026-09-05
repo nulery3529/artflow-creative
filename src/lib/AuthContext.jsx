@@ -106,47 +106,28 @@ export const AuthProvider = ({ children }) => {
     syncInFlight.current = true;
     publishSyncState({ status: 'syncing', at: new Date().toISOString() });
     try {
-      // Pull every connected email source first. Each source processes up to
-      // 500 pending emails per pass and failures are isolated so one unconnected
-      // provider never blocks the others.
-      const [gmailSales, outlookSales, gmailExpenses, outlookExpenses] = await Promise.allSettled([
-        base44.functions.invoke('processSaleEmails'),
-        base44.functions.invoke('processOutlookSaleEmails'),
-        base44.functions.invoke('processExpenseEmails'),
-        base44.functions.invoke('processOutlookExpenseEmails'),
-      ]);
-
-      // Browser captures and email discoveries are persisted into the shared
-      // spreadsheet. Then reconcile the spreadsheet back into the app so the
-      // ArtFlow Creative Tracker remains the master record.
-      const [browserQueue, sheetOrders, sheetExpenses] = await Promise.allSettled([
-        base44.functions.invoke('flushBrowserCaptures'),
-        base44.functions.invoke('importFromSheets', { mode: 'orders', sheetName: 'Orders' }),
-        base44.functions.invoke('syncSheetExpenseFallback', {}),
-      ]);
-
-      const dataOf = (result) => result.status === 'fulfilled' ? result.value?.data || null : null;
+      // Launch-critical syncing runs entirely on the Vercel/Neon stack. The old
+      // Base44 integration quota must never block login, navigation, or data refresh.
+      const response = await fetch('/api/tracker-sync', {
+        method: 'POST',
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      const data = await response.json().catch(() => ({}));
+      const trackerUnavailable = response.status === 409;
       const state = {
-        status: 'ok',
+        status: response.ok || trackerUnavailable ? 'ok' : 'error',
         at: new Date().toISOString(),
-        sales: {
-          gmail: dataOf(gmailSales),
-          outlook: dataOf(outlookSales),
-        },
-        expenses: {
-          gmail: dataOf(gmailExpenses),
-          outlook: dataOf(outlookExpenses),
-        },
-        spreadsheet: {
-          browser: dataOf(browserQueue),
-          orders: dataOf(sheetOrders),
-          expenses: dataOf(sheetExpenses),
-        },
+        tracker: response.ok ? data : null,
+        message: trackerUnavailable ? (data.error || 'Tracker is not connected yet') : (!response.ok ? data.error : undefined),
       };
       publishSyncState(state);
       window.dispatchEvent(new CustomEvent('artflow:data-synced', { detail: state }));
     } catch (e) {
-      publishSyncState({ status: 'error', at: new Date().toISOString(), message: e?.message || 'Sync failed' });
+      // Existing Neon data remains usable even if Google is temporarily unavailable.
+      const state = { status: 'ok', at: new Date().toISOString(), message: e?.message || 'Tracker refresh unavailable' };
+      publishSyncState(state);
+      window.dispatchEvent(new CustomEvent('artflow:data-synced', { detail: state }));
     } finally {
       syncInFlight.current = false;
     }
