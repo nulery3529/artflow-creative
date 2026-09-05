@@ -764,9 +764,10 @@ export default async function handler(req, res) {
     const requestedPlatform = clean(body.platform);
     const requestedUsername = cleanMarketplaceUsername(body.username || body.profile_username || '');
     const isVintedUsernameRequest = requestedPlatform === 'Vinted' && Boolean(requestedUsername);
+    const isPoshmarkUsernameRequest = requestedPlatform === 'Poshmark' && Boolean(requestedUsername);
     const submitted = splitUrls(body.urls || body.url || '');
-    if (!submitted.length && !isVintedUsernameRequest) {
-      return send(400, { error: 'Enter a Vinted username or paste a supported marketplace link.' });
+    if (!submitted.length && !isVintedUsernameRequest && !isPoshmarkUsernameRequest) {
+      return send(400, { error: 'Enter a marketplace username or paste a supported marketplace link.' });
     }
 
     const directListings = [];
@@ -796,6 +797,31 @@ export default async function handler(req, res) {
         return send(error?.status === 429 ? 429 : 502, {
           error: clean(error?.message || 'Vinted full-profile import failed.'),
           reason: 'vinted_profile_import_failed',
+        });
+      }
+    }
+
+    if (isPoshmarkUsernameRequest) {
+      try {
+        const profile = await collectPoshmarkProfileListings(requestedUsername);
+        if (!profile.listings.length) {
+          return send(422, {
+            error: `@${profile.username || requestedUsername} does not have any currently available Poshmark items.`,
+            reason: 'poshmark_profile_empty',
+          });
+        }
+        directListings.push(...profile.listings);
+        fullProfileSnapshots.push({
+          platform: 'Poshmark',
+          profileUrl: profile.profileUrl,
+          username: profile.username,
+          urls: profile.listings.map((item) => normalizeUrl(item.url)).filter(Boolean),
+        });
+      } catch (error) {
+        console.warn('Poshmark full-profile import failed', error?.message || error);
+        return send(502, {
+          error: clean(error?.message || 'Poshmark full-profile import failed.'),
+          reason: 'poshmark_profile_import_failed',
         });
       }
     }
