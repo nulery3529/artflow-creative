@@ -103,13 +103,19 @@ export default function InventoryEditSheet({ open, onClose, record }) {
         image_url: form.image_url || null,
       };
       payload.total_unit_cost = calculateUnitCost(payload);
-      if (isCreate) {
-        await base44.entities.InventoryCost.create(payload);
-        toast.success("Inventory item added");
-      } else {
-        await base44.entities.InventoryCost.update(record.id, payload);
-        toast.success("Inventory updated");
+      const response = await fetch("/api/neon-data?op=inventory", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: isCreate ? "create" : "update", id: record?.id, ...payload }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || "Inventory save failed");
       }
+      toast.success(isCreate ? "Inventory item added" : "Inventory updated");
+      window.dispatchEvent(new CustomEvent("artflow:data-synced"));
       onClose();
     } catch (err) {
       toast.error(isCreate ? "Could not add inventory" : "Could not update inventory");
