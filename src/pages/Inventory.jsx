@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Minus, Plus, Pencil } from "lucide-react";
 import { useEntity } from "@/lib/useBusinessData";
-import { base44 } from "@/api/base44Client";
 import { formatMoney } from "@/lib/format";
 import { calculateUnitCost as calcUnit } from "@/lib/orderCost";
 import { toast } from "sonner";
@@ -25,7 +24,15 @@ export default function Inventory() {
     const prev = overrides[rec.id] || rec;
     setOverrides((o) => ({ ...o, [rec.id]: { ...prev, quantity_on_hand: newQty } }));
     try {
-      await base44.entities.InventoryCost.update(rec.id, { quantity_on_hand: newQty });
+      const response = await fetch("/api/neon-data?op=inventory", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update", id: rec.id, quantity_on_hand: newQty }),
+      });
+      if (!response.ok) throw new Error("Inventory update failed");
+      window.dispatchEvent(new CustomEvent("artflow:data-synced"));
     } catch (e) {
       setOverrides((o) => {
         const next = { ...o };
