@@ -1020,7 +1020,7 @@ export default async function handler(req, res) {
     const seen = new Set();
     for (const item of directListings) {
       const key = `${item.platform}|${item.url}`;
-      if (!item.url || seen.has(key)) continue;
+      if (!item.url || !isListingUrl(item.platform, item.url) || seen.has(key)) continue;
       seen.add(key);
       unique.push(item);
       if (unique.length >= 500) break;
@@ -1101,7 +1101,7 @@ export default async function handler(req, res) {
 
     let deactivated = 0;
     for (const snapshot of fullProfileSnapshots) {
-      if (!snapshot.urls.length || snapshot.urls.length >= 500) continue;
+      if (snapshot.partial || !snapshot.urls.length || snapshot.urls.length >= 500) continue;
       const result = await client.query(
         `UPDATE artflow.marketplace_listings
          SET status='Inactive',last_seen_at=now(),sync_source=$4
