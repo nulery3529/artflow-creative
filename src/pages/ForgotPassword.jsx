@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Mail, ArrowLeft, Loader2, LockKeyhole, CheckCircle2 } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
-import { artflowAuthClient } from "@/lib/artflowAuthClient";
 
 export default function ForgotPassword() {
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
@@ -25,12 +24,19 @@ export default function ForgotPassword() {
     setError("");
     setLoading(true);
     try {
-      const { error: requestError } = await artflowAuthClient.requestPasswordReset({
-        email: email.trim(),
-        redirectTo: "https://artflowcreative.com/reset-password",
+      const response = await fetch("/api/auth/request-password-reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        cache: "no-store",
+        body: JSON.stringify({
+          email: email.trim(),
+          redirectTo: "https://artflowcreative.com/reset-password",
+        }),
       });
-      if (requestError) {
-        throw new Error("The password reset email service is unavailable right now. Please try again shortly.");
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data?.error) {
+        throw new Error(data?.message || data?.error?.message || "The password reset email service is unavailable right now. Please try again shortly.");
       }
       setSent(true);
     } catch (err) {
@@ -59,11 +65,17 @@ export default function ForgotPassword() {
 
     setLoading(true);
     try {
-      const { error: resetError } = await artflowAuthClient.resetPassword({
-        newPassword: password,
-        token,
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        cache: "no-store",
+        body: JSON.stringify({ newPassword: password, token }),
       });
-      if (resetError) throw new Error(resetError.message || "Could not reset your password.");
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data?.error) {
+        throw new Error(data?.message || data?.error?.message || "Could not reset your password.");
+      }
       setResetDone(true);
     } catch (err) {
       setError(err?.message || "Could not reset your password. Please request a new link.");
