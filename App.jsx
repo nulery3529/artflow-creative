@@ -123,6 +123,15 @@ const AuthenticatedApp = () => {
 
 
 function App() {
+  // Better Auth is configured with artflowcreative.com as the canonical production origin.
+  // Always leave the www alias before mounting auth so sign-in requests are not rejected
+  // as INVALID_ORIGIN and the shared session cookie is created on the canonical host.
+  if (window.location.hostname === 'www.artflowcreative.com') {
+    const canonicalUrl = `https://artflowcreative.com${window.location.pathname}${window.location.search}${window.location.hash}`;
+    window.location.replace(canonicalUrl);
+    return null;
+  }
+
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
   const isAuthPage = path === '/login' || path === '/register' || path === '/forgot-password' || path === '/new-login' || path === '/new-register' || path === '/new-auth-test' || path === '/new-data-test';
   const isLegalPage = path === '/privacy' || path === '/privacy-policy' || path === '/terms-of-service' || path === '/terms' || path === '/support';
