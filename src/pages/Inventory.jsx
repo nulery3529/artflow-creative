@@ -48,16 +48,19 @@ export default function Inventory() {
 
   const displayRecords = records.map((r) => overrides[r.id] || r);
   const counts = useMemo(() => {
-    const c = { All: displayRecords.length, Frame: 0, Print: 0, Packaging: 0, Supply: 0, Other: 0 };
-    displayRecords.forEach((r) => {
-      const k = r.category || "Frame";
-      if (c[k] != null) c[k] += 1;
-    });
-    return c;
+    const packaging = displayRecords.filter((r) => (r.category || "") === "Packaging").length;
+    return {
+      All: displayRecords.length,
+      Packaging: packaging,
+      Supplies: displayRecords.length - packaging,
+    };
   }, [displayRecords]);
-  const filtered = displayRecords.filter(
-    (r) => filter === "All" || (r.category || "Frame") === filter
-  );
+  const filtered = displayRecords.filter((r) => {
+    if (filter === "All") return true;
+    if (filter === "Packaging") return (r.category || "") === "Packaging";
+    if (filter === "Supplies") return (r.category || "") !== "Packaging";
+    return true;
+  });
 
   if (loading) {
     return (
@@ -77,12 +80,11 @@ export default function Inventory() {
       <PullToRefresh onRefresh={refresh} />
       <PageHeader title="Inventory" subtitle="Stock across all categories" />
 
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         {[
-          { key: "All", label: "All", count: counts.All },
-          { key: "Frame", label: "Frames", count: counts.Frame },
-          { key: "Print", label: "Prints", count: counts.Print },
-          { key: "Packaging", label: "Packaging", count: counts.Packaging },
+          { key: "All", label: "ALL", count: counts.All },
+          { key: "Packaging", label: "PACKAGING", count: counts.Packaging },
+          { key: "Supplies", label: "SUPPLIES", count: counts.Supplies },
         ].map((q) => {
           const active = filter === q.key;
           return (
@@ -95,29 +97,13 @@ export default function Inventory() {
                   : "bg-card text-foreground border-[hsl(var(--border))]"
               }`}
             >
-              <span className="text-[11px] font-semibold uppercase tracking-wide opacity-80">
+              <span className="text-xs font-bold tracking-wide">
                 {q.label}
               </span>
               <span className="text-xl font-heading leading-tight">{q.count}</span>
             </button>
           );
         })}
-      </div>
-
-      <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1">
-        {["Supply", "Other"].map((c) => (
-          <button
-            key={c}
-            onClick={() => setFilter(c)}
-            className={`px-4 h-9 rounded-full text-sm font-medium shrink-0 ${
-              filter === c
-                ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"
-                : "bg-muted text-muted-foreground"
-            }`}
-          >
-            {c} · <span className="text-foreground">{counts[c]}</span>
-          </button>
-        ))}
       </div>
 
       <div className="space-y-3">
