@@ -8,6 +8,7 @@ const SITE_HELP = {
   Depop: "Sync Depop listings and sales",
   Etsy: "Sync Etsy listings and sales",
   eBay: "Sync eBay listings and sales",
+  Poshmark: "Sync Poshmark listings and sales",
 };
 
 export default function MarketplaceTrackingCard() {
@@ -55,7 +56,7 @@ export default function MarketplaceTrackingCard() {
 
       {loading ? (
         <div className="space-y-2">
-          {[1, 2, 3, 4].map((n) => <div key={n} className="h-16 rounded-2xl bg-muted animate-pulse" />)}
+          {[1, 2, 3, 4, 5].map((n) => <div key={n} className="h-16 rounded-2xl bg-muted animate-pulse" />)}
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-2">
