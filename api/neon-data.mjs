@@ -541,9 +541,7 @@ async function writeOrder(client, session, req) {
 }
 
 async function summary(client, session) {
-  const profile = await getLegacyProfile(client, session.user);
-  const businesses = await getAccessibleBusinesses(client, profile, session.user);
-  const ids = businessIds(businesses);
+  const { profile, businesses, ids } = await ensureWorkspace(client, session.user);
   const [orders, expenses, emailImports, syncStates] = await Promise.all([
     countBusinessRows(client, 'orders', ids, session.user.email, true),
     countBusinessRows(client, 'expenses', ids, session.user.email, true),
@@ -576,6 +574,12 @@ export default async function handler(req, res) {
     const op = String(req.query?.op || 'summary');
     if (req.method === 'POST') {
       if (op === 'inventory') return res.status(200).json({ item: await writeInventory(client, session, req) });
+      if (op === 'expenses') return res.status(200).json({ item: await writeExpense(client, session, req) });
+      if (op === 'orders') return res.status(200).json({ item: await writeOrder(client, session, req) });
+      if (op === 'art-pieces') return res.status(200).json({ item: await writeArtPiece(client, session, req) });
+      if (op === 'mileage') return res.status(200).json({ item: await writeMileage(client, session, req) });
+      if (op === 'schedule') return res.status(200).json({ item: await writeSchedule(client, session, req) });
+      if (op === 'businesses') return res.status(200).json({ item: await writeBusiness(client, session, req) });
       return res.status(405).json({ error: 'Method not allowed' });
     }
     if (op === 'summary') return res.status(200).json(await summary(client, session));
@@ -583,6 +587,10 @@ export default async function handler(req, res) {
     if (op === 'expenses') return res.status(200).json({ expenses: await listExpenses(client, session) });
     if (op === 'inventory') return res.status(200).json({ inventory: await listInventory(client, session) });
     if (op === 'listings') return res.status(200).json({ listings: await listMarketplaceListings(client, session) });
+    if (op === 'art-pieces') return res.status(200).json({ records: await listArtPieces(client, session) });
+    if (op === 'mileage') return res.status(200).json({ records: await listMileage(client, session) });
+    if (op === 'schedule') return res.status(200).json({ records: await listSchedule(client, session) });
+    if (op === 'businesses') return res.status(200).json({ records: await listBusinesses(client, session) });
     return res.status(400).json({ error: 'Unknown operation' });
   } catch (e) {
     console.error('neon data error', e?.message || e);
