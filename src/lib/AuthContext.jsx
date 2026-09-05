@@ -1,5 +1,4 @@
 import React, { createContext, useState, useContext, useEffect, useRef, useCallback } from 'react';
-import { base44 } from '@/api/base44Client';
 import { artflowAuthClient } from '@/lib/artflowAuthClient';
 
 const AuthContext = createContext();
@@ -36,63 +35,6 @@ export const AuthProvider = ({ children }) => {
 
     await checkUserAuth();
   };
-
-  const ensureBusinessWorkspace = useCallback(async (currentUser) => {
-    if (!currentUser?.email) return null;
-    const email = String(currentUser.email).toLowerCase();
-    const currentId = currentUser.active_business_id || currentUser.data?.active_business_id || null;
-
-    try {
-      const businesses = await base44.entities.Business.list('name', 100);
-      const memberBusinesses = businesses.filter((b) =>
-        (b.member_emails || []).some((member) => String(member).toLowerCase() === email)
-        || (b.sales_emails || []).some((member) => String(member).toLowerCase() === email)
-        || (b.expense_emails || []).some((member) => String(member).toLowerCase() === email)
-        || String(b.primary_email || '').toLowerCase() === email
-      );
-      // Prefer the member workspace with a connected tracker. This prevents an
-      // older duplicate workspace or stale per-user sheet ID from splitting data.
-      let business = memberBusinesses.find((b) => String(b.spreadsheet_id || '').trim())
-        || memberBusinesses.find((b) => b.id === currentId)
-        || businesses.find((b) => b.id === currentId)
-        || null;
-      if (!business) {
-        business = await base44.entities.Business.create({
-          name: currentUser.business_name || currentUser.data?.business_name || 'My Business',
-          primary_email: currentUser.email,
-          member_emails: [currentUser.email],
-          sales_emails: [currentUser.email],
-        });
-      } else {
-        const members = Array.from(new Set([...(business.member_emails || []), currentUser.email]));
-        if (members.length !== (business.member_emails || []).length) {
-          try {
-            await base44.entities.Business.update(business.id, {
-              member_emails: members,
-              primary_email: business.primary_email || currentUser.email,
-            });
-          } catch {
-            // A shared member can still use the workspace even if they cannot edit membership.
-          }
-        }
-      }
-
-      if (business?.id) {
-        const userUpdates = {};
-        if (currentId !== business.id) userUpdates.active_business_id = business.id;
-        if (business.spreadsheet_id && business.spreadsheet_id !== currentUser.spreadsheet_id) {
-          userUpdates.spreadsheet_id = business.spreadsheet_id;
-        }
-        if (Object.keys(userUpdates).length) {
-          await base44.auth.updateMe(userUpdates);
-        }
-      }
-      return business?.id || null;
-    } catch (e) {
-      console.error('Could not prepare business workspace:', e);
-      return currentId;
-    }
-  }, []);
 
   const publishSyncState = useCallback((state) => {
     try {
