@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Check, Link2, Pencil, Plus, X } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { neonEntities } from "@/lib/neonEntityClient";
 import { useAuth } from "@/lib/AuthContext";
 import { useEntity } from "@/lib/useBusinessData";
 import { toast } from "sonner";
@@ -36,7 +36,7 @@ export default function BusinessManager() {
     if (!business?.id || !next) return;
     setSaving(true);
     try {
-      await base44.entities.Business.update(business.id, { name: next });
+      await neonEntities.update("Business", business.id, { name: next });
       await reload();
       setEditing(false);
       toast.success("Business workspace updated");
@@ -61,7 +61,7 @@ export default function BusinessManager() {
     }
     setSaving(true);
     try {
-      await base44.entities.Business.update(business.id, {
+      await neonEntities.update("Business", business.id, {
         member_emails: Array.from(new Set([...members, email])),
       });
       setNewEmail("");
@@ -88,7 +88,7 @@ export default function BusinessManager() {
     }
     setSaving(true);
     try {
-      await base44.entities.Business.update(business.id, {
+      await neonEntities.update("Business", business.id, {
         expense_emails: Array.from(new Set([...current, email])),
       });
       setNewExpenseEmail("");
@@ -113,7 +113,7 @@ export default function BusinessManager() {
       const next = (business.expense_emails || [])
         .map(normalizeEmail)
         .filter((item) => item && item !== normalizeEmail(email));
-      await base44.entities.Business.update(business.id, { expense_emails: next });
+      await neonEntities.update("Business", business.id, { expense_emails: next });
       await reload();
       toast.success("Expense email removed");
     } catch (e) {
