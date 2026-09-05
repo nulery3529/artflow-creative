@@ -1,10 +1,11 @@
-export const PLATFORMS = ["Vinted", "Depop", "eBay", "Etsy"];
+export const PLATFORMS = ["Vinted", "Depop", "eBay", "Etsy", "Poshmark"]; 
 
 export const PLATFORM_TONE = {
   Vinted: "pastel-lavender text-[hsl(var(--primary))]",
   Depop: "pastel-mint text-slate-600",
   eBay: "pastel-blue text-slate-600",
   Etsy: "bg-rose-100 text-rose-700",
+  Poshmark: "bg-pink-100 text-pink-700",
   Legacy: "bg-muted text-muted-foreground",
 };
 
@@ -13,6 +14,7 @@ export const PLATFORM_BAR = {
   Depop: "bg-slate-400",
   eBay: "bg-blue-400",
   Etsy: "bg-violet-400",
+  Poshmark: "bg-pink-400",
   Legacy: "bg-slate-300",
 };
 
@@ -35,6 +37,7 @@ const PLATFORM_URL = {
   Depop: "https://www.depop.com/",
   eBay: "https://www.ebay.com/",
   Etsy: "https://www.etsy.com/",
+  Poshmark: "https://poshmark.com/",
 };
 
 export function orderSourceUrl(order) {
