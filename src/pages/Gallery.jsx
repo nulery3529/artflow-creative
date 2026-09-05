@@ -12,7 +12,6 @@ import { useModalRoute } from "@/hooks/useModalRoute";
 import { Image } from "@/components/ui/image";
 import MobileMarketplaceSyncCard from "@/components/MobileMarketplaceSyncCard";
 
-const tabs = ["All", "Available", "Sold"];
 const marketplaceTabs = ["All sites", "Vinted", "Depop", "Etsy", "eBay", "Poshmark"];
 
 // Marketplace photos always load through Art Flow so seller CDNs cannot block the gallery.
@@ -238,9 +237,6 @@ export default function Gallery() {
     };
   }, [reloadMarketplaceListings, refreshConnectedMarketplaces]);
   const navigate = useNavigate();
-  // Open on Available so sold inventory is kept separate by default. The All
-  // tab remains available when the user intentionally wants the combined view.
-  const [filter, setFilter] = useState("Available");
   const [marketplaceFilter, setMarketplaceFilter] = useState("All sites");
   const [mediumFilter, setMediumFilter] = useState("All");
   const [search, setSearch] = useState("");
@@ -267,17 +263,13 @@ export default function Gallery() {
     }),
     [marketplaceListings, orders]
   );
-  const soldOrderCards = useMemo(
-    () => orders.map((order) => ({ order, photoListing: photoListingForOrder(order, marketplaceListings) })),
-    [orders, marketplaceListings]
-  );
-
   const stats = useMemo(() => {
     const manualAvailable = records.filter((p) => (p.status || "Available") === "Available").length;
     const manualSold = records.filter((p) => p.status === "Sold").length;
+    const available = manualAvailable + availableMarketplaceListings.length;
     return {
-      listings: records.length + availableMarketplaceListings.length + orders.length,
-      available: manualAvailable + availableMarketplaceListings.length,
+      listings: available,
+      available,
       sold: manualSold + orders.length,
     };
   }, [records, availableMarketplaceListings, orders]);
@@ -289,34 +281,24 @@ export default function Gallery() {
 
   const filteredMarketplaceListings = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (filter === "Sold") return [];
     return availableMarketplaceListings.filter((listing) => {
       if (marketplaceFilter !== "All sites" && displayPlatform(listing.platform) !== marketplaceFilter) return false;
       if (!q) return true;
       return `${listing.title || ""} ${listing.platform || ""}`.toLowerCase().includes(q);
     });
-  }, [availableMarketplaceListings, filter, marketplaceFilter, search]);
-
-  const filteredSoldOrders = useMemo(() => {
-    if (filter === "Available") return [];
-    const q = search.trim().toLowerCase();
-    return soldOrderCards
-      .filter(({ order }) => marketplaceFilter === "All sites" || displayPlatform(order.platform) === marketplaceFilter)
-      .filter(({ order }) => !q || `${order.product_name || ""} ${order.platform || ""} ${order.order_id || ""}`.toLowerCase().includes(q))
-      .sort((a, b) => (b.order.sale_date || "").localeCompare(a.order.sale_date || ""));
-  }, [soldOrderCards, filter, marketplaceFilter, search]);
+  }, [availableMarketplaceListings, marketplaceFilter, search]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return records.filter((p) => {
-      if (filter !== "All" && (p.status || "Available") !== filter) return false;
+      if ((p.status || "Available") !== "Available") return false;
       if (mediumFilter !== "All" && p.medium !== mediumFilter) return false;
       if (!q) return true;
       return `${p.title || ""} ${p.medium || ""} ${p.size || ""} ${p.platform || ""}`
         .toLowerCase()
         .includes(q);
     });
-  }, [records, filter, mediumFilter, search]);
+  }, [records, mediumFilter, search]);
 
   const openCreate = () => {
     setEditRecord(null);
@@ -376,22 +358,6 @@ export default function Gallery() {
         </div>
       </section>
 
-      <div className="flex border-b border-[hsl(var(--border))]">
-        {tabs.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setFilter(tab)}
-            className={`flex-1 h-11 text-sm font-semibold border-b-2 transition-colors ${
-              filter === tab
-                ? "border-foreground text-foreground"
-                : "border-transparent text-muted-foreground"
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-
       <div className="flex gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -445,17 +411,12 @@ export default function Gallery() {
         </div>
       )}
 
-      {filter === "Available" && (
-        <MobileMarketplaceSyncCard />
-      )}
+      <MobileMarketplaceSyncCard />
 
-      {filter !== "Sold" && (
-        <section className="space-y-3">
+      <section className="space-y-3">
           <div className="flex items-end justify-between gap-3">
             <div>
-              <h2 className="font-heading text-lg">
-                {filter === "Available" ? "Available marketplace listings" : "Marketplace listings"}
-              </h2>
+              <h2 className="font-heading text-lg">Available marketplace listings</h2>
               <p className="text-xs text-muted-foreground">Tap any item to open the marketplace listing.</p>
             </div>
             <span className="text-xs font-semibold text-muted-foreground shrink-0">{filteredMarketplaceListings.length}</span>
@@ -505,74 +466,7 @@ export default function Gallery() {
             </div>
           )}
         </section>
-      )}
 
-      {filter !== "Available" && (
-        <section className="space-y-3">
-          <div className="flex items-end justify-between gap-3">
-            <div>
-              <h2 className="font-heading text-lg">Sold orders</h2>
-              <p className="text-xs text-muted-foreground">Pulled directly from Orders. Marketplace sync only supplies the photo.</p>
-            </div>
-            <span className="text-xs font-semibold text-muted-foreground shrink-0">{filteredSoldOrders.length}</span>
-          </div>
-
-          {filteredSoldOrders.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-[hsl(var(--border))] p-5 text-center">
-              <p className="font-semibold text-sm">No sold orders match your filters</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-x-1.5 gap-y-5">
-              {filteredSoldOrders.map(({ order, photoListing }) => {
-                const sourceUrl = orderListingUrl(order) || photoListing?.listing_url || "";
-                const photoSrc = order?.data?.image_url || marketplaceImageSrc(photoListing);
-                const platform = displayPlatform(order.platform);
-                return (
-                  <a
-                    key={order.id}
-                    href={sourceUrl || undefined}
-                    target={sourceUrl ? "_blank" : undefined}
-                    rel={sourceUrl ? "noreferrer" : undefined}
-                    onClick={(event) => { if (!sourceUrl) event.preventDefault(); }}
-                    className="text-left min-w-0 block"
-                  >
-                    <div className="relative aspect-square bg-muted overflow-hidden">
-                      {photoSrc ? (
-                        <Image
-                          src={photoSrc}
-                          fittingType="fill"
-                          className="w-full h-full object-cover"
-                          alt={order.product_name || `${platform} sold order`}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground px-3 text-center">Photo not synced yet</div>
-                      )}
-                      <span className={`absolute left-2 top-2 px-2 py-1 rounded-full text-[10px] font-bold ${PLATFORM_TONE[platform] || "bg-black text-white"}`}>
-                        {platform}
-                      </span>
-                      <span className="absolute left-2 bottom-2 bg-black text-white px-2 py-1 text-[10px] font-bold uppercase tracking-wide">
-                        Sold
-                      </span>
-                      {sourceUrl && (
-                        <span className="absolute right-2 top-2 w-7 h-7 rounded-full bg-black/65 text-white flex items-center justify-center">
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </span>
-                      )}
-                    </div>
-                    <div className="pt-2 px-0.5">
-                      <p className="text-sm leading-tight line-clamp-2 text-foreground">{order.product_name || "Sold item"}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{order.sale_date || ""}</p>
-                      <p className="text-sm font-bold mt-1.5 text-foreground">{formatMoney(order.sale_total || 0)}</p>
-                    </div>
-                  </a>
-                );
-              })}
-            </div>
-          )}
-        </section>
-      )}
-
-      {filter !== "Sold" && (
       <section className="space-y-3">
         <div>
           <h2 className="font-heading text-lg">My gallery</h2>
@@ -587,7 +481,6 @@ export default function Gallery() {
         ) : (
           <div className="grid grid-cols-2 gap-x-1.5 gap-y-5">
             {filtered.map((piece) => {
-              const sold = piece.status === "Sold";
               return (
                 <button key={piece.id} onClick={() => openEdit(piece)} className="text-left min-w-0">
                   <div className="relative aspect-square bg-muted overflow-hidden">
@@ -598,11 +491,6 @@ export default function Gallery() {
                         No photo
                       </div>
                     )}
-                    {sold && (
-                      <span className="absolute left-2 top-2 bg-black text-white px-2 py-1 text-[10px] font-bold uppercase tracking-wide">
-                        Sold
-                      </span>
-                    )}
                   </div>
                   <div className="pt-2 px-0.5">
                     <p className="text-sm leading-tight truncate text-foreground">{piece.title}</p>
@@ -610,7 +498,7 @@ export default function Gallery() {
                       {[piece.size, piece.medium].filter(Boolean).join(" · ") || "Art print"}
                     </p>
                     <p className="text-sm font-bold mt-1.5 text-foreground">
-                      {formatMoney(sold ? piece.sale_price || piece.price : piece.price)}
+                      {formatMoney(piece.price)}
                     </p>
                   </div>
                 </button>
@@ -619,7 +507,6 @@ export default function Gallery() {
           </div>
         )}
       </section>
-      )}
 
       <button
         onClick={openCreate}
