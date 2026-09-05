@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Link2, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 
@@ -56,12 +56,7 @@ export default function MobileMarketplaceSyncCard() {
         <p><strong className="text-foreground">Use individual product links.</strong> Profile, shop, and private seller-dashboard pages may be blocked by the marketplace.</p>
       </div>
 
-      <form
-        action="/api/mobile-listing-sync"
-        method="POST"
-        target="artflow-listing-sync-frame"
-        className="space-y-3"
-      >
+      <form onSubmit={handleSubmit} className="space-y-3">
         <textarea
           name="urls"
           value={links}
@@ -74,23 +69,16 @@ export default function MobileMarketplaceSyncCard() {
           placeholder={"Paste listing link(s) here\nhttps://www.vinted.com/items/...\nhttps://www.depop.com/products/..."}
           className="w-full rounded-2xl border border-[hsl(var(--border))] bg-background px-3 py-3 text-sm resize-y focus:outline-none focus:ring-1 focus:ring-[hsl(var(--primary))]"
         />
-        <input type="hidden" name="form_submit" value="1" />
-
         <button
           type="submit"
+          disabled={submitting || !links.trim()}
           style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
-          className="w-full h-12 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold flex items-center justify-center gap-2 active:scale-[0.99] transition-transform"
+          className="w-full h-12 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold flex items-center justify-center gap-2 active:scale-[0.99] transition-transform disabled:opacity-60"
         >
           <Link2 className="w-4 h-4" />
-          Add to Gallery
+          {submitting ? "Adding…" : "Add to Gallery"}
         </button>
       </form>
-
-      <iframe
-        title="Marketplace listing sync"
-        name="artflow-listing-sync-frame"
-        className="hidden"
-      />
 
       {result && (
         <p className="text-xs text-muted-foreground rounded-xl bg-muted/50 p-3">{result}</p>
