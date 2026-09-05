@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 const PENDING_KEY = "artflow_create_tracker_after_google";
 
-export default function TrackerSetupCard() {
+export default function TrackerSetupCard({ callbackPath = "/account" }) {
   const { user } = useAuth();
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -74,7 +74,7 @@ export default function TrackerSetupCard() {
       sessionStorage.setItem(PENDING_KEY, "1");
       const result = await artflowAuthClient.linkSocial({
         provider: "google",
-        callbackURL: `${window.location.origin}/account`,
+        callbackURL: `${window.location.origin}${callbackPath.startsWith("/") ? callbackPath : `/${callbackPath}`}`,
         scopes: [
           "https://www.googleapis.com/auth/spreadsheets",
           "https://www.googleapis.com/auth/drive.file",
