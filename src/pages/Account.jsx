@@ -7,13 +7,10 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import BusinessManager from "@/components/BusinessManager";
 import ThemeSettings from "@/components/ThemeSettings";
-import EtsyConnectionCard from "@/components/EtsyConnectionCard";
-import EmailConnectionsCard from "@/components/EmailConnectionsCard";
 import TrackerSetupCard from "@/components/TrackerSetupCard";
 import MarketplaceTrackingCard from "@/components/MarketplaceTrackingCard";
 import BrowserSyncCard from "@/components/BrowserSyncCard";
 import MobileMarketplaceSyncCard from "@/components/MobileMarketplaceSyncCard";
-import EbayConnectionCard from "@/components/EbayConnectionCard";
 import { toast } from "sonner";
 import { useMarketplacePreferences } from "@/lib/useMarketplacePreferences";
 
@@ -64,15 +61,9 @@ export default function Account() {
 
       <TrackerSetupCard />
 
-      <EmailConnectionsCard />
-
       {!loadingTrackedSites && (trackedSites.includes("Depop") || trackedSites.includes("Vinted")) && <BrowserSyncCard />}
 
       <MobileMarketplaceSyncCard />
-
-      {!loadingTrackedSites && trackedSites.includes("Etsy") && <EtsyConnectionCard />}
-
-      {!loadingTrackedSites && trackedSites.includes("eBay") && <EbayConnectionCard />}
 
       <ThemeSettings />
 
