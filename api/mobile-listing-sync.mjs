@@ -444,12 +444,15 @@ async function listingMetadata(platform, url, prefetched = null) {
   if (prefetched) {
     const normalized = normalizeUrl(prefetched.finalUrl || url) || normalizeUrl(url);
     const title = (prefetched.title || `${platform} listing`).replace(/\s*[|–-]\s*(Vinted|Depop|Etsy|eBay).*$/i, '').trim();
+    const explicitPrice = Number(String(prefetched.price ?? '').replace(/[^0-9.-]/g, ''));
     return {
       platform,
       listing_id: listingIdFromUrl(platform, normalized),
       title: title.slice(0, 300),
-      price: priceFromText(`${prefetched.title || ''} ${prefetched.description || ''}`),
-      currency: 'USD',
+      price: Number.isFinite(explicitPrice) && explicitPrice >= 0
+        ? explicitPrice
+        : priceFromText(`${prefetched.title || ''} ${prefetched.description || ''}`),
+      currency: clean(prefetched.currency || 'USD').toUpperCase() || 'USD',
       image_url: prefetched.imageUrl || '',
       listing_url: normalized,
     };
