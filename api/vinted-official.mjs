@@ -126,7 +126,7 @@ async function upsertImported(client,businessId,items){
       END,
       last_seen_at=now(),
       sync_source='vinted_pro_imported',
-      data=EXCLUDED.data
+      data=COALESCE(artflow.marketplace_listings.data,'{}'::jsonb) || EXCLUDED.data
   `,[JSON.stringify(rows),businessId]);
   return rows.map(r=>r.listing_url);
 }
