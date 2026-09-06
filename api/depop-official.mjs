@@ -4,7 +4,7 @@ import { auth } from './auth/_auth.mjs';
 import { fromNodeHeaders } from 'better-auth/node';
 
 const { Pool } = pg;
-const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 4 });
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 1 });
 const clean = (v='') => String(v ?? '').trim();
 const normalize = (v='') => clean(v).toLowerCase();
 const REDIRECT_URI = 'https://artflowcreative.com/api/depop-official?op=callback';

@@ -2,7 +2,7 @@ import pg from 'pg';
 import crypto from 'node:crypto';
 
 const { Pool } = pg;
-const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 4 });
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 1 });
 
 export const config = { api: { bodyParser: false } };
 

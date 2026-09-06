@@ -6,7 +6,7 @@ const { Pool } = pg;
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-  max: 4,
+  max: 1,
 });
 
 const resend = new Resend(process.env.RESEND_API_KEY);

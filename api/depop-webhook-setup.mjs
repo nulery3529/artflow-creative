@@ -3,7 +3,7 @@ import { auth } from './auth/_auth.mjs';
 import { fromNodeHeaders } from 'better-auth/node';
 
 const { Pool } = pg;
-const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 4 });
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 1 });
 const HOST = 'https://partnerapi.depop.com';
 const WEBHOOK_URL = 'https://artflowcreative.com/api/depop-webhook';
 const EVENT_TYPES = ['v1:order.*', 'v1:product.update'];

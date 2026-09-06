@@ -7,7 +7,7 @@ const { Pool } = pg;
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-  max: 4,
+  max: 1,
 });
 
 const normalize = (value = '') => String(value || '').trim().toLowerCase();

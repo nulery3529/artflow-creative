@@ -4,7 +4,7 @@ import { auth } from './auth/_auth.mjs';
 import { fromNodeHeaders } from 'better-auth/node';
 
 const { Pool } = pg;
-const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 4 });
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 1 });
 const SUPPORTED = ['Vinted', 'Depop', 'Etsy', 'eBay', 'Poshmark'];
 const LINKED_SITE_PLATFORMS = ['Vinted', 'Depop', 'Etsy', 'eBay', 'Poshmark'];
 const clean = (v = '') => String(v || '').trim();

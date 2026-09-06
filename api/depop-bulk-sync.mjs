@@ -4,7 +4,7 @@ import { auth } from './auth/_auth.mjs';
 import { fromNodeHeaders } from 'better-auth/node';
 
 const { Pool } = pg;
-const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 4 });
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 1 });
 const HOST = 'https://partnerapi.depop.com';
 const PAGE_LIMIT = 100;
 const MAX_PAGES = 100;
