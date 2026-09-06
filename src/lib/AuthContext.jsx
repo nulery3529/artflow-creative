@@ -21,6 +21,7 @@ export const AuthProvider = ({ children }) => {
   const [appPublicSettings, setAppPublicSettings] = useState(null); // Contains only { id, public_settings }
   const [authBackend, setAuthBackend] = useState(null);
   const syncInFlight = useRef(false);
+  const lastAutoSyncAt = useRef(0);
 
   useEffect(() => {
     checkAppState();
@@ -44,7 +45,8 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const triggerLoginSync = useCallback(async () => {
-    if (syncInFlight.current) return;
+    const now = Date.now();
+    if (syncInFlight.current || now - lastAutoSyncAt.current < 30 * 1000) return;
     syncInFlight.current = true;
     publishSyncState({ status: 'syncing', at: new Date().toISOString() });
     try {
@@ -84,6 +86,7 @@ export const AuthProvider = ({ children }) => {
       publishSyncState(state);
       window.dispatchEvent(new CustomEvent('artflow:data-synced', { detail: state }));
     } finally {
+      lastAutoSyncAt.current = Date.now();
       syncInFlight.current = false;
     }
   }, [publishSyncState]);
