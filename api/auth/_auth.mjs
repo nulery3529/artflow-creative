@@ -3,6 +3,17 @@ import pg from "pg";
 
 const { Pool } = pg;
 
+function cleanEnvValue(value) {
+  const text = String(value || "").trim();
+  if (text.length >= 2 && ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'")))) {
+    return text.slice(1, -1).trim();
+  }
+  return text;
+}
+
+const googleClientId = cleanEnvValue(process.env.GOOGLE_CLIENT_ID);
+const googleClientSecret = cleanEnvValue(process.env.GOOGLE_CLIENT_SECRET);
+
 const vercelProductionURL = process.env.VERCEL_PROJECT_PRODUCTION_URL
   ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
   : "";
@@ -92,10 +103,10 @@ export const auth = betterAuth({
       allowDifferentEmails: true,
     },
   },
-  socialProviders: process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET ? {
+  socialProviders: googleClientId && googleClientSecret ? {
     google: {
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      clientId: googleClientId,
+      clientSecret: googleClientSecret,
       accessType: "offline",
       prompt: "select_account consent",
     },
