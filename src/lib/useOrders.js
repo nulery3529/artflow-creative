@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 const finiteNumber = (value, fallback = 0) => {
   const n = Number(value);
@@ -23,36 +23,10 @@ const normalizeOrderRecord = (record) => {
 export function useOrders() {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
-  const lastTrackerSync = useRef(0);
-  const trackerSyncInFlight = useRef(false);
-
-  const reload = useCallback(async ({ syncTracker = false } = {}) => {
+  const reload = useCallback(async () => {
     try {
-      const now = Date.now();
-      const shouldSyncTracker = syncTracker && !trackerSyncInFlight.current && now - lastTrackerSync.current >= 45 * 1000;
-      if (shouldSyncTracker) {
-        trackerSyncInFlight.current = true;
-        try {
-          await Promise.allSettled([
-            fetch("/api/gmail-sales-sync", {
-              method: "POST",
-              credentials: "include",
-              cache: "no-store",
-            }),
-            fetch("/api/tracker-sync", {
-              method: "POST",
-              credentials: "include",
-              cache: "no-store",
-            }),
-          ]);
-          lastTrackerSync.current = Date.now();
-        } catch {
-          // Connectors are optional; existing Neon orders must stay available.
-        } finally {
-          trackerSyncInFlight.current = false;
-        }
-      }
-
+      // Connector syncing is owned by AuthContext so every screen reads the same
+      // Neon snapshot without starting duplicate Gmail/Tracker jobs.
       const response = await fetch("/api/neon-data?op=orders", {
         credentials: "include",
         cache: "no-store",
@@ -75,15 +49,15 @@ export function useOrders() {
   }, []);
 
   useEffect(() => {
-    reload({ syncTracker: true });
-    const onSynced = () => reload({ syncTracker: false });
-    const onFocus = () => reload({ syncTracker: true });
+    reload();
+    const onSynced = () => reload();
+    const onFocus = () => reload();
     const onVisible = () => {
-      if (document.visibilityState === "visible") reload({ syncTracker: true });
+      if (document.visibilityState === "visible") reload();
     };
     const id = window.setInterval(() => {
-      if (document.visibilityState === "visible") reload({ syncTracker: false });
-    }, 30 * 1000);
+      if (document.visibilityState === "visible") reload();
+    }, 60 * 1000);
     window.addEventListener("artflow:data-synced", onSynced);
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisible);
