@@ -11,8 +11,14 @@ function cleanEnvValue(value) {
   return text;
 }
 
-const googleClientId = cleanEnvValue(process.env.GOOGLE_CLIENT_ID);
-const googleClientSecret = cleanEnvValue(process.env.GOOGLE_CLIENT_SECRET);
+let googleClientId = cleanEnvValue(process.env.GOOGLE_CLIENT_ID);
+let googleClientSecret = cleanEnvValue(process.env.GOOGLE_CLIENT_SECRET);
+
+// If the OAuth client ID and client secret were entered into Vercel in the
+// opposite fields, correct the order before configuring Better Auth.
+if (/^GOCSPX-/i.test(googleClientId) && /\.apps\.googleusercontent\.com$/i.test(googleClientSecret)) {
+  [googleClientId, googleClientSecret] = [googleClientSecret, googleClientId];
+}
 
 const vercelProductionURL = process.env.VERCEL_PROJECT_PRODUCTION_URL
   ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
