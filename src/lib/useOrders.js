@@ -23,7 +23,7 @@ const normalizeOrderRecord = (record) => {
 export function useOrders() {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (_options = {}) => {
     try {
       // Connector syncing is owned by AuthContext so every screen reads the same
       // Neon snapshot without starting duplicate Gmail/Tracker jobs.
