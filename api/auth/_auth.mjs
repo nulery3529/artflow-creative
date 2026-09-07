@@ -30,11 +30,12 @@ const vercelDeploymentURL = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
   : "";
 const canonicalProductionURL = "https://artflowcreative.com";
-const baseURL = process.env.BETTER_AUTH_URL || (
-  process.env.VERCEL_ENV === "production"
-    ? canonicalProductionURL
-    : vercelDeploymentURL || vercelProductionURL || canonicalProductionURL
-);
+// Never let a stale BETTER_AUTH_URL override the canonical host in production.
+// Google OAuth redirect URIs must match exactly, and Better Auth derives
+// /api/auth/callback/google from this base URL.
+const baseURL = process.env.VERCEL_ENV === "production"
+  ? canonicalProductionURL
+  : process.env.BETTER_AUTH_URL || vercelDeploymentURL || vercelProductionURL || canonicalProductionURL;
 
 async function sendPasswordResetEmail({ user, url }) {
   const apiKey = process.env.RESEND_API_KEY;
