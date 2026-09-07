@@ -7,8 +7,11 @@ function cleanEnvValue(value) {
 }
 
 export function GET() {
-  const googleClientId = cleanEnvValue(process.env.GOOGLE_CLIENT_ID);
-  const googleClientSecret = cleanEnvValue(process.env.GOOGLE_CLIENT_SECRET);
+  let googleClientId = cleanEnvValue(process.env.GOOGLE_CLIENT_ID);
+  let googleClientSecret = cleanEnvValue(process.env.GOOGLE_CLIENT_SECRET);
+  if (/^GOCSPX-/i.test(googleClientId) && /\.apps\.googleusercontent\.com$/i.test(googleClientSecret)) {
+    [googleClientId, googleClientSecret] = [googleClientSecret, googleClientId];
+  }
 
   return Response.json({
     emailPassword: true,
