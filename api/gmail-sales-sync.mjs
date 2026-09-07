@@ -343,9 +343,25 @@ async function insertRows(client, businessId, messageId, receivedAt, rows) {
   return inserted;
 }
 
+async function approveGmailEmail(client, business, email) {
+  const normalized = normalize(email);
+  if (!normalized || !business?.base44_id) return;
+  const data = business.data || {};
+  const add = (list) => Array.from(new Set([...(Array.isArray(list) ? list : []), normalized].map(normalize).filter(Boolean)));
+  const next = {
+    ...data,
+    member_emails: add(data.member_emails),
+    sales_emails: add(data.sales_emails),
+    expense_emails: add(data.expense_emails),
+    connected_google_email: normalized,
+  };
+  await client.query(`UPDATE artflow.businesses SET data=$2::jsonb WHERE base44_id=$1`, [business.base44_id, JSON.stringify(next)]);
+  business.data = next;
+}
+
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (!['GET', 'POST'].includes(req.method)) return res.status(405).json({ error: 'Method not allowed' });
 
   const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) }).catch(() => null);
   if (!session?.user) return res.status(401).json({ error: 'Unauthorized' });
@@ -358,11 +374,40 @@ export default async function handler(req, res) {
 
     const accounts = await auth.api.listUserAccounts({ headers: fromNodeHeaders(req.headers) });
     const googleAccounts = (accounts || []).filter((account) => account.providerId === 'google' && account.id);
-    if (!googleAccounts.length) {
-      return res.status(409).json({ error: 'Connect Google in Account to turn on automatic Gmail sales sync.', code: 'GMAIL_NOT_LINKED' });
+    const allowedEmails = approvedSalesEmails(business);
+
+    if (req.method === 'GET') {
+      const connectedAccounts = [];
+      let reconnectRequired = false;
+      for (const account of googleAccounts) {
+        try {
+          const accessToken = await accessTokenForAccount(req, account.id);
+          const profileData = await googleJson(accessToken, 'https://gmail.googleapis.com/gmail/v1/users/me/profile');
+          const gmailAddress = normalize(profileData?.emailAddress || '');
+          if (!gmailAddress) continue;
+          connectedAccounts.push({ email: gmailAddress, approved: allowedEmails.has(gmailAddress) });
+        } catch (error) {
+          if (error?.status === 401 || error?.status === 403 || error?.code === 'GMAIL_RECONNECT') reconnectRequired = true;
+        }
+      }
+      return res.status(200).json({
+        configured: googleAccounts.length > 0,
+        connected: connectedAccounts.some((item) => item.approved),
+        gmail_access: connectedAccounts.length > 0,
+        reconnect_required: reconnectRequired && connectedAccounts.length === 0,
+        accounts: connectedAccounts,
+        message: connectedAccounts.length
+          ? 'Gmail access is connected.'
+          : googleAccounts.length
+            ? 'Google is linked, but Gmail permission still needs to be approved.'
+            : 'Connect Gmail to turn on automatic marketplace sale-email syncing.',
+      });
     }
 
-    const allowedEmails = approvedSalesEmails(business);
+    if (!googleAccounts.length) {
+      return res.status(409).json({ error: 'Connect Gmail in Account to turn on automatic Gmail sales sync.', code: 'GMAIL_NOT_LINKED' });
+    }
+
     let matchedAccounts = 0;
     let permissionErrors = 0;
     let scanned = 0;
@@ -375,7 +420,14 @@ export default async function handler(req, res) {
         accessToken = await accessTokenForAccount(req, account.id);
         const profileData = await googleJson(accessToken, 'https://gmail.googleapis.com/gmail/v1/users/me/profile');
         const gmailAddress = normalize(profileData?.emailAddress || '');
-        if (!gmailAddress || !allowedEmails.has(gmailAddress)) continue;
+        if (!gmailAddress) continue;
+        if (!allowedEmails.has(gmailAddress)) {
+          // The user explicitly granted Gmail access through Art Flow. Attach that
+          // mailbox to the current business workspace so new users do not have to
+          // separately type the same address into Sales/Expense email settings.
+          await approveGmailEmail(client, business, gmailAddress);
+          allowedEmails.add(gmailAddress);
+        }
         matchedAccounts += 1;
 
         const messageIds = await listMessageIds(accessToken);
