@@ -9,7 +9,8 @@ function cleanEnvValue(value) {
 export function GET() {
   let googleClientId = cleanEnvValue(process.env.GOOGLE_CLIENT_ID);
   let googleClientSecret = cleanEnvValue(process.env.GOOGLE_CLIENT_SECRET);
-  if (/^GOCSPX-/i.test(googleClientId) && /\.apps\.googleusercontent\.com$/i.test(googleClientSecret)) {
+  const looksLikeGoogleClientId = (value = "") => /\.apps\.googleusercontent\.com$/i.test(String(value || "").trim());
+  if (!looksLikeGoogleClientId(googleClientId) && looksLikeGoogleClientId(googleClientSecret)) {
     [googleClientId, googleClientSecret] = [googleClientSecret, googleClientId];
   }
 
@@ -18,6 +19,7 @@ export function GET() {
     google: Boolean(googleClientId && googleClientSecret),
     googleClientIdFormatValid: Boolean(googleClientId && /^[0-9]+-[a-zA-Z0-9_-]+\.apps\.googleusercontent\.com$/.test(googleClientId)),
     googleClientIdLength: googleClientId.length,
+    googleClientSecretLooksLikeClientId: looksLikeGoogleClientId(googleClientSecret),
     apple: Boolean(process.env.APPLE_CLIENT_ID && process.env.APPLE_CLIENT_SECRET),
   }, {
     headers: { "Cache-Control": "no-store" },
