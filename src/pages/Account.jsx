@@ -53,11 +53,20 @@ export default function Account() {
         </div>
       </section>
 
+      {new URLSearchParams(window.location.search).get("setup") === "tracker" && (
+        <section className="rounded-3xl p-5 border border-[hsl(var(--primary))]/30 bg-[hsl(var(--primary))]/5">
+          <h2 className="font-heading text-xl">Finish your Art Flow setup</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Connect the Google account you use for your business. Art Flow will create your tracker automatically and enable supported Gmail sale-email syncing.
+          </p>
+        </section>
+      )}
+
       <BusinessManager />
 
-      <MarketplaceTrackingCard />
-
       <TrackerSetupCard />
+
+      <MarketplaceTrackingCard />
 
       <MobileMarketplaceSyncCard />
 
