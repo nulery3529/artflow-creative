@@ -125,6 +125,13 @@ async function getOrCreateBusiness(client, profile, user) {
      VALUES ($1,$2,$3,$4::jsonb)`,
     [id, name, user.email, JSON.stringify(data)]
   );
+  if (profile?.base44_id) {
+    await client.query(
+      `UPDATE artflow.legacy_users SET active_business_id=$2, updated_date=now() WHERE base44_id=$1`,
+      [profile.base44_id, id]
+    );
+    profile.active_business_id = id;
+  }
   return { base44_id: id, name, primary_email: user.email, data };
 }
 
@@ -166,6 +173,33 @@ async function googleRequest(accessToken, url, options = {}) {
   return data;
 }
 
+async function createFreshSpreadsheet(accessToken, businessName) {
+  const title = `ArtFlow Creative Tracker - ${businessName || 'My Business'}`;
+  const created = await googleRequest(accessToken, 'https://sheets.googleapis.com/v4/spreadsheets', {
+    method: 'POST',
+    body: JSON.stringify({
+      properties: { title },
+      sheets: Object.keys(TAB_VALUES).map((tabTitle) => ({ properties: { title: tabTitle } })),
+    }),
+  });
+  const spreadsheetId = clean(created?.spreadsheetId);
+  if (!spreadsheetId) throw new Error('Google did not return the new tracker ID.');
+
+  const ranges = Object.entries(TAB_VALUES).map(([tabTitle, values]) => ({
+    range: `'${tabTitle.replace(/'/g, "''")}'!A1`,
+    values,
+  }));
+  await googleRequest(
+    accessToken,
+    `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values:batchUpdate`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: ranges }),
+    }
+  );
+  return spreadsheetId;
+}
+
 async function createSpreadsheet(accessToken, businessName) {
   const response = await fetch(
     `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(TRACKER_TEMPLATE_ID)}/copy?supportsAllDrives=true`,
@@ -183,21 +217,44 @@ async function createSpreadsheet(accessToken, businessName) {
   const text = await response.text();
   let data = {};
   try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
-  if (!response.ok) {
-    const error = new Error(data?.error?.message || `Could not copy the ArtFlow master tracker (${response.status}).`);
-    error.code = response.status === 401 || response.status === 403 ? 'GOOGLE_RECONNECT' : 'TEMPLATE_COPY_ERROR';
-    throw error;
+  if (response.ok && clean(data?.id)) return clean(data.id);
+
+  // drive.file can be intentionally narrow. If the master template is not
+  // visible to a newly linked user, build the same standard tracker directly
+  // in their Drive instead of failing onboarding.
+  try {
+    return await createFreshSpreadsheet(accessToken, businessName);
+  } catch (fallbackError) {
+    if (fallbackError?.code === 'GOOGLE_RECONNECT') throw fallbackError;
+    const templateMessage = data?.error?.message || `template copy failed (${response.status})`;
+    throw new Error(`Could not create the ArtFlow tracker: ${templateMessage}; ${fallbackError?.message || 'fresh tracker creation failed'}`);
   }
-  const spreadsheetId = clean(data?.id);
-  if (!spreadsheetId) throw new Error('Google did not return the copied tracker ID.');
-  return spreadsheetId;
 }
 
-async function saveSpreadsheetId(client, business, profile, spreadsheetId) {
+async function googleMailboxEmail(accessToken) {
+  const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/profile', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) return '';
+  const data = await response.json().catch(() => ({}));
+  return normalize(data?.emailAddress || '');
+}
+
+function addUniqueEmail(list, email) {
+  return Array.from(new Set([...(Array.isArray(list) ? list : []), email].map(normalize).filter(Boolean)));
+}
+
+async function saveSpreadsheetId(client, business, profile, spreadsheetId, googleEmail = '') {
   const nextData = {
     ...(business.data || {}),
     spreadsheet_id: spreadsheetId,
     spreadsheet_created_by_artflow: true,
+    ...(googleEmail ? {
+      connected_google_email: googleEmail,
+      member_emails: addUniqueEmail(business.data?.member_emails, googleEmail),
+      sales_emails: addUniqueEmail(business.data?.sales_emails, googleEmail),
+      expense_emails: addUniqueEmail(business.data?.expense_emails, googleEmail),
+    } : {}),
   };
   await client.query(`UPDATE artflow.businesses SET data=$2::jsonb WHERE base44_id=$1`, [business.base44_id, JSON.stringify(nextData)]);
 
@@ -258,15 +315,20 @@ export default async function handler(req, res) {
       return res.status(409).json({ error: error.message, code: error.code || 'GOOGLE_NOT_LINKED' });
     }
 
+    const googleEmail = await googleMailboxEmail(accessToken).catch(() => '');
     const spreadsheetId = await createSpreadsheet(accessToken, business.name || 'My Business');
-    await saveSpreadsheetId(client, business, profile, spreadsheetId);
+    await saveSpreadsheetId(client, business, profile, spreadsheetId, googleEmail);
 
     return res.status(201).json({
       ok: true,
       created: true,
       spreadsheet_id: spreadsheetId,
       spreadsheet_url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`,
-      message: 'Your ArtFlow Creative Tracker was created and connected automatically.',
+      google_email: googleEmail || null,
+      gmail_sync_ready: Boolean(googleEmail),
+      message: googleEmail
+        ? `Your ArtFlow Creative Tracker was created and ${googleEmail} is ready for email syncing.`
+        : 'Your ArtFlow Creative Tracker was created and connected automatically.',
     });
   } catch (error) {
     console.error('create tracker error', error?.message || error);
