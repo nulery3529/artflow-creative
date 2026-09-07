@@ -121,9 +121,9 @@ export default function GmailSyncCard() {
           <Mail className="w-5 h-5" />
         </div>
         <div className="flex-1 min-w-0">
-          <h2 className="font-heading text-lg">Gmail Sales & Expense Inbox</h2>
+          <h2 className="font-heading text-lg">Gmail Sales Inbox</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Connect the Gmail inbox that receives marketplace sales and business receipts. Art Flow keeps this connection with your business workspace, not with another user's account.
+            Connect the Gmail inbox that receives marketplace sale emails. Art Flow keeps this connection with your business workspace, not with another user's account.
           </p>
         </div>
         {connected ? <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-1" /> : needsReconnect ? <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-1" /> : null}
