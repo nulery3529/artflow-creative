@@ -35,7 +35,9 @@ export default function IndependentRegister() {
         callbackURL: `${window.location.origin}/`,
       });
       if (signUpError) throw new Error(signUpError.message || "Could not create account.");
-      window.location.replace("/");
+      // New accounts go straight to the one-time Google/tracker setup. Existing
+      // users are never routed here by normal login.
+      window.location.replace("/account?setup=tracker");
     } catch (err) {
       setError(err?.message || "Could not create account.");
     } finally {
