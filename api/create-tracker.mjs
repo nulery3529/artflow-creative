@@ -231,13 +231,15 @@ async function createSpreadsheet(accessToken, businessName) {
   }
 }
 
-async function googleMailboxEmail(accessToken) {
-  const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/profile', {
+async function googleAccountEmail(accessToken) {
+  // Basic Google identity scopes are included by the provider and do not need
+  // Gmail permission. Use them to identify the Drive account that owns the tracker.
+  const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!response.ok) return '';
   const data = await response.json().catch(() => ({}));
-  return normalize(data?.emailAddress || '');
+  return normalize(data?.email || '');
 }
 
 function addUniqueEmail(list, email) {
@@ -303,7 +305,7 @@ export default async function handler(req, res) {
       if (googleConnected) {
         try {
           const accessToken = await getGoogleAccessToken(req);
-          googleEmail = await googleMailboxEmail(accessToken).catch(() => '');
+          googleEmail = await googleAccountEmail(accessToken).catch(() => '');
           if (googleEmail) await saveSpreadsheetId(client, business, profile, existingId, googleEmail);
         } catch {
           // Keep the existing tracker untouched if Google needs to be reauthorized.
@@ -315,7 +317,7 @@ export default async function handler(req, res) {
         spreadsheet_id: existingId,
         spreadsheet_url: `https://docs.google.com/spreadsheets/d/${existingId}/edit`,
         google_email: googleEmail || null,
-        gmail_sync_ready: Boolean(googleEmail),
+        gmail_sync_ready: false,
         message: googleEmail
           ? `Your ArtFlow Creative Tracker is connected to ${googleEmail}.`
           : 'Your ArtFlow Creative Tracker is already connected.',
@@ -329,7 +331,7 @@ export default async function handler(req, res) {
       return res.status(409).json({ error: error.message, code: error.code || 'GOOGLE_NOT_LINKED' });
     }
 
-    const googleEmail = await googleMailboxEmail(accessToken).catch(() => '');
+    const googleEmail = await googleAccountEmail(accessToken).catch(() => '');
     const spreadsheetId = await createSpreadsheet(accessToken, business.name || 'My Business');
     await saveSpreadsheetId(client, business, profile, spreadsheetId, googleEmail);
 
@@ -339,9 +341,9 @@ export default async function handler(req, res) {
       spreadsheet_id: spreadsheetId,
       spreadsheet_url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`,
       google_email: googleEmail || null,
-      gmail_sync_ready: Boolean(googleEmail),
+      gmail_sync_ready: false,
       message: googleEmail
-        ? `Your ArtFlow Creative Tracker was created and ${googleEmail} is ready for email syncing.`
+        ? `Your ArtFlow Creative Tracker was created in ${googleEmail}'s Google Drive.`
         : 'Your ArtFlow Creative Tracker was created and connected automatically.',
     });
   } catch (error) {
