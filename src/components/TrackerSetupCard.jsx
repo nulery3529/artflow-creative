@@ -109,9 +109,10 @@ export default function TrackerSetupCard() {
       const data = await loadStatus();
       if (!active || !data) return;
       const pending = sessionStorage.getItem(PENDING_KEY) === "1";
-      if (pending && data.google_connected) {
+      const returnedFromGoogle = new URLSearchParams(window.location.search).get("setup") === "tracker";
+      if ((pending || returnedFromGoogle) && data.google_connected) {
         // POST is idempotent: for an existing tracker it only refreshes the
-        // linked Google mailbox metadata; for a new user it creates the tracker.
+        // linked Google account metadata; for a new user it creates the tracker.
         createTracker();
       }
     })();
@@ -176,19 +177,34 @@ export default function TrackerSetupCard() {
             <ExternalLink className="w-4 h-4" /> Open My ArtFlow Tracker
           </button>
         </div>
+      ) : !status?.google_connected ? (
+        <div className="space-y-3">
+          <div className="rounded-2xl bg-muted/60 p-3 text-xs text-muted-foreground">
+            First connect the Google account where you want the ArtFlow tracker stored. After Google confirms the connection, Art Flow will create the spreadsheet in that account's Drive automatically.
+          </div>
+          <button
+            type="button"
+            onClick={connectGoogle}
+            disabled={connecting}
+            className="w-full h-12 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
+          >
+            <RefreshCw className={`w-4 h-4 ${connecting ? "animate-spin" : ""}`} />
+            {connecting ? "Connecting Google…" : "Connect Google Drive"}
+          </button>
+        </div>
       ) : (
         <div className="space-y-3">
           <div className="rounded-2xl bg-muted/60 p-3 text-xs text-muted-foreground">
-            Art Flow creates the tracker in your Google Drive automatically using access only to files Art Flow creates or you choose for Art Flow. You do not need to build, copy, or paste a spreadsheet yourself.
+            Google Drive is connected. Art Flow can now create your private tracker in that Drive.
           </div>
           <button
             type="button"
             onClick={createTracker}
-            disabled={creating || connecting}
+            disabled={creating}
             className="w-full h-12 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
           >
-            <RefreshCw className={`w-4 h-4 ${creating || connecting ? "animate-spin" : ""}`} />
-            {connecting ? "Connecting Google…" : creating ? "Creating tracker…" : "Create My ArtFlow Tracker"}
+            <RefreshCw className={`w-4 h-4 ${creating ? "animate-spin" : ""}`} />
+            {creating ? "Creating tracker…" : "Create My ArtFlow Tracker"}
           </button>
         </div>
       )}
