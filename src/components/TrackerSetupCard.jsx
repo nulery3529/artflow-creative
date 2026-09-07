@@ -87,7 +87,8 @@ export default function TrackerSetupCard() {
         additionalParams: {
           access_type: "offline",
           include_granted_scopes: "true",
-          prompt: "consent",
+          prompt: "select_account consent",
+          ...(user?.email ? { login_hint: user.email } : {}),
         },
       });
       if (result?.error) throw new Error(result.error.message || "Could not connect Google");
