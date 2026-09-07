@@ -56,10 +56,9 @@ export default function TrackerSetupCard() {
       window.dispatchEvent(new CustomEvent("artflow:tracker-ready", { detail: data }));
       toast.success(data.message || "Your ArtFlow Creative Tracker is ready");
 
-      // The same Google authorization includes Gmail read-only access. Kick off
-      // an initial import without making tracker creation depend on sync success.
+      // Tracker setup uses only the narrow Drive file permission. Run the
+      // tracker sync now; Gmail authorization is intentionally separate.
       await Promise.allSettled([
-        fetch("/api/gmail-sales-sync", { method: "POST", credentials: "include", cache: "no-store" }),
         fetch("/api/tracker-sync", { method: "POST", credentials: "include", cache: "no-store" }),
       ]);
     } catch (error) {
@@ -83,9 +82,7 @@ export default function TrackerSetupCard() {
         provider: "google",
         callbackURL: `${window.location.origin}/account?setup=tracker`,
         scopes: [
-          "https://www.googleapis.com/auth/spreadsheets",
           "https://www.googleapis.com/auth/drive.file",
-          "https://www.googleapis.com/auth/gmail.readonly",
         ],
         additionalParams: {
           access_type: "offline",
@@ -101,7 +98,7 @@ export default function TrackerSetupCard() {
       throw new Error("Google connection did not return a sign-in link.");
     } catch (error) {
       sessionStorage.removeItem(PENDING_KEY);
-      toast.error("Could not connect Google Sheets", { description: error?.message });
+      toast.error("Could not connect Google Drive", { description: error?.message });
       setConnecting(false);
     }
   };
@@ -132,7 +129,7 @@ export default function TrackerSetupCard() {
         <div className="flex-1 min-w-0">
           <h2 className="font-heading text-lg">ArtFlow Creative Tracker</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Connect Google once. Art Flow creates your private tracker in your Drive and uses Gmail read-only access to sync supported marketplace sale emails to your business.
+            Connect Google Drive so Art Flow can create your private tracker. Gmail sale-email syncing is connected separately after the tracker is ready.
           </p>
         </div>
         {status?.connected && status?.google_connected && <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-1" />}
@@ -143,8 +140,8 @@ export default function TrackerSetupCard() {
       ) : status?.spreadsheet_attached && !status?.google_connected ? (
         <div className="space-y-3">
           <div className="rounded-2xl bg-amber-50 border border-amber-200 p-3 text-amber-950">
-            <p className="text-sm font-semibold">Reconnect Google Sheets</p>
-            <p className="text-xs mt-1">Your ArtFlow tracker is still attached, but Google access expired or was disconnected. Reconnect it so new orders and expenses can sync again.</p>
+            <p className="text-sm font-semibold">Reconnect Google Drive</p>
+            <p className="text-xs mt-1">Your ArtFlow tracker is still attached, but Google access expired or was disconnected. Reconnect it so the tracker can sync again.</p>
           </div>
           {status?.spreadsheet_url && (
             <button
@@ -162,7 +159,7 @@ export default function TrackerSetupCard() {
             className="w-full h-12 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
           >
             <RefreshCw className={`w-4 h-4 ${connecting ? "animate-spin" : ""}`} />
-            {connecting ? "Connecting Google…" : "Reconnect Google Sheets"}
+            {connecting ? "Connecting Google…" : "Reconnect Google Drive"}
           </button>
         </div>
       ) : status?.connected ? (
@@ -182,7 +179,7 @@ export default function TrackerSetupCard() {
       ) : (
         <div className="space-y-3">
           <div className="rounded-2xl bg-muted/60 p-3 text-xs text-muted-foreground">
-            Art Flow creates the tracker in your Google Drive automatically and links the Gmail address you approve to this business. You do not need to build, copy, or paste a spreadsheet yourself.
+            Art Flow creates the tracker in your Google Drive automatically using access only to files Art Flow creates or you choose for Art Flow. You do not need to build, copy, or paste a spreadsheet yourself.
           </div>
           <button
             type="button"
