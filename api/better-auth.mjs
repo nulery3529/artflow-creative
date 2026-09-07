@@ -46,6 +46,26 @@ async function directEmailSignup(req, res) {
   }
 }
 
+async function directEmailSignIn(req, res) {
+  try {
+    const result = await auth.api.signInEmail({
+      body: requestBody(req),
+      headers: fromNodeHeaders(req.headers),
+      returnHeaders: true,
+      returnStatus: true,
+    });
+    applyHeaders(res, result?.headers);
+    return res.status(result?.status || 200).json(result?.response ?? {});
+  } catch (error) {
+    const status = Number(error?.statusCode || error?.status || 500);
+    const body = error?.body && typeof error.body === "object"
+      ? error.body
+      : { message: error?.message || "Could not sign in." };
+    if (status >= 500) console.error("Art Flow direct sign-in failed", error?.stack || error?.message || error);
+    return res.status(status).json(body);
+  }
+}
+
 export default async function handler(req, res) {
   let authPath = "";
   try {
@@ -69,6 +89,9 @@ export default async function handler(req, res) {
   // hashing, transactions, account creation, and session cookies remain native.
   if (req.method === "POST" && authPath === "sign-up/email") {
     return directEmailSignup(req, res);
+  }
+  if (req.method === "POST" && authPath === "sign-in/email") {
+    return directEmailSignIn(req, res);
   }
 
   return nodeHandler(req, res);
