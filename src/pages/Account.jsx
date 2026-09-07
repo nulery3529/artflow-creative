@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/AuthContext";
 import BusinessManager from "@/components/BusinessManager";
 import ThemeSettings from "@/components/ThemeSettings";
 import TrackerSetupCard from "@/components/TrackerSetupCard";
+import GmailSyncCard from "@/components/GmailSyncCard";
 import MarketplaceTrackingCard from "@/components/MarketplaceTrackingCard";
 import MobileMarketplaceSyncCard from "@/components/MobileMarketplaceSyncCard";
 import { toast } from "sonner";
@@ -65,6 +66,8 @@ export default function Account() {
       <BusinessManager />
 
       <TrackerSetupCard />
+
+      <GmailSyncCard />
 
       <MarketplaceTrackingCard />
 
