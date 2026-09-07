@@ -15,8 +15,11 @@ let googleClientId = cleanEnvValue(process.env.GOOGLE_CLIENT_ID);
 let googleClientSecret = cleanEnvValue(process.env.GOOGLE_CLIENT_SECRET);
 
 // If the OAuth client ID and client secret were entered into Vercel in the
-// opposite fields, correct the order before configuring Better Auth.
-if (/^GOCSPX-/i.test(googleClientId) && /\.apps\.googleusercontent\.com$/i.test(googleClientSecret)) {
+// opposite fields, correct the order before configuring Better Auth. Detect
+// the client ID by its Google-issued suffix rather than assuming a particular
+// client-secret prefix, because older/newer Google secrets can use different formats.
+const looksLikeGoogleClientId = (value = "") => /\.apps\.googleusercontent\.com$/i.test(String(value || "").trim());
+if (!looksLikeGoogleClientId(googleClientId) && looksLikeGoogleClientId(googleClientSecret)) {
   [googleClientId, googleClientSecret] = [googleClientSecret, googleClientId];
 }
 
