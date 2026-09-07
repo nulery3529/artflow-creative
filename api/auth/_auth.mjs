@@ -77,7 +77,9 @@ export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
   database: new Pool({
     connectionString: process.env.DATABASE_URL,
-    max: 1,
+    // Better Auth may need more than one connection during sign-in/session
+    // handling. Keep this small to protect Neon, but not single-connection.
+    max: 3,
   }),
   emailAndPassword: {
     enabled: true,
