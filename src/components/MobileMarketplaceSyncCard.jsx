@@ -31,13 +31,6 @@ function cleanUsername(value = "") {
   return raw;
 }
 
-function depopProfileUrl(value = "") {
-  const raw = String(value || "").trim();
-  if (/^https?:\/\//i.test(raw)) return raw;
-  const username = cleanUsername(raw);
-  return username ? `https://www.depop.com/${username}/` : "";
-}
-
 export default function MobileMarketplaceSyncCard() {
   const [platform, setPlatform] = useState("Vinted");
   const [username, setUsername] = useState("");
@@ -66,64 +59,19 @@ export default function MobileMarketplaceSyncCard() {
     setResult("");
 
     try {
-      if (platform !== "Depop") {
-        const response = await fetch("/api/mobile-listing-sync", {
-          method: "POST",
-          credentials: "include",
-          cache: "no-store",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ platform, username: submittedUsername }),
-        });
-        const data = await response.json().catch(() => ({}));
-        const message = data.message || data.error || (response.ok ? `${platform} profile synced` : `${platform} profile sync failed`);
-        setResult(message);
-        if (!response.ok || data.ok === false) throw new Error(message);
-        toast.success(message);
-        window.dispatchEvent(new CustomEvent("artflow:listings-synced", { detail: { saved: data.saved || 0, fullProfile: true } }));
-        return;
-      }
-
-      const profileUrl = depopProfileUrl(username);
-      const statusResponse = await fetch("/api/depop-official", {
-        credentials: "include",
-        cache: "no-store",
-      });
-      const statusData = await statusResponse.json().catch(() => ({}));
-      if (!statusResponse.ok) throw new Error(statusData.error || "Could not check Depop connection");
-
-      if (!statusData.configured) {
-        throw new Error("Full-profile Depop sync is ready in Art Flow, but Depop has not issued the API credentials yet. Once approved, your username will pull the whole shop automatically.");
-      }
-
-      if (!statusData.connected) {
-        const connectResponse = await fetch("/api/depop-official", {
-          method: "POST",
-          credentials: "include",
-          cache: "no-store",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "start" }),
-        });
-        const connectData = await connectResponse.json().catch(() => ({}));
-        if (!connectResponse.ok || !connectData.authorization_url) {
-          throw new Error(connectData.error || "Could not start Depop connection");
-        }
-        window.location.assign(connectData.authorization_url);
-        return;
-      }
-
-      const syncResponse = await fetch("/api/depop-official", {
+      const response = await fetch("/api/mobile-listing-sync", {
         method: "POST",
         credentials: "include",
         cache: "no-store",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "sync", profile_url: profileUrl }),
+        body: JSON.stringify({ platform, username: submittedUsername }),
       });
-      const syncData = await syncResponse.json().catch(() => ({}));
-      const message = syncData.message || syncData.error || (syncResponse.ok ? "Depop profile synced" : "Depop profile sync failed");
+      const data = await response.json().catch(() => ({}));
+      const message = data.message || data.error || (response.ok ? `${platform} profile synced` : `${platform} profile sync failed`);
       setResult(message);
-      if (!syncResponse.ok || syncData.ok === false) throw new Error(message);
+      if (!response.ok || data.ok === false) throw new Error(message);
       toast.success(message);
-      window.dispatchEvent(new CustomEvent("artflow:listings-synced", { detail: { saved: syncData.saved || 0, fullProfile: true } }));
+      window.dispatchEvent(new CustomEvent("artflow:listings-synced", { detail: { saved: data.saved || 0, fullProfile: true, platform } }));
     } catch (error) {
       const message = error?.message || "Profile import failed";
       setResult(message);
