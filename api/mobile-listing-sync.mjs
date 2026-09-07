@@ -777,7 +777,7 @@ export default async function handler(req, res) {
     const requestedUsername = cleanMarketplaceUsername(body.username || body.profile_username || '');
     const isVintedUsernameRequest = requestedPlatform === 'Vinted' && Boolean(requestedUsername);
     const isPoshmarkUsernameRequest = requestedPlatform === 'Poshmark' && Boolean(requestedUsername);
-    const isPublicShopUsernameRequest = ['Etsy', 'eBay'].includes(requestedPlatform) && Boolean(requestedUsername);
+    const isPublicShopUsernameRequest = ['Depop', 'Etsy', 'eBay'].includes(requestedPlatform) && Boolean(requestedUsername);
     const submitted = splitUrls(body.urls || body.url || '');
     if (!submitted.length && !isVintedUsernameRequest && !isPoshmarkUsernameRequest && !isPublicShopUsernameRequest) {
       return send(400, { error: 'Enter a marketplace username or paste a supported marketplace link.' });
@@ -892,17 +892,11 @@ export default async function handler(req, res) {
           });
           continue;
         } catch (error) {
-          console.warn('Depop full-profile import failed', error?.message || error);
-          if (error?.code === 'DEPOP_PROFILE_SERVICE_NOT_CONFIGURED') {
-            return send(503, {
-              error: error.message,
-              reason: 'depop_profile_service_not_configured',
-            });
-          }
-          return send(error?.status === 401 ? 503 : 502, {
-            error: clean(error?.message || 'Depop full-profile import failed.'),
-            reason: 'depop_profile_import_failed',
-          });
+          // The catalog service is an optimization, not a requirement. If it is
+          // unavailable or not configured, fall through to the public-profile
+          // HTML/metadata importer below so each Art Flow workspace can still
+          // connect a Depop username without needing official Partner OAuth.
+          console.warn('Depop catalog import unavailable; trying public profile fallback', error?.message || error);
         }
       }
 
