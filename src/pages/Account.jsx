@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/components/ui/use-toast";
 import { Trash2, AlertTriangle, LifeBuoy } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { motion, AnimatePresence } from "framer-motion";
@@ -19,6 +20,17 @@ export default function Account() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("welcome") === "1") {
+      toast({
+        title: "Welcome to Art Flow Creative!",
+        description: "Your account was created. Finish your setup below to sync your sales.",
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleDelete = async () => {
     if (confirmText !== "DELETE") return;
