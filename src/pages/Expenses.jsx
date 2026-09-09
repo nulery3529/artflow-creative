@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
+import { materializeRecurringExpenses } from "@/lib/recurringExpenses";
 import { Plus, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useEntity } from "@/lib/useBusinessData";
@@ -13,7 +14,7 @@ import { useModalRoute } from "@/hooks/useModalRoute";
 import { EXPENSE_CATEGORY_FILTERS } from "@/lib/expenseCategories";
 
 export default function Expenses() {
-  const { records, reload: reloadExpenses } = useEntity("Expense", "-date");
+  const { records, loading: expensesLoading, reload: reloadExpenses } = useEntity("Expense", "-date");
   const { records: inventoryCosts } = useEntity("InventoryCost", "size");
   const { records: orders } = useOrders();
   const refresh = async () => { await reloadExpenses(); };
@@ -21,6 +22,26 @@ export default function Expenses() {
   const { isOpen: formOpen, open: openForm, close: closeForm } = useModalRoute();
   const [editRecord, setEditRecord] = useState(null);
   const [importingEmail, setImportingEmail] = useState(false);
+  const recurringChecked = useRef(false);
+
+  useEffect(() => {
+    if (expensesLoading || recurringChecked.current) return;
+    recurringChecked.current = true;
+    (async () => {
+      try {
+        const created = await materializeRecurringExpenses(records);
+        if (created > 0) {
+          toast.success(
+            `${created} recurring expense${created > 1 ? "s" : ""} added automatically`
+          );
+          await reloadExpenses();
+        }
+      } catch {
+        // Recurring generation is best-effort; existing expenses stay visible.
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [records, expensesLoading]);
 
   const importForwardedExpenses = async () => {
     setImportingEmail(true);
@@ -199,6 +220,9 @@ export default function Expenses() {
                   <p className="font-medium truncate">{e.description}</p>
                   <p className="text-xs text-muted-foreground">
                     {e.category} · <span className="text-foreground">{formatDate(e.date)}</span>
+                    {e.data?.recurring === "monthly" && (
+                      <span className="ml-1 text-[hsl(var(--primary))] font-medium">↻ Monthly</span>
+                    )}
                   </p>
                 </div>
                 <div className="text-right ml-3 shrink-0">

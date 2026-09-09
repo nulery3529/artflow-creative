@@ -20,6 +20,7 @@ const empty = {
   amount: "",
   deductible_percent: 100,
   notes: "",
+  recurring: "none",
 };
 
 export default function ExpenseForm({ open, onClose, record }) {
@@ -37,6 +38,7 @@ export default function ExpenseForm({ open, onClose, record }) {
               amount: record.amount != null ? String(record.amount) : "",
               deductible_percent: record.deductible_percent ?? 100,
               notes: record.notes || "",
+              recurring: record?.data?.recurring === "monthly" ? "monthly" : "none",
             }
           : empty
       );
@@ -69,6 +71,13 @@ export default function ExpenseForm({ open, onClose, record }) {
         deductible_amount: deductibleAmount,
         notes: form.notes || null,
         source: record?.source || "manual",
+        data: {
+          recurring: form.recurring === "monthly" ? "monthly" : null,
+          recurring_series_id:
+            form.recurring === "monthly"
+              ? record?.data?.recurring_series_id || crypto.randomUUID()
+              : null,
+        },
       };
       if (record) {
         await neonEntities.update("Expense", record.id, payload);
@@ -198,6 +207,20 @@ export default function ExpenseForm({ open, onClose, record }) {
                   onChange={(e) => set("date", e.target.value)}
                   className="form-input"
                 />
+              </Field>
+              <Field label="Repeats">
+                <Select
+                  value={form.recurring}
+                  onValueChange={(v) => set("recurring", v)}
+                >
+                  <SelectTrigger className="form-input h-14 font-medium">
+                    <SelectValue placeholder="Select repeat" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">One-time</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                  </SelectContent>
+                </Select>
               </Field>
               <Field label="Notes (optional)">
                 <textarea
