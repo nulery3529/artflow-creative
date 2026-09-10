@@ -1,1 +1,17 @@
-{"name":"Art Flow Creative","short_name":"Art Flow","start_url":"/","scope":"/","display":"standalone","background_color":"#f7f4fb","theme_color":"#B6B8D1","icons":[]}
+{
+  "name": "Art Flow Creative",
+  "short_name": "Art Flow",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#12132E",
+  "theme_color": "#12132E",
+  "icons": [
+    {
+      "src": "https://media.base44.com/images/public/6a91be5ced6058323eb21f7d/767c033d8_3E798DE5-95A7-49F9-879D-C8303E1BB25C.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
