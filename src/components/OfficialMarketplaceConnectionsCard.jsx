@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { CheckCircle2, ExternalLink, Eye, EyeOff, KeyRound, Link2, Loader2, RefreshCw, Unlink } from "lucide-react";
 import { toast } from "sonner";
+import EtsyConnectionBlock from "@/components/marketplace/EtsyConnectionBlock";
+import EbayConnectionBlock from "@/components/marketplace/EbayConnectionBlock";
 
 export default function OfficialMarketplaceConnectionsCard() {
   const [loading, setLoading] = useState(true);
@@ -32,15 +34,17 @@ export default function OfficialMarketplaceConnectionsCard() {
   useEffect(() => {
     load();
     const params = new URLSearchParams(window.location.search);
-    const result = params.get("depop");
-    if (result === "connected") {
-      toast.success("Depop connected", { description: "Art Flow can now sync your Depop account without storing your password." });
-      window.history.replaceState({}, "", window.location.pathname);
-      setTimeout(load, 100);
-    } else if (result === "error") {
-      toast.error("Depop connection failed", { description: params.get("message") || "Try connecting again." });
-      window.history.replaceState({}, "", window.location.pathname);
+    for (const [param, label] of [["depop", "Depop"], ["etsy", "Etsy"], ["ebay", "eBay"]]) {
+      const result = params.get(param);
+      if (result === "connected") {
+        toast.success(`${label} connected`, { description: `${label} sales can now sync directly into Art Flow.` });
+        window.history.replaceState({}, "", window.location.pathname);
+      } else if (result === "error") {
+        toast.error(`${label} connection failed`, { description: params.get("message") || "Try connecting again." });
+        window.history.replaceState({}, "", window.location.pathname);
+      }
     }
+    if (params.get("depop") === "connected") setTimeout(load, 100);
   }, []);
 
   const connectDepop = async () => {
@@ -163,7 +167,7 @@ export default function OfficialMarketplaceConnectionsCard() {
     <section className="bg-card rounded-3xl p-5 border border-[hsl(var(--border))] space-y-4">
       <div>
         <h2 className="font-heading text-lg">Marketplace account connections</h2>
-        <p className="text-sm text-muted-foreground mt-1">Use the marketplace's official connection method. Art Flow does not ask for or store your Depop or Vinted password.</p>
+        <p className="text-sm text-muted-foreground mt-1">Use each marketplace's official connection method. Art Flow does not ask for or store your marketplace password.</p>
       </div>
 
       <div className="rounded-2xl border border-[hsl(var(--border))] p-4 space-y-3">
@@ -248,6 +252,10 @@ export default function OfficialMarketplaceConnectionsCard() {
           </div>
         )}
       </div>
+
+      <EtsyConnectionBlock />
+
+      <EbayConnectionBlock />
     </section>
   );
 }
