@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 
 import BottomNav from "@/components/BottomNav";
+import VintedAutoSync from "@/components/VintedAutoSync";
 import Dashboard from "@/pages/Dashboard";
 import Orders from "@/pages/Orders";
 import Inventory from "@/pages/Inventory";
@@ -65,6 +66,7 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <VintedAutoSync />
       <aside className="hidden lg:flex fixed inset-y-0 left-0 z-50 w-[260px] p-3">
         <div className="w-full h-full rounded-[26px] border border-white/60 bg-white/75 dark:bg-slate-950/75 backdrop-blur-2xl shadow-xl flex flex-col">
 

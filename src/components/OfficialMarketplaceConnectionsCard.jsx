@@ -214,7 +214,7 @@ export default function OfficialMarketplaceConnectionsCard() {
         </div>
         <p className="text-xs text-muted-foreground">
           {vinted.connected
-            ? "Connected with an encrypted Vinted Pro access token. Art Flow never stores your Vinted password."
+            ? "Connected. Your imported Vinted listings autosync whenever you open Art Flow and once a day in the background. Art Flow never stores your Vinted password."
             : "Vinted's official API is for allowlisted Vinted Pro businesses. Generate an access token in the Vinted Pro Integrations Portal and paste it here once."}
         </p>
 
