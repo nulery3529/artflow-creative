@@ -5,6 +5,7 @@ import { useOrders } from "@/lib/useOrders";
 import { formatMoney, formatDate, currentMonthKey, monthShort } from "@/lib/format";
 import { EmptyRow } from "@/components/Cards";
 import OrderForm from "@/components/OrderForm";
+import ProfitScoreBadge from "@/components/ProfitScoreBadge";
 import PageHeader from "@/components/PageHeader";
 import { useModalRoute } from "@/hooks/useModalRoute";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -234,6 +235,7 @@ export default function Orders() {
                 </p>
               </div>
               <div className="shrink-0 ml-2 flex items-center gap-1.5">
+                <ProfitScoreBadge order={o} />
                 <span
                   className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${
                     PLATFORM_TONE[displayPlatform(o.platform)] || "bg-muted text-muted-foreground"

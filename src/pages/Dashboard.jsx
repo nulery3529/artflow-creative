@@ -24,6 +24,7 @@ import {
   monthLabel,
 } from "@/lib/format";
 import { displayPlatform } from "@/lib/platforms";
+import ProfitScoreBadge from "@/components/ProfitScoreBadge";
 import { useMarketplacePreferences } from "@/lib/useMarketplacePreferences";
 import { useAuth } from "@/lib/AuthContext";
 
@@ -913,10 +914,11 @@ export default function Dashboard() {
                         {orderTitle(order)}
                       </p>
 
-                      <p className="text-[10px] text-muted-foreground mt-1">
+                      <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1.5">
                         {displayPlatform(
                           order?.platform
                         )}
+                        <ProfitScoreBadge order={order} />
                       </p>
                     </div>
 
