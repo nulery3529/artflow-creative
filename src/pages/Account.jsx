@@ -13,7 +13,6 @@ import GmailSyncCard from "@/components/GmailSyncCard";
 import MarketplaceTrackingCard from "@/components/MarketplaceTrackingCard";
 import MobileMarketplaceSyncCard from "@/components/MobileMarketplaceSyncCard";
 import OfficialMarketplaceConnectionsCard from "@/components/OfficialMarketplaceConnectionsCard";
-import { toast } from "sonner";
 
 export default function Account() {
   const navigate = useNavigate();
