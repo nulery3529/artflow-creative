@@ -9,7 +9,15 @@ const pool = new Pool({
   max: 1,
 });
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Construct Resend lazily: the SDK throws in its constructor when the API key
+// is missing, which would crash the whole function at module load. Resolving
+// it on first use turns a missing key into a clean logged error instead.
+const getResend = () => {
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error('RESEND_API_KEY is not configured');
+  }
+  return new Resend(process.env.RESEND_API_KEY);
+};
 
 export const config = {
   api: {
@@ -232,7 +240,7 @@ export default async function handler(req, res) {
       return res.status(503).send('Not configured');
     }
 
-    const event = resend.webhooks.verify({
+    const event = getResend().webhooks.verify({
       payload: rawBody.toString('utf8'),
       headers: {
         'svix-id': req.headers['svix-id'],
@@ -263,7 +271,7 @@ export default async function handler(req, res) {
     `,[config.business_id,emailId]);
     if (alreadyProcessed.rowCount) return res.status(200).send('OK');
 
-    const received = await resend.emails.receiving.get(emailId);
+    const received = await getResend().emails.receiving.get(emailId);
     const email = received?.data || received;
     const subject = clean(email?.subject || event?.data?.subject || '');
     const text = clean(email?.text || htmlToText(email?.html || ''));

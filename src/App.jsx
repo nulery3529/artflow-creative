@@ -3,6 +3,7 @@ import { Toaster as SonnerToaster } from "@/components/ui/sonner"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
@@ -28,12 +29,22 @@ import PrivacyPolicy from '@/pages/PrivacyPolicy';
 import TermsOfService from '@/pages/TermsOfService';
 import Support from '@/pages/Support';
 import MobileSaleCapture from '@/pages/MobileSaleCapture';
+import Logo from '@/components/Logo';
 // Add page imports here
 
 const TabShell = () => null;
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError } = useAuth();
+  const [startupStalled, setStartupStalled] = useState(false);
+
+  useEffect(() => {
+    // Safety net for hung network requests (common on mobile connections):
+    // if the auth check never resolves, offer a way into the app after 12s
+    // instead of spinning forever.
+    const timer = window.setTimeout(() => setStartupStalled(true), 12000);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   // Legal pages must be publicly accessible for Google OAuth verification and app users.
   const publicPath = window.location.pathname.replace(/\/+$/, '') || '/';
@@ -67,11 +78,21 @@ const AuthenticatedApp = () => {
     );
   }
 
-  // Show loading spinner while checking app public settings or auth
+  // Show a visible branded splash while checking app public settings or auth.
+  // A bare white page with a faint spinner looks like a blank screen on mobile.
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
+      <div className="fixed inset-0 flex flex-col items-center justify-center gap-5 bg-[hsl(var(--background))]">
+        <Logo size={48} />
+        <div className="w-9 h-9 border-4 border-[hsl(var(--border))] border-t-[hsl(var(--primary))] rounded-full animate-spin" />
+        {startupStalled && (
+          <p className="text-xs text-muted-foreground">
+            Still starting…{' '}
+            <a href="/login" className="text-[hsl(var(--primary))] font-semibold underline">
+              Open the login screen
+            </a>
+          </p>
+        )}
       </div>
     );
   }
