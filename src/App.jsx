@@ -54,7 +54,7 @@ const AuthenticatedApp = () => {
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms-of-service" element={<TermsOfService />} />
-        <Route path="/terms" element={<Navigate to="/terms-of-service" replace />} />
+        <Route path="/terms" element={<TermsOfService />} />
         <Route path="/support" element={<Support />} />
         <Route path="*" element={<Navigate to="/privacy-policy" replace />} />
       </Routes>
@@ -119,7 +119,7 @@ const AuthenticatedApp = () => {
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route path="/terms-of-service" element={<TermsOfService />} />
-      <Route path="/terms" element={<Navigate to="/terms-of-service" replace />} />
+      <Route path="/terms" element={<TermsOfService />} />
       <Route path="/support" element={<Support />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route element={<Layout />}>
@@ -169,7 +169,7 @@ function App() {
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/terms-of-service" element={<TermsOfService />} />
-              <Route path="/terms" element={<Navigate to="/terms-of-service" replace />} />
+              <Route path="/terms" element={<TermsOfService />} />
               <Route path="/support" element={<Support />} />
               <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>

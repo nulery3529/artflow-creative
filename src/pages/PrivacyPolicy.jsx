@@ -1,69 +1,80 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 
 export default function PrivacyPolicy() {
+  useEffect(() => {
+    document.title = "Privacy Policy | Art Flow Creative";
+    const meta = document.querySelector('meta[name="description"]');
+    if (meta) meta.setAttribute("content", "How Art Flow Creative collects, uses, and protects your business data, including Google and marketplace integrations.");
+  }, []);
+
   return (
     <main className="min-h-screen bg-background text-foreground px-5 py-10">
       <div className="mx-auto max-w-3xl">
         <div className="mb-8">
           <Link to="/login" className="text-sm text-primary hover:underline">Art Flow Creative</Link>
           <h1 className="mt-3 text-3xl font-bold tracking-tight">Privacy Policy</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Effective date: August 30, 2026</p>
+          <p className="mt-2 text-sm text-muted-foreground">Last updated: September 11, 2026</p>
         </div>
 
         <div className="space-y-7 text-sm leading-7">
           <section>
             <p>
-              Art Flow Creative is a business-management application for artists and creative sellers. This Privacy Policy explains what information may be collected or processed when you use the application, including when you choose to connect Gmail or supported marketplace services for sales and expense importing.
+              Art Flow Creative is a business-management platform for independent sellers and artists. This Privacy Policy explains, in practical terms, what information Art Flow may collect and how it is used — including when you connect Google or marketplace services such as Etsy, eBay, Depop, Vinted, and Poshmark.
             </p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold mb-2">Information we process</h2>
+            <h2 className="text-xl font-semibold mb-2">Information we may collect</h2>
+            <p>Depending on the features you use, Art Flow Creative may process:</p>
+            <ul className="list-disc pl-6 space-y-1 mt-2">
+              <li>Account and profile information, such as your name and email address.</li>
+              <li>Business information you enter, such as products, listings, orders, inventory, and expenses.</li>
+              <li>Marketplace connection information for services you choose to connect.</li>
+              <li>Google account authorization information created when you approve a Google connection.</li>
+              <li>Email metadata and content, only when you explicitly authorize Gmail access or inbound email processing.</li>
+              <li>OAuth tokens and connection credentials, which are stored securely on the server and are not shared with other users.</li>
+              <li>Technical, logging, and security information, such as request logs and error information used to keep the service running.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold mb-2">How we use information</h2>
+            <ul className="list-disc pl-6 space-y-1">
+              <li>Syncing marketplace orders, listings, and inventory for the connections you authorize.</li>
+              <li>Creating reports and business calculations you request.</li>
+              <li>Performing Google Sheets or Google Drive functions you explicitly request, such as updating a linked spreadsheet.</li>
+              <li>Authenticating you and handling password resets.</li>
+              <li>Ingesting emails, orders, and expenses when you authorize that processing.</li>
+              <li>Security, fraud prevention, and error monitoring.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold mb-2">How integrations work</h2>
             <p>
-              Depending on the features you use, Art Flow Creative may process account information such as your name and email address, business records you enter into the app, sales and order information, inventory, expenses, mileage, schedule information, and other business data you choose to store.
+              Art Flow Creative connects to third-party services — including Google (Gmail, Drive, Sheets), Etsy, eBay, Depop, Vinted, Poshmark, Resend, and Neon PostgreSQL — to provide the features you request. Those services process data under their own privacy policies. Art Flow does not sell your data, and advertisers do not receive your private conversations or your business data through this app. Google user data is used only to provide the features you authorize, and you can disconnect any integration at any time from the app or from the third party's own settings.
             </p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold mb-2">Google account data</h2>
+            <h2 className="text-xl font-semibold mb-2">Google API data</h2>
             <p>
-              If you enable Gmail-based importing, Art Flow Creative may request limited Gmail access needed to read relevant marketplace sale emails and expense emails you intentionally mark for importing. Google access is optional and is only used to provide the features you choose to enable.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-xl font-semibold mb-2">How information is used</h2>
-            <p>
-              Information is used to provide and operate Art Flow Creative, synchronize connected services, calculate business totals, display reports, maintain inventory and expense records, improve reliability, and support the features you request.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-xl font-semibold mb-2">Sharing and sale of personal information</h2>
-            <p>
-              Art Flow Creative does not sell your personal information. Information may be processed by service providers that are necessary to operate the application, host data, authenticate users, or provide connected-service functionality. Your business records are not intentionally shared with other Art Flow Creative users.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-xl font-semibold mb-2">Data security and account separation</h2>
-            <p>
-              Art Flow Creative is designed so each signed-in user accesses their own account records. Reasonable technical safeguards are used to protect stored information, but no internet service can guarantee absolute security.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-xl font-semibold mb-2">Disconnecting connected services</h2>
-            <p>
-              You may stop using a connected Google or marketplace service by disconnecting it in the app when that option is available, or by removing Art Flow Creative access from the third-party service. Disconnecting a service stops future access through that connection but may not automatically delete information already imported into your Art Flow Creative account.
+              Art Flow Creative may request access to Gmail, Google Drive, or Google Sheets only when you authorize those features. Google data is used solely to provide the Art Flow functionality you requested — for example, reading marketplace, order, or expense messages you choose to import; creating or updating spreadsheets you link; and working with files you explicitly connect. We do not use Google user data for advertising, we do not sell it, and our use is limited to providing the requested features. Google's own policies govern the Google services, and you can review or revoke Art Flow Creative's access at any time in your Google account settings.
             </p>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold mb-2">Data retention and deletion</h2>
             <p>
-              Business records may be retained while your account remains active or as needed to provide the service. You may request deletion of your account or associated data by contacting the app owner through the support contact provided for Art Flow Creative.
+              Business records are retained while your account is active or as needed to provide the service. You may request deletion of your account or associated data at any time by contacting us at the email below.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold mb-2">Security</h2>
+            <p>
+              We use reasonable technical and organizational safeguards to protect the information we process. Each signed-in user accesses their own account's records. However, no internet service can guarantee absolute security, so please keep your login credentials safe.
             </p>
           </section>
 
@@ -77,21 +88,22 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-xl font-semibold mb-2">Changes to this policy</h2>
             <p>
-              This policy may be updated as Art Flow Creative changes. The effective date above will be revised when material updates are made.
+              This policy may be updated as Art Flow Creative changes. The "Last updated" date above will be revised when material updates are made.
             </p>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold mb-2">Contact</h2>
             <p>
-              For privacy questions or data requests, contact the Art Flow Creative app owner using the support contact associated with the application.
+              For privacy questions or data requests, contact us at{" "}
+              <a href="mailto:nulery3529@gmail.com" className="text-primary hover:underline">nulery3529@gmail.com</a>.
             </p>
           </section>
         </div>
 
         <div className="mt-10 border-t border-border pt-6 flex flex-wrap gap-4 text-sm">
           <Link to="/support" className="text-primary hover:underline">Support</Link>
-          <Link to="/terms-of-service" className="text-primary hover:underline">Terms of Service</Link>
+          <Link to="/terms" className="text-primary hover:underline">Terms of Service</Link>
           <Link to="/login" className="text-primary hover:underline">Return to login</Link>
         </div>
       </div>
