@@ -70,4 +70,13 @@ export const neonEntities = {
     window.dispatchEvent(new CustomEvent("artflow:data-synced"));
     return data.item;
   },
+
+  async approve(entityName, id) {
+    const data = await request(entityName, {
+      method: "POST",
+      body: JSON.stringify({ action: "approve", id }),
+    });
+    window.dispatchEvent(new CustomEvent("artflow:data-synced"));
+    return data.item;
+  },
 };

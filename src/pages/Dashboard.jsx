@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 
 import PullToRefresh from "@/components/PullToRefresh";
-import { useEntity } from "@/lib/useBusinessData";
+import { useEntity, isApprovedExpense } from "@/lib/useBusinessData";
 import { useOrders } from "@/lib/useOrders";
 import {
   formatMoney,
@@ -330,10 +330,11 @@ export default function Dashboard() {
   } = useOrders();
 
   const {
-    records: expenses = [],
+    records: allExpenses = [],
     loading: expensesLoading,
     reload: reloadExpenses,
   } = useEntity("Expense", "-created_date", 10000);
+  const expenses = allExpenses.filter(isApprovedExpense);
 
   const {
     selected: trackedSites = [],

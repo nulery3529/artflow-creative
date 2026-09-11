@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import PageHeader from "@/components/PageHeader";
-import { useEntity, useTaxRate } from "@/lib/useBusinessData";
+import { useEntity, useTaxRate, isApprovedExpense } from "@/lib/useBusinessData";
 import { useOrders } from "@/lib/useOrders";
 import { formatMoney } from "@/lib/format";
 import { StatCard, PlatformBar, EmptyRow } from "@/components/Cards";
@@ -50,7 +50,8 @@ export default function Reports() {
     () => sitesConfigured ? orders.filter((o) => trackedSites.includes(displayPlatform(o.platform))) : [],
     [orders, trackedSites, sitesConfigured]
   );
-  const { records: expenses, reload: reloadExpenses } = useEntity("Expense", "-created_date");
+  const { records: allExpenses, reload: reloadExpenses } = useEntity("Expense", "-created_date");
+  const expenses = allExpenses.filter(isApprovedExpense);
   const [period, setPeriod] = useState("thisMonth");
   const [taxRate] = useTaxRate();
   const refresh = async () => {

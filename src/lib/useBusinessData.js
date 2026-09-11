@@ -6,10 +6,14 @@ const finiteNumber = (value, fallback = 0) => {
   return Number.isFinite(n) ? n : fallback;
 };
 
+export const isApprovedExpense = (record) =>
+  (record?.status || "approved") !== "pending";
+
 const normalizeExpenseRecord = (record) => {
   if (!record) return record;
   return {
     ...record,
+    status: record.status || "approved",
     amount: finiteNumber(record.amount),
     deductible_percent: record.deductible_percent == null ? 100 : finiteNumber(record.deductible_percent, 100),
     deductible_amount: record.deductible_amount == null ? null : finiteNumber(record.deductible_amount),

@@ -238,6 +238,7 @@ async function listExpenses(client, session) {
        NULLIF(e.data->>'deductible_percent', '')::numeric AS deductible_percent,
        NULLIF(e.data->>'deductible_amount', '')::numeric AS deductible_amount,
        e.source,
+       COALESCE(e.data->>'status','approved') AS status,
        e.receipt_id,
        e.data->>'notes' AS notes,
        e.archived,
@@ -577,6 +578,11 @@ async function writeExpense(client, session, req) {
     if (!result.rows[0]) throw new Error('Expense not found');
     return { id, deleted: true };
   }
+  if (action === 'approve') {
+    const result = await client.query(`UPDATE artflow.expenses SET data=COALESCE(data,'{}'::jsonb)||$3::jsonb,updated_date=now() WHERE base44_id=$1 AND business_id = ANY($2::text[]) RETURNING base44_id`, [id, ids, JSON.stringify({ status: 'approved' })]);
+    if (!result.rows[0]) throw new Error('Expense not found');
+    return { id, approved: true };
+  }
   const data = JSON.stringify({ ...(body.data || {}), description: body.description || '', deductible_percent: body.deductible_percent == null ? 100 : Number(body.deductible_percent), deductible_amount: body.deductible_amount == null ? null : Number(body.deductible_amount), notes: body.notes || null, access_emails: Array.isArray(body.access_emails) ? body.access_emails : (email ? [email] : []) });
   if (action === 'update') {
     const result = await client.query(`UPDATE artflow.expenses SET expense_date=$3,category=$4,amount=$5,source=COALESCE($6,source),data=COALESCE(data,'{}'::jsonb)||$7::jsonb,updated_date=now() WHERE base44_id=$1 AND business_id = ANY($2::text[]) RETURNING base44_id AS id,*`, [id,ids,body.date || null,body.category || null,Number(body.amount)||0,body.source || null,data]);
@@ -647,6 +653,7 @@ async function summary(client, session) {
          ) FILTER (WHERE left(COALESCE(expense_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM')),0)::numeric AS month_deductions
        FROM artflow.expenses
        WHERE archived IS NOT TRUE
+         AND COALESCE(data->>'status','approved') <> 'pending'
          AND (
            business_id = ANY($1::text[])
            OR EXISTS (

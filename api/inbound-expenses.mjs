@@ -194,6 +194,7 @@ async function insertExpense(client, config, emailId, receivedAt, subject, text,
       description,
       deductible_percent: 100,
       deductible_amount: amount,
+      status: 'pending',
     }),
   ]);
 

@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { useEntity, useTaxRate } from "@/lib/useBusinessData";
+import { useEntity, useTaxRate, isApprovedExpense } from "@/lib/useBusinessData";
 import { useOrders } from "@/lib/useOrders";
 import { formatMoney } from "@/lib/format";
 import { StatCard } from "@/components/Cards";
@@ -8,7 +8,8 @@ import { useNavigate } from "react-router-dom";
 
 export default function Taxes() {
   const { records: orders } = useOrders();
-  const { records: expenses } = useEntity("Expense", "-date");
+  const { records: allExpenses } = useEntity("Expense", "-date");
+  const expenses = allExpenses.filter(isApprovedExpense);
   const [rate, setRate] = useTaxRate();
   const navigate = useNavigate();
 

@@ -2,7 +2,8 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { materializeRecurringExpenses } from "@/lib/recurringExpenses";
 import { Plus, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { useEntity } from "@/lib/useBusinessData";
+import { useEntity, isApprovedExpense } from "@/lib/useBusinessData";
+import ExpenseReviewQueue from "@/components/ExpenseReviewQueue";
 import { useOrders } from "@/lib/useOrders";
 import { formatMoney, formatDate, monthKey, monthLabel } from "@/lib/format";
 import { EmptyRow } from "@/components/Cards";
@@ -17,6 +18,8 @@ export default function Expenses() {
   const { records, loading: expensesLoading, reload: reloadExpenses } = useEntity("Expense", "-date");
   const { records: inventoryCosts } = useEntity("InventoryCost", "size");
   const { records: orders } = useOrders();
+  const pending = useMemo(() => records.filter((e) => e?.status === "pending"), [records]);
+  const approved = useMemo(() => records.filter(isApprovedExpense), [records]);
   const refresh = async () => { await reloadExpenses(); };
   const [filter, setFilter] = useState("All");
   const { isOpen: formOpen, open: openForm, close: closeForm } = useModalRoute();
@@ -75,15 +78,15 @@ export default function Expenses() {
   );
 
   const filtered = useMemo(() => {
-    return records.filter((e) => filter === "All" || e.category === filter);
-  }, [records, filter]);
+    return approved.filter((e) => filter === "All" || e.category === filter);
+  }, [approved, filter]);
 
   const totalAll = useMemo(
-    () => records.reduce((s, e) => {
+    () => approved.reduce((s, e) => {
       const amount = Number(e.amount);
       return s + (Number.isFinite(amount) ? amount : 0);
     }, 0),
-    [records]
+    [approved]
   );
 
   const grouped = useMemo(() => {
@@ -112,7 +115,7 @@ export default function Expenses() {
         subtitle="Track business deductions"
         right={
           <div className="flex items-center gap-2">
-            <ExportButton orders={orders} expenses={records} />
+            <ExportButton orders={orders} expenses={approved} />
             <button
               onClick={() => {
                 setEditRecord(null);
@@ -140,6 +143,8 @@ export default function Expenses() {
           {importingEmail ? "Refreshing expenses…" : "Refresh Expenses"}
         </button>
       </section>
+
+      <ExpenseReviewQueue pending={pending} />
 
       <div className="pastel-peach rounded-3xl p-5 border border-[hsl(var(--border))]">
         <p className="text-[11px] font-semibold text-foreground uppercase">
