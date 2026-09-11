@@ -64,7 +64,11 @@ export default function IndependentLogin() {
         </>
       }
     >
-      {error && <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">{error}</div>}
+      {error && (
+        <div className="mb-4 px-4 py-3 rounded-2xl border border-destructive/30 bg-destructive/10 text-destructive text-sm leading-relaxed" role="alert">
+          {error}
+        </div>
+      )}
 
       <form onSubmit={handleEmail} className="space-y-4">
         <div className="space-y-2">
@@ -81,18 +85,20 @@ export default function IndependentLogin() {
             <Input id="independent-password" type="password" autoComplete="current-password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10 h-12" required />
           </div>
         </div>
-        <Button type="submit" className="w-full h-12 font-medium" disabled={loading}>
-          {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Signing in…</> : "Log in"}
+        <Button type="submit" className="w-full h-12 rounded-2xl font-semibold text-base" disabled={loading}>
+          {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Signing in…</> : "Sign in"}
         </Button>
-        <Link
-          to="/forgot-password"
-          className="flex w-full h-12 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-semibold text-primary hover:bg-accent hover:text-accent-foreground"
-        >
-          Forgot your password? Reset it here
-        </Link>
+        <div className="text-center">
+          <Link
+            to="/forgot-password"
+            className="text-sm font-medium text-[hsl(var(--primary))] hover:underline"
+          >
+            Forgot your password?
+          </Link>
+        </div>
       </form>
 
-      <p className="text-center text-xs text-muted-foreground mt-5">
+      <p className="text-center text-xs text-muted-foreground mt-6 leading-relaxed">
         Art Flow login is separate from Google. Connected email accounts are only used for sales and expense syncing.
       </p>
     </AuthLayout>
