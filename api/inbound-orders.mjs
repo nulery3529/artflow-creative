@@ -207,11 +207,76 @@ function depopRows(subject, text) {
   return rows;
 }
 
+function firstAmount(text, patterns = []) {
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    const value = Number((match?.[1] || '').replace(/,/g, ''));
+    if (Number.isFinite(value) && value > 0) return value;
+  }
+  return 0;
+}
+
+function etsyRows(subject, text) {
+  if (!/sale|sold/i.test(subject)) return [];
+  const orderId = clean(text.match(/receipt\s*(?:number)?\s*[:#]?\s*(\d{5,})/i)?.[1] || text.match(/order\s*#?\s*(\d{5,})/i)?.[1] || '') || null;
+  const title = clean(
+    text.match(/you sold\s*:?\s*([^\n]+)/i)?.[1] ||
+    text.match(/item\s*:?\s*([^\n]+)/i)?.[1] ||
+    'Etsy sale'
+  ).slice(0, 120);
+  const saleTotal = firstAmount(text, [
+    /order total[:\s]*\$?([\d,]+(?:\.\d{2})?)/i,
+    /total paid[:\s]*\$?([\d,]+(?:\.\d{2})?)/i,
+    /total[:\s]*\$([\d,]+(?:\.\d{2})?)/i,
+    /\$([\d,]+\.\d{2})/,
+  ]);
+  if (!saleTotal) return [];
+  return [{
+    platform: 'Etsy',
+    product_name: title,
+    quantity: 1,
+    size: sizeFromTitle(title),
+    sale_total: saleTotal,
+    unit_price: saleTotal,
+    buyer: clean(text.match(/(?:sold to|buyer|customer)\s*:?\s*([^\n,]+)/i)?.[1] || ''),
+    order_id: orderId,
+  }];
+}
+
+function ebayRows(subject, text) {
+  if (!/sold|sale/i.test(subject)) return [];
+  const title = clean(
+    subject.match(/you sold an item\s*:?\s*(.+?)[.!]*\s*$/i)?.[1] ||
+    subject.match(/^eBay item sold\s*:?\s*(.+)/i)?.[1] ||
+    text.match(/item\s+title\s*:?\s*([^\n]+)/i)?.[1] ||
+    text.match(/sold\s+item\s*:?\s*([^\n]+)/i)?.[1] ||
+    'eBay sale'
+  ).slice(0, 120);
+  const orderId = clean(text.match(/order\s*(?:number|#)?\s*[:#]?\s*([\d-]{6,})/i)?.[1] || '') || null;
+  const saleTotal = firstAmount(text, [
+    /(?:order )?total[:\s]*\$([\d,]+(?:\.\d{2})?)/i,
+    /\$([\d,]+\.\d{2})/,
+  ]);
+  if (!saleTotal) return [];
+  return [{
+    platform: 'eBay',
+    product_name: title,
+    quantity: 1,
+    size: sizeFromTitle(title),
+    sale_total: saleTotal,
+    unit_price: saleTotal,
+    buyer: clean(text.match(/buyer(?: name)?\s*:?\s*([^\n,]+)/i)?.[1] || ''),
+    order_id: orderId,
+  }];
+}
+
 function parseSaleEmail(from, subject, text) {
   const email = addressOnly(from);
   if (email.endsWith('@vinted.com')) return vintedRows(subject, text);
   if (email.endsWith('@poshmark.com')) return poshmarkRows(subject, text);
   if (email.endsWith('@alerts.depop.com') || email.endsWith('@ohhey.depop.com')) return depopRows(subject, text);
+  if (email.endsWith('@etsy.com')) return etsyRows(subject, text);
+  if (email.endsWith('@ebay.com')) return ebayRows(subject, text);
   return [];
 }
 

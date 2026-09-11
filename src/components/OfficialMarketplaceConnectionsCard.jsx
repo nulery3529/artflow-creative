@@ -168,6 +168,9 @@ export default function OfficialMarketplaceConnectionsCard() {
       <div>
         <h2 className="font-heading text-lg">Marketplace account connections</h2>
         <p className="text-sm text-muted-foreground mt-1">Use each marketplace's official connection method. Art Flow does not ask for or store your marketplace password.</p>
+        <p className="text-xs text-muted-foreground mt-2 rounded-2xl bg-muted/60 p-3">
+          No API keys needed: "You made a sale" emails from Etsy, eBay, Vinted, Depop and Poshmark sync automatically through your email webhook once your inbox is connected — the connections below simply add official API sync on top.
+        </p>
       </div>
 
       <div className="rounded-2xl border border-[hsl(var(--border))] p-4 space-y-3">
