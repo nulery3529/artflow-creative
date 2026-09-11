@@ -4,8 +4,8 @@ import { toast } from "sonner";
 import { neonEntities } from "@/lib/neonEntityClient";
 import { formatMoney, formatDate } from "@/lib/format";
 
-// Imported expense receipts wait here until the owner approves them.
-// Approved expenses count toward business totals; deleted ones are removed.
+// Purchases synced from email wait here until the owner reviews them.
+// Approved ones count as business expenses; deleted ones are removed entirely.
 export default function ExpenseReviewQueue({ pending }) {
   const [busy, setBusy] = useState("");
 
@@ -17,12 +17,12 @@ export default function ExpenseReviewQueue({ pending }) {
     try {
       if (action === "approve") {
         await neonEntities.approve("Expense", record.id);
-        toast.success("Expense approved", {
+        toast.success("Purchase approved as a business expense", {
           description: "It now counts toward your business expenses.",
         });
       } else {
         await neonEntities.delete("Expense", record.id);
-        toast.success("Expense removed", {
+        toast.success("Purchase removed", {
           description: "It will not count toward your business expenses.",
         });
       }
@@ -50,8 +50,8 @@ export default function ExpenseReviewQueue({ pending }) {
             <p className="font-heading text-base text-foreground">Needs your review</p>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            Imported expense receipts wait here until you approve them. Nothing is counted
-            as a business expense until you say so.
+            Purchases synced from your email wait here — business or personal. Approve the
+            ones that count as business expenses; delete the rest.
           </p>
         </div>
         <span className="shrink-0 px-2.5 h-6 rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-[11px] font-semibold flex items-center">

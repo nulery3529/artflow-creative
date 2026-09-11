@@ -99,10 +99,12 @@ function extractTotal(text = '') {
   return 0;
 }
 
-function looksLikeExpense(subject = '', text = '') {
-  const haystack = `${subject}\n${text}`.toLowerCase();
-  const commerceSignal = /\b(receipt|invoice|order|purchase|payment|paid|charged|transaction|thank you for your (?:order|purchase)|order total|grand total|amount paid)\b/i.test(haystack);
-  return commerceSignal && extractTotal(haystack) > 0;
+function looksLikePurchase(subject = '', text = '') {
+  // Every email with a detectable purchase total is imported as a pending
+  // purchase — even personal, non-business ones. The owner decides in review
+  // whether each one counts as a business expense.
+  const haystack = `${subject}\n${text}`;
+  return extractTotal(haystack) > 0;
 }
 
 function categoryFor(subject = '', text = '') {
@@ -119,7 +121,7 @@ function categoryFor(subject = '', text = '') {
   if (/\b(advertising|advertisement|facebook ads|meta ads|instagram ads|promoted listing|marketing)\b/.test(value)) return 'Advertising & Marketing';
   if (/\b(art kit|art supply|paint|paintbrush|brush set|marker|colored pencil|pencil set|watercolor|acrylic paint|glue|adhesive|craft supply|quilling)\b/.test(value)) return 'Art Materials & Supplies';
   if (/\b(office supply|office supplies|desk|filing|label maker)\b/.test(value)) return 'Office & Business';
-  return 'Other Business Expense';
+  return 'Purchase';
 }
 
 function sourceName(subject = '', text = '', sender = '') {
@@ -270,17 +272,17 @@ export default async function handler(req, res) {
 
     // Manual forwards from a configured expense mailbox are explicitly trusted.
     // Automatic mailbox forwarding can preserve the original merchant From header,
-    // so messages to this private business-specific alias are also accepted only when
-    // they pass conservative receipt + total detection below.
+    // so messages to this private business-specific alias are also accepted when
+    // they contain a detectable purchase total — business or personal.
     const fromConfiguredExpenseMailbox = allowedForwarders.includes(sender);
-    const receiptLike = looksLikeExpense(subject, text);
+    const purchaseLike = looksLikePurchase(subject, text);
 
-    if (!receiptLike) {
+    if (!purchaseLike) {
       await recordImport(client, {
         businessId: config.business_id,
         emailId,
         status: 'skipped',
-        details: 'Email did not contain a recognizable business expense receipt total',
+        details: 'Email did not contain a recognizable purchase total',
         createdBy: config.created_by_id || null,
       });
       return res.status(200).send('OK');
