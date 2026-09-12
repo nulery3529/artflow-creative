@@ -3,6 +3,15 @@ import ReactDOM from 'react-dom/client'
 import App from '@/App.jsx'
 import '@/index.css'
 
+// Keep authentication and OAuth on one canonical host. Google callbacks are
+// registered for artflowcreative.com, and starting a flow from the www alias
+// can split OAuth state across hosts on mobile browsers.
+if (window.location.hostname === 'www.artflowcreative.com') {
+  const canonicalURL = new URL(window.location.href)
+  canonicalURL.hostname = 'artflowcreative.com'
+  window.location.replace(canonicalURL.toString())
+}
+
 const root = ReactDOM.createRoot(document.getElementById('root'))
 
 const Recovery = ({ message = 'Loading Art Flow Creative…' }) => (
