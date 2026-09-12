@@ -134,22 +134,6 @@ export const auth = betterAuth({
       prompt: "select_account consent",
     },
   } : {},
-  databaseHooks: {
-    account: {
-      update: {
-        before: async (account) => {
-          // Google only issues a refresh_token on first consent (or forced
-          // re-consent). On later incremental grants it is omitted, and
-          // better-auth would otherwise write null over the stored token,
-          // permanently breaking offline sync for Gmail/Sheets/Drive.
-          if (account?.providerId === "google" && !account?.refreshToken) {
-            return { data: { refreshToken: undefined } };
-          }
-          return false;
-        },
-      },
-    },
-  },
   trustedOrigins: [
     baseURL,
     vercelProductionURL,
