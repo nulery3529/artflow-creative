@@ -30,6 +30,13 @@ import TermsOfService from '@/pages/TermsOfService';
 import Support from '@/pages/Support';
 import MobileSaleCapture from '@/pages/MobileSaleCapture';
 import Logo from '@/components/Logo';
+import Shop from '@/pages/Shop';
+import ShopProduct from '@/pages/ShopProduct';
+import ShopCart from '@/pages/ShopCart';
+import ShopCheckout from '@/pages/ShopCheckout';
+import ShopAccount from '@/pages/ShopAccount';
+import StoreProducts from '@/pages/StoreProducts';
+import StoreOrders from '@/pages/StoreOrders';
 // Add page imports here
 
 const TabShell = () => null;
@@ -121,6 +128,11 @@ const AuthenticatedApp = () => {
       <Route path="/terms-of-service" element={<TermsOfService />} />
       <Route path="/terms" element={<TermsOfService />} />
       <Route path="/support" element={<Support />} />
+      <Route path="/shop" element={<Shop />} />
+      <Route path="/shop/product/:id" element={<ShopProduct />} />
+      <Route path="/shop/cart" element={<ShopCart />} />
+      <Route path="/shop/checkout" element={<ShopCheckout />} />
+      <Route path="/shop/account" element={<ShopAccount />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route element={<Layout />}>
           <Route path="/" element={<TabShell />} />
@@ -135,6 +147,8 @@ const AuthenticatedApp = () => {
           <Route path="/calendar" element={<Calendar />} />
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/mileage" element={<Mileage />} />
+          <Route path="/store-products" element={<StoreProducts />} />
+          <Route path="/store-orders" element={<StoreOrders />} />
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />
@@ -147,11 +161,12 @@ function App() {
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
   const isAuthPage = path === '/login' || path === '/register' || path === '/forgot-password' || path === '/reset-password' || path === '/new-login' || path === '/new-register' || path === '/new-auth-test' || path === '/new-data-test';
   const isLegalPage = path === '/privacy' || path === '/privacy-policy' || path === '/terms-of-service' || path === '/terms' || path === '/support';
+  const isShopPage = path === '/shop' || path.startsWith('/shop/');
 
   // Render public/auth recovery pages without mounting AuthProvider at all.
   // This guarantees they still render even if the external Google/Base44 auth
   // configuration is broken or throws before auth state can initialize.
-  if (isAuthPage || isLegalPage) {
+  if (isAuthPage || isLegalPage || isShopPage) {
     return (
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         <QueryClientProvider client={queryClientInstance}>
@@ -166,13 +181,23 @@ function App() {
               <Route path="/new-register" element={<IndependentRegister />} />
               <Route path="/new-auth-test" element={<IndependentAuthTest />} />
         <Route path="/new-data-test" element={<NeonDataTest />} />
-              <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/shop" element={<Shop />} />
+            <Route path="/shop/product/:id" element={<ShopProduct />} />
+            <Route path="/shop/cart" element={<ShopCart />} />
+            <Route path="/shop/checkout" element={<ShopCheckout />} />
+            <Route path="/shop/account" element={<ShopAccount />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/terms-of-service" element={<TermsOfService />} />
               <Route path="/terms" element={<TermsOfService />} />
               <Route path="/support" element={<Support />} />
-              <Route path="*" element={<Navigate to="/login" replace />} />
-            </Routes>
+                      <Route path="/shop" element={<Shop />} />
+                      <Route path="/shop/product/:id" element={<ShopProduct />} />
+                      <Route path="/shop/cart" element={<ShopCart />} />
+                      <Route path="/shop/checkout" element={<ShopCheckout />} />
+                      <Route path="/shop/account" element={<ShopAccount />} />
+                  <Route path="*" element={<Navigate to="/login" replace />} />
+                    </Routes>
           </Router>
           <Toaster />
           <SonnerToaster position="top-center" />

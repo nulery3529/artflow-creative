@@ -17,6 +17,9 @@ import {
   Moon,
   Search,
   Bell,
+  Store,
+  Palette,
+  ClipboardList,
 } from "lucide-react";
 
 import BottomNav from "@/components/BottomNav";
@@ -45,6 +48,9 @@ const navItems = [
   { label: "Inventory", to: "/inventory", icon: Package },
   { label: "Reports", to: "/reports", icon: BarChart3 },
   { label: "Calendar", to: "/calendar", icon: CalendarDays },
+  { label: "Storefront", to: "/shop", icon: Store },
+  { label: "Products", to: "/store-products", icon: Palette },
+  { label: "Store Orders", to: "/store-orders", icon: ClipboardList },
   { label: "Settings", to: "/account", icon: Settings },
 ];
 

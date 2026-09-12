@@ -12,6 +12,9 @@ import {
   Percent,
   Car,
   UserRound,
+  Store,
+  Palette,
+  ClipboardList,
 } from "lucide-react";
 import {
   Drawer,
@@ -29,6 +32,9 @@ const primary = [
 ];
 
 const more = [
+  { label: "Storefront", to: "/shop", icon: Store },
+  { label: "Products", to: "/store-products", icon: Palette },
+  { label: "Store Orders", to: "/store-orders", icon: ClipboardList },
   { label: "Gallery", to: "/gallery", icon: ImageIcon },
   { label: "Calendar", to: "/calendar", icon: CalendarIcon },
   { label: "Mileage", to: "/mileage", icon: Car },
