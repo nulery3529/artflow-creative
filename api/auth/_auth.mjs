@@ -120,9 +120,18 @@ export const auth = betterAuth({
       clientId: googleClientId,
       clientSecret: googleClientSecret,
       accessType: "offline",
-      // Do not force consent on sign-in: Google shows the consent screen only
-      // when new scopes are requested (incremental authorization).
-      prompt: "select_account",
+      // Every explicit Google connection in ArtFlow must be capable of both
+      // tracker access and Gmail sales syncing. Keeping the complete required
+      // scope set at the provider level protects future UI entry points from
+      // accidentally creating a partially-authorized Google account.
+      scope: [
+        "https://www.googleapis.com/auth/drive.file",
+        "https://www.googleapis.com/auth/gmail.readonly",
+      ],
+      // Google may omit a refresh token on repeat authorizations unless consent
+      // is requested again. ArtFlow depends on a refresh token for background
+      // syncing when the user's browser is closed.
+      prompt: "select_account consent",
     },
   } : {},
   databaseHooks: {
