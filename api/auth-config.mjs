@@ -17,7 +17,6 @@ export function GET() {
   return Response.json({
     emailPassword: true,
     google: Boolean(googleClientId && googleClientSecret),
-    googleClientId: googleClientId || null,
     googleClientIdFormatValid: Boolean(googleClientId && /^[0-9]+-[a-zA-Z0-9_-]+\.apps\.googleusercontent\.com$/.test(googleClientId)),
     googleClientIdLength: googleClientId.length,
     googleClientSecretLooksLikeClientId: looksLikeGoogleClientId(googleClientSecret),
