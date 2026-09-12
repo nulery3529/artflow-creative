@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { CheckCircle2, ExternalLink, RefreshCw, Table2 } from "lucide-react";
 import { artflowAuthClient } from "@/lib/artflowAuthClient";
+import { artflowGoogleLinkOptions } from "@/lib/googleConnection";
 import { useAuth } from "@/lib/AuthContext";
 import { toast } from "sonner";
 
@@ -56,10 +57,12 @@ export default function TrackerSetupCard() {
       window.dispatchEvent(new CustomEvent("artflow:tracker-ready", { detail: data }));
       toast.success(data.message || "Your ArtFlow Creative Tracker is ready");
 
-      // Tracker setup uses only the narrow Drive file permission. Run the
-      // tracker sync now; Gmail authorization is intentionally separate.
+      // Google authorization is shared by the tracker and Gmail sales inbox,
+      // so once the tracker is ready both backend jobs can use the same durable
+      // offline Google grant.
       await Promise.allSettled([
         fetch("/api/tracker-sync", { method: "POST", credentials: "include", cache: "no-store" }),
+        fetch("/api/gmail-sales-sync", { method: "POST", credentials: "include", cache: "no-store" }),
       ]);
     } catch (error) {
       if (["GOOGLE_NOT_LINKED", "GOOGLE_RECONNECT"].includes(error?.code)) {
@@ -78,19 +81,10 @@ export default function TrackerSetupCard() {
     setConnecting(true);
     try {
       sessionStorage.setItem(PENDING_KEY, "1");
-      const result = await artflowAuthClient.linkSocial({
-        provider: "google",
+      const result = await artflowAuthClient.linkSocial(artflowGoogleLinkOptions({
         callbackURL: `${window.location.origin}/account?setup=tracker`,
-        scopes: [
-          "https://www.googleapis.com/auth/drive.file",
-        ],
-        additionalParams: {
-          access_type: "offline",
-          include_granted_scopes: "true",
-          prompt: "select_account",
-          ...(user?.email ? { login_hint: user.email } : {}),
-        },
-      });
+        loginHint: user?.email || "",
+      }));
       if (result?.error) throw new Error(result.error.message || "Could not connect Google");
       if (result?.data?.url) {
         window.location.assign(result.data.url);
@@ -131,7 +125,7 @@ export default function TrackerSetupCard() {
         <div className="flex-1 min-w-0">
           <h2 className="font-heading text-lg">ArtFlow Creative Tracker</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Connect Google Drive so Art Flow can create your private tracker. Gmail sale-email syncing is connected separately after the tracker is ready.
+            Connect Google once so Art Flow can create your private tracker and read marketplace sale emails. The same authorization is used for both features and for automatic background syncing.
           </p>
         </div>
         {status?.connected && status?.google_connected && <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-1" />}
@@ -181,7 +175,7 @@ export default function TrackerSetupCard() {
       ) : !status?.google_connected ? (
         <div className="space-y-3">
           <div className="rounded-2xl bg-muted/60 p-3 text-xs text-muted-foreground">
-            First connect the Google account where you want the ArtFlow tracker stored. After Google confirms the connection, Art Flow will create the spreadsheet in that account's Drive automatically.
+            Connect the Google account where you want the ArtFlow tracker stored and where your marketplace sale emails arrive. Art Flow will request the tracker and Gmail permissions together so setup is complete for new users in one connection.
           </div>
           <button
             type="button"
