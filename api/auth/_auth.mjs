@@ -120,9 +120,27 @@ export const auth = betterAuth({
       clientId: googleClientId,
       clientSecret: googleClientSecret,
       accessType: "offline",
-      prompt: "select_account consent",
+      // Do not force consent on sign-in: Google shows the consent screen only
+      // when new scopes are requested (incremental authorization).
+      prompt: "select_account",
     },
   } : {},
+  databaseHooks: {
+    account: {
+      update: {
+        before: async (account) => {
+          // Google only issues a refresh_token on first consent (or forced
+          // re-consent). On later incremental grants it is omitted, and
+          // better-auth would otherwise write null over the stored token,
+          // permanently breaking offline sync for Gmail/Sheets/Drive.
+          if (account?.providerId === "google" && !account?.refreshToken) {
+            return { data: { refreshToken: undefined } };
+          }
+          return false;
+        },
+      },
+    },
+  },
   trustedOrigins: [
     baseURL,
     vercelProductionURL,

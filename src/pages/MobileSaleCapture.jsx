@@ -216,7 +216,7 @@ export default function MobileSaleCapture() {
         additionalParams: {
           access_type: "offline",
           include_granted_scopes: "true",
-          prompt: "consent",
+          prompt: "select_account",
         },
       });
       if (result?.error) throw new Error(result.error.message || "Could not connect Google");

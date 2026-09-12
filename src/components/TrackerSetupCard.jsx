@@ -87,7 +87,7 @@ export default function TrackerSetupCard() {
         additionalParams: {
           access_type: "offline",
           include_granted_scopes: "true",
-          prompt: "select_account consent",
+          prompt: "select_account",
           ...(user?.email ? { login_hint: user.email } : {}),
         },
       });
