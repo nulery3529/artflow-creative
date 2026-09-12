@@ -45,7 +45,7 @@ export default function IndependentLogin() {
       });
       if (signInError) throw new Error(signInError.message || "Email or password is incorrect.");
 
-      // Authentication success should not be blocked by a temporary data refresh.
+      // Email/password authentication success should not be blocked by a temporary data refresh.
       // Confirm the Better Auth session exists, then let the app's normal Neon
       // workspace recovery load the user's data after navigation.
       const sessionResult = await artflowAuthClient.getSession().catch(() => null);
