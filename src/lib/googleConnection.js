@@ -7,9 +7,14 @@ export const ARTFLOW_GOOGLE_SCOPES = [
 // Gmail sales inbox. Keeping the complete scope set here prevents a future UI
 // entry point from creating a partially-authorized Google account.
 export function artflowGoogleLinkOptions({ callbackURL, loginHint = "" } = {}) {
+  const canonicalCallbackURL = String(callbackURL || "").replace(
+    /^https:\/\/www\.artflowcreative\.com/i,
+    "https://artflowcreative.com"
+  );
+
   return {
     provider: "google",
-    callbackURL,
+    callbackURL: canonicalCallbackURL || callbackURL,
     scopes: ARTFLOW_GOOGLE_SCOPES,
     loginHint: loginHint || undefined,
     additionalParams: {
