@@ -191,11 +191,6 @@ function App() {
               <Route path="/terms-of-service" element={<TermsOfService />} />
               <Route path="/terms" element={<TermsOfService />} />
               <Route path="/support" element={<Support />} />
-                      <Route path="/shop" element={<Shop />} />
-                      <Route path="/shop/product/:id" element={<ShopProduct />} />
-                      <Route path="/shop/cart" element={<ShopCart />} />
-                      <Route path="/shop/checkout" element={<ShopCheckout />} />
-                      <Route path="/shop/account" element={<ShopAccount />} />
                   <Route path="*" element={<Navigate to="/login" replace />} />
                     </Routes>
           </Router>
