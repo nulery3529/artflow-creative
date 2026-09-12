@@ -27,6 +27,7 @@ import Gallery from '@/pages/Gallery';
 import Mileage from '@/pages/Mileage';
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
 import TermsOfService from '@/pages/TermsOfService';
+import AboutArtFlow from '@/pages/AboutArtFlow';
 import Support from '@/pages/Support';
 import MobileSaleCapture from '@/pages/MobileSaleCapture';
 import Logo from '@/components/Logo';
@@ -55,10 +56,11 @@ const AuthenticatedApp = () => {
 
   // Legal pages must be publicly accessible for Google OAuth verification and app users.
   const publicPath = window.location.pathname.replace(/\/+$/, '') || '/';
-  if (publicPath === '/privacy' || publicPath === '/privacy-policy' || publicPath === '/terms-of-service' || publicPath === '/terms' || publicPath === '/support') {
+  if (publicPath === '/about' || publicPath === '/privacy' || publicPath === '/privacy-policy' || publicPath === '/terms-of-service' || publicPath === '/terms' || publicPath === '/support') {
     return (
       <Routes>
-        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/about" element={<AboutArtFlow />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms-of-service" element={<TermsOfService />} />
         <Route path="/terms" element={<TermsOfService />} />
@@ -123,6 +125,7 @@ const AuthenticatedApp = () => {
       <Route path="/new-login" element={<IndependentLogin />} />
       <Route path="/new-register" element={<IndependentRegister />} />
       <Route path="/new-auth-test" element={<IndependentAuthTest />} />
+      <Route path="/about" element={<AboutArtFlow />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route path="/terms-of-service" element={<TermsOfService />} />
@@ -160,7 +163,7 @@ const AuthenticatedApp = () => {
 function App() {
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
   const isAuthPage = path === '/login' || path === '/register' || path === '/forgot-password' || path === '/reset-password' || path === '/new-login' || path === '/new-register' || path === '/new-auth-test' || path === '/new-data-test';
-  const isLegalPage = path === '/privacy' || path === '/privacy-policy' || path === '/terms-of-service' || path === '/terms' || path === '/support';
+  const isLegalPage = path === '/about' || path === '/privacy' || path === '/privacy-policy' || path === '/terms-of-service' || path === '/terms' || path === '/support';
   const isShopPage = path === '/shop' || path.startsWith('/shop/');
 
   // Render public/auth recovery pages without mounting AuthProvider at all.
@@ -186,7 +189,8 @@ function App() {
             <Route path="/shop/cart" element={<ShopCart />} />
             <Route path="/shop/checkout" element={<ShopCheckout />} />
             <Route path="/shop/account" element={<ShopAccount />} />
-            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/about" element={<AboutArtFlow />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/terms-of-service" element={<TermsOfService />} />
               <Route path="/terms" element={<TermsOfService />} />
