@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,16 @@ export default function IndependentLogin() {
     const next = params.get("returnTo") || "/";
     window.location.replace(next.startsWith("/") ? next : "/");
   };
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const sessionResult = await artflowAuthClient.getSession().catch(() => null);
+      const session = sessionResult?.data || sessionResult;
+      if (active && session?.user?.id) finish();
+    })();
+    return () => { active = false; };
+  }, []);
 
   const handleEmail = async (event) => {
     event.preventDefault();
