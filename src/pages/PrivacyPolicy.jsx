@@ -60,7 +60,7 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-xl font-semibold mb-2">Google API data</h2>
             <p>
-              Art Flow Creative may request access to Gmail, Google Drive, or Google Sheets only when you authorize those features. Google data is used solely to provide the Art Flow functionality you requested — for example, reading marketplace, order, or expense messages you choose to import; creating or updating spreadsheets you link; and working with files you explicitly connect. We do not use Google user data for advertising, we do not sell it, and our use is limited to providing the requested features. Google's own policies govern the Google services, and you can review or revoke Art Flow Creative's access at any time in your Google account settings.
+              Art Flow Creative may request access to Gmail, Google Drive, or Google Sheets only when you authorize those features. Google data is used solely to provide the Art Flow functionality you requested — for example, reading marketplace, order, or expense messages you choose to import; creating or updating spreadsheets you link; and working with files you explicitly connect. We do not use Google user data for advertising and we do not sell Google user data. Art Flow Creative's use and transfer of information received from Google APIs adheres to the Google API Services User Data Policy, including its Limited Use requirements. You can review or revoke Art Flow Creative's access at any time in your Google account settings.
             </p>
           </section>
 
