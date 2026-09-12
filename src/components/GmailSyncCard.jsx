@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { CheckCircle2, Mail, RefreshCw, AlertCircle } from "lucide-react";
 import { artflowAuthClient } from "@/lib/artflowAuthClient";
+import { artflowGoogleLinkOptions } from "@/lib/googleConnection";
 import { useAuth } from "@/lib/AuthContext";
 import { toast } from "sonner";
 
@@ -63,17 +64,10 @@ export default function GmailSyncCard() {
     setConnecting(true);
     try {
       sessionStorage.setItem(RETURN_KEY, "1");
-      const result = await artflowAuthClient.linkSocial({
-        provider: "google",
+      const result = await artflowAuthClient.linkSocial(artflowGoogleLinkOptions({
         callbackURL: `${window.location.origin}/account?setup=gmail`,
-        scopes: ["https://www.googleapis.com/auth/gmail.readonly"],
-        additionalParams: {
-          access_type: "offline",
-          include_granted_scopes: "true",
-          prompt: "select_account",
-          ...(user?.email ? { login_hint: user.email } : {}),
-        },
-      });
+        loginHint: user?.email || "",
+      }));
       if (result?.error) throw new Error(result.error.message || "Could not connect Gmail");
       if (result?.data?.url) {
         window.location.assign(result.data.url);
@@ -123,7 +117,7 @@ export default function GmailSyncCard() {
         <div className="flex-1 min-w-0">
           <h2 className="font-heading text-lg">Gmail Sales Inbox</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Connect the Gmail inbox that receives marketplace sale emails. Art Flow keeps this connection with your business workspace, not with another user's account.
+            Connect the Google account that receives marketplace sale emails. The same secure connection also keeps your private ArtFlow tracker authorized, so new accounts do not end up with partial Google permissions.
           </p>
         </div>
         {connected ? <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-1" /> : needsReconnect ? <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-1" /> : null}
