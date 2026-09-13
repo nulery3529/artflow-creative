@@ -115,7 +115,7 @@ export default function MobileMarketplaceSyncCard() {
       <div className="rounded-2xl bg-muted/60 p-3 text-xs text-muted-foreground space-y-1">
         <p><strong className="text-foreground">No website link needed.</strong> Enter your {platform} username, with or without the @.</p>
         <p>Running the sync again refreshes the Available Gallery to match the marketplace profile.</p>
-        <p><strong className="text-foreground">Etsy:</strong> use the Etsy link box above instead. Shop links are saved, and individual Etsy listing links can be added to Gallery without an Etsy API login.</p>
+        <p><strong className="text-foreground">Etsy:</strong> use Import Etsy CSV above to bring all active listings and photos into Gallery at once without an Etsy API login.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-3">
