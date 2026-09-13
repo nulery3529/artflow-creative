@@ -5,12 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogIn, Mail, Lock, Loader2 } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
-import { artflowAuthClient } from "@/lib/artflowAuthClient";
 
 export default function IndependentLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const finish = () => {
@@ -28,56 +26,11 @@ export default function IndependentLogin() {
       sessionStorage.removeItem("artflow_connect_gmail");
       sessionStorage.removeItem("artflow_create_tracker_after_google");
     } catch {}
+
+    const params = new URLSearchParams(window.location.search);
+    const serverError = params.get("error");
+    if (serverError) setError(serverError);
   }, []);
-
-  const handleEmail = async (event) => {
-    event.preventDefault();
-    setError("");
-    setLoading(true);
-    try {
-      const enteredEmail = email.trim().toLowerCase();
-      const loginEmail = enteredEmail === "natashaulery@gmail.com"
-        ? "nulery3529@gmail.com"
-        : enteredEmail;
-      const response = await fetch("/api/auth/sign-in/email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        cache: "no-store",
-        body: JSON.stringify({
-          email: loginEmail,
-          password,
-          rememberMe: true,
-        }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || data?.error) {
-        throw new Error(data?.message || data?.error?.message || "Email or password is incorrect.");
-      }
-
-      let session = null;
-      for (let attempt = 0; attempt < 3; attempt += 1) {
-        const sessionResponse = await fetch("/api/auth/get-session", {
-          credentials: "include",
-          cache: "no-store",
-        }).catch(() => null);
-        if (sessionResponse?.ok) {
-          session = await sessionResponse.json().catch(() => null);
-          if (session?.user?.id) break;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 250));
-      }
-      if (!session?.user?.id) {
-        throw new Error("Your sign-in completed, but the session was not saved. Please try again.");
-      }
-
-      finish();
-    } catch (err) {
-      setError(err?.message || "Could not sign in.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <AuthLayout
@@ -97,23 +50,24 @@ export default function IndependentLogin() {
         </div>
       )}
 
-      <form onSubmit={handleEmail} className="space-y-4">
+      <form method="post" action="/api/direct-login" className="space-y-4">
+        <input type="hidden" name="returnTo" value={new URLSearchParams(window.location.search).get("returnTo") || "/"} />
         <div className="space-y-2">
           <Label htmlFor="independent-email">Email</Label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input id="independent-email" type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="pl-10 h-12" required />
+            <Input id="independent-email" name="email" type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="pl-10 h-12" required />
           </div>
         </div>
         <div className="space-y-2">
           <Label htmlFor="independent-password">Password</Label>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input id="independent-password" type="password" autoComplete="current-password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10 h-12" required />
+            <Input id="independent-password" name="password" type="password" autoComplete="current-password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10 h-12" required />
           </div>
         </div>
-        <Button type="submit" className="w-full h-12 rounded-2xl font-semibold text-base" disabled={loading}>
-          {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Signing in…</> : "Sign in"}
+        <Button type="submit" className="w-full h-12 rounded-2xl font-semibold text-base">
+          Sign in
         </Button>
         <div className="text-center">
           <Link
