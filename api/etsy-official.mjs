@@ -242,6 +242,7 @@ export default async function handler(req,res){
       }
       await saveUserOAuth(client,p,{
         connected:true,
+        artflow_user_id:authUserId,
         access_token_enc:encrypt(token.access_token),
         refresh_token_enc:token.refresh_token?encrypt(token.refresh_token):p.data?.etsy_oauth?.refresh_token_enc,
         expires_at:expiresAtIso,
@@ -259,16 +260,26 @@ export default async function handler(req,res){
     const business=await businessForUser(client,p,s.user);
     let creds=await etsyCredentials(client);
     const configured=Boolean(creds.key&&creds.secret);
-    const oauth=p.data?.etsy_oauth||{};
     const ownerScope=`user:${s.user.id}`;
     const appOwnerId=await appOwnerUserId(client);
     const canManageCredentials=Boolean(appOwnerId && String(s.user.id)===appOwnerId);
+    let oauth=p.data?.etsy_oauth||{};
+
+    // Legacy owner connection: claim it once for the actual Art Flow owner.
+    // All other legacy/copied OAuth blocks remain unusable until that user
+    // completes their own Etsy authorization.
+    if(oauth.refresh_token_enc && !clean(oauth.artflow_user_id) && canManageCredentials){
+      await saveUserOAuth(client,p,{artflow_user_id:String(s.user.id)});
+      oauth=p.data?.etsy_oauth||{};
+    }
+    const oauthBelongsToUser=clean(oauth.artflow_user_id)===String(s.user.id);
+    const userOauth=oauthBelongsToUser?oauth:{};
 
     if(req.method==='GET'){
       return res.status(200).json({
         configured,
-        connected:Boolean(oauth.connected&&oauth.refresh_token_enc),
-        shop_name:clean(oauth.shop_name),
+        connected:Boolean(userOauth.connected&&userOauth.refresh_token_enc),
+        shop_name:clean(userOauth.shop_name),
         redirect_uri:REDIRECT_URI,
         credential_source:creds.source,
         can_manage_credentials:canManageCredentials,
@@ -349,6 +360,7 @@ export default async function handler(req,res){
 
     if(action==='sync'){
       if(!creds.key||!creds.secret) return res.status(503).json({error:'Etsy credentials are not configured.'});
+      if(!oauthBelongsToUser || !userOauth.refresh_token_enc) return res.status(400).json({error:'Etsy is not connected for this Art Flow account. Connect Etsy with this account first.'});
       const token=await validAccessToken(client,p,creds);
       let shopId=p.data?.etsy_oauth?.shop_id;
       if(!shopId){
