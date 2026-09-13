@@ -778,8 +778,9 @@ export default async function handler(req, res) {
           const quantityNumber = Number.parseInt(String(row?.quantity ?? '0'), 10);
           const quantity = Number.isFinite(quantityNumber) && quantityNumber >= 0 ? quantityNumber : 0;
           const currency = clean(row?.currency || 'USD').toUpperCase().slice(0, 8) || 'USD';
+          const sourceIndex = Number.parseInt(String(row?.source_index ?? '0'), 10) || 0;
           const fingerprint = crypto.createHash('sha256')
-            .update(`${sku || title}|${title}|${price}|${safeImage}`)
+            .update(`${sku || title}|${title}|${price}|${safeImage}|${sourceIndex}`)
             .digest('hex');
           const listingId = `csv_${fingerprint.slice(0, 24)}`;
           const listingUrlObject = new URL(shopBase);
