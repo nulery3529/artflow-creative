@@ -2,10 +2,11 @@ import pg from 'pg';
 import crypto from 'node:crypto';
 import { auth } from './auth/_auth.mjs';
 import { fromNodeHeaders } from 'better-auth/node';
+import { pooledDatabaseUrl } from './_db.mjs';
 
 const { Pool } = pg;
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: pooledDatabaseUrl(),
   ssl: { rejectUnauthorized: false },
   max: 1,
 });
