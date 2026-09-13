@@ -198,6 +198,7 @@ export default async function handler(req,res){
         username,
         connected_at:business.data?.ebay_oauth?.connected_at||new Date().toISOString(),
       });
+      try{ await syncEbayListings(client,business,token.access_token); }catch(error){ console.warn('Initial eBay listing sync failed',error?.message||error); }
       return redirect(res,'connected');
     }
 
@@ -244,6 +245,7 @@ export default async function handler(req,res){
     if(action==='sync'){
       if(!configured()) return res.status(503).json({error:'eBay credentials are not configured.'});
       const token=await validAccessToken(client,business);
+      const listingSync=await syncEbayListings(client,business,token);
       const rows=[];
       const seen=new Set();
       let more=false;
@@ -287,9 +289,10 @@ export default async function handler(req,res){
       return res.status(200).json({
         ok:true,
         saved,
+        listings_saved:listingSync.saved,
         checked:rows.length,
-        more_possible:more,
-        message:`${saved} new eBay sale${saved===1?'':'s'} imported${rows.length?` from ${rows.length} paid order${rows.length===1?'':'s'}`:''}.`,
+        more_possible:more||listingSync.more,
+        message:`eBay synced: ${listingSync.saved} active listing${listingSync.saved===1?'':'s'} refreshed in Gallery and ${saved} new sale${saved===1?'':'s'} imported.`,
       });
     }
 
