@@ -16,7 +16,7 @@ import {
 const empty = {
   date: new Date().toISOString().slice(0, 10),
   description: "",
-  category: "Art Materials & Supplies",
+  category: "Other Business Expense",
   amount: "",
   deductible_percent: 100,
   notes: "",
@@ -34,7 +34,7 @@ export default function ExpenseForm({ open, onClose, record }) {
           ? {
               date: record.date || new Date().toISOString().slice(0, 10),
               description: record.description || "",
-              category: record.category || "Art Materials & Supplies",
+              category: record.category || "Other Business Expense",
               amount: record.amount != null ? String(record.amount) : "",
               deductible_percent: record.deductible_percent ?? 100,
               notes: record.notes || "",
@@ -143,7 +143,7 @@ export default function ExpenseForm({ open, onClose, record }) {
                 <input
                   value={form.description}
                   onChange={(e) => set("description", e.target.value)}
-                  placeholder="e.g. Print frames"
+                  placeholder="e.g. Software, shipping, mileage"
                   className="form-input"
                 />
               </Field>
