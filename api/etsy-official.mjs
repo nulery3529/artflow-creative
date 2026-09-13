@@ -217,20 +217,21 @@ export default async function handler(req,res){
       const token=await etsyToken({grant_type:'authorization_code',client_id:creds.key,redirect_uri:REDIRECT_URI,code,code_verifier:saved.code_verifier});
       const expiresAtIso=new Date(Date.now()+(Number(token.expires_in)||3600)*1000).toISOString();
       let shopId=null, shopName='';
+      const userId=String(token.access_token||'').split('.')[0]||'';
+      if(!/^\d+$/.test(userId)) return redirect(res,'error','Etsy did not return a valid seller user ID. Please reconnect Etsy.');
       try{
-        const me=await etsyGet('/users/me',token.access_token,creds);
-        const userId=String(me?.user_id||String(token.access_token||'').split('.')[0]||'');
-        shopId=me?.shop_id||null;
-        if(!shopId && userId){
-          const ownedShop=await etsyGet(`/users/${userId}/shops`,token.access_token,creds);
-          shopId=ownedShop?.shop_id||null;
-          shopName=clean(ownedShop?.shop_name);
-        }
-        if(shopId && !shopName){
+        const ownedShop=await etsyGet(`/users/${userId}/shops`,token.access_token,creds);
+        shopId=ownedShop?.shop_id||null;
+        shopName=clean(ownedShop?.shop_name);
+        if(!shopId) throw new Error('Etsy did not return a shop for this seller account.');
+        if(!shopName){
           const shop=await etsyGet(`/shops/${shopId}`,token.access_token,creds);
           shopName=clean(shop?.shop_name);
         }
-      }catch{}
+      }catch(error){
+        console.error('Etsy shop lookup failed',error?.message||error);
+        return redirect(res,'error',clean(error?.message||'Could not identify the Etsy shop for this account.'));
+      }
       await saveUserOAuth(client,p,{
         connected:true,
         access_token_enc:encrypt(token.access_token),
