@@ -15,9 +15,17 @@ const TOKEN_URL = 'https://api.etsy.com/v3/public/oauth/token';
 const API_BASE = 'https://openapi.etsy.com/v3/application';
 const SCOPES = 'transactions_r shops_r listings_r';
 
-const etsyKey = () => clean(process.env.ETSY_API_KEY || process.env.ETSY_KEYSTRING);
-const etsySecret = () => clean(process.env.ETSY_SHARED_SECRET || process.env.ETSY_CLIENT_SECRET);
-const etsyApiHeader = () => `${etsyKey()}:${etsySecret()}`;
+function etsyCredentials(business){
+  const envKey=clean(process.env.ETSY_API_KEY || process.env.ETSY_KEYSTRING);
+  const envSecret=clean(process.env.ETSY_SHARED_SECRET || process.env.ETSY_CLIENT_SECRET);
+  if(envKey && envSecret) return {key:envKey,secret:envSecret,source:'environment'};
+  const stored=business?.data?.etsy_credentials||{};
+  const key=clean(stored.keystring||stored.key);
+  let secret='';
+  try{ if(stored.shared_secret_enc) secret=clean(decrypt(stored.shared_secret_enc)); }catch{}
+  return {key,secret,source:key&&secret?'encrypted_workspace':'none'};
+}
+const etsyApiHeader = (creds) => `${creds.key}:${creds.secret}`;
 
 async function etsyToken(params){
   const r=await fetch(TOKEN_URL,{
@@ -31,9 +39,9 @@ async function etsyToken(params){
   return data;
 }
 
-async function etsyGet(path,accessToken){
+async function etsyGet(path,accessToken,creds){
   const r=await fetch(`${API_BASE}${path}`,{
-    headers:{Authorization:`Bearer ${accessToken}`,'x-api-key':etsyApiHeader(),Accept:'application/json'},
+    headers:{Authorization:`Bearer ${accessToken}`,'x-api-key':etsyApiHeader(creds),Accept:'application/json'},
   });
   const text=await r.text();
   let data={}; try{data=text?JSON.parse(text):{}}catch{data={raw:text}}
@@ -48,14 +56,14 @@ async function saveOAuth(client,business,patch){
   business.data=next;
 }
 
-async function validAccessToken(client,business){
+async function validAccessToken(client,business,creds){
   const oauth=business.data?.etsy_oauth||{};
   if(!oauth.refresh_token_enc) throw new Error('Etsy is not connected');
   const expiresAt=oauth.expires_at?new Date(oauth.expires_at).getTime():0;
   if(oauth.access_token_enc && expiresAt>Date.now()+60_000) return decrypt(oauth.access_token_enc);
   const refreshed=await etsyToken({
     grant_type:'refresh_token',
-    client_id:etsyKey(),
+    client_id:creds.key,
     refresh_token:decrypt(oauth.refresh_token_enc),
   });
   const expiresAtIso=new Date(Date.now()+(Number(refreshed.expires_in)||3600)*1000).toISOString();
@@ -103,7 +111,7 @@ async function ensureListingsTable(client){
   await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS marketplace_listings_business_platform_url_idx ON artflow.marketplace_listings (business_id, platform, listing_url)`);
 }
 
-async function syncEtsyListings(client,business,accessToken){
+async function syncEtsyListings(client,business,accessToken,creds){
   await ensureListingsTable(client);
   const shopId=business.data?.etsy_oauth?.shop_id;
   if(!shopId) throw new Error('Etsy shop link is missing. Disconnect and connect Etsy again.');
@@ -111,7 +119,7 @@ async function syncEtsyListings(client,business,accessToken){
   const urls=[];
   let saved=0, offset=0, pages=0, more=false;
   while(pages<5){
-    const data=await etsyGet(`/shops/${shopId}/listings?state=active&limit=100&offset=${offset}&includes=Images`,accessToken);
+    const data=await etsyGet(`/shops/${shopId}/listings?state=active&limit=100&offset=${offset}&includes=Images`,accessToken,creds);
     const results=Array.isArray(data?.results)?data.results:[];
     for(const listing of results){
       const listingId=String(listing?.listing_id||'');
