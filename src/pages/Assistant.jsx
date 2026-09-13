@@ -52,6 +52,127 @@ function topRows(rows = [], valueKey = "sales", limit = 5) {
     .slice(0, limit);
 }
 
+const asNumber = (value) => Number(value) || 0;
+
+function monthKey(value) {
+  if (!value) return "";
+  const raw = String(value);
+  const match = raw.match(/^(\d{4}-\d{2})/);
+  if (match) return match[1];
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function buildSnapshot(summary = {}, orders = [], expenses = [], inventory = []) {
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const previousDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const previousMonth = `${previousDate.getFullYear()}-${String(previousDate.getMonth() + 1).padStart(2, "0")}`;
+  const currentYear = String(now.getFullYear());
+  const approvedExpenses = expenses.filter((expense) => String(expense?.status || "approved").toLowerCase() !== "pending");
+  const pendingExpenses = expenses.filter((expense) => String(expense?.status || "approved").toLowerCase() === "pending");
+
+  const sum = (rows, field) => rows.reduce((total, row) => total + asNumber(row?.[field]), 0);
+  const orderKey = (row) => row?.order_id || row?.source_email_id || row?.id || row?.base44_id;
+  const distinctOrders = (rows) => new Set(rows.map(orderKey).filter(Boolean)).size;
+  const monthOrders = orders.filter((order) => monthKey(order?.sale_date) === currentMonth);
+  const previousMonthOrders = orders.filter((order) => monthKey(order?.sale_date) === previousMonth);
+  const yearOrders = orders.filter((order) => monthKey(order?.sale_date).startsWith(currentYear));
+  const monthExpenses = approvedExpenses.filter((expense) => monthKey(expense?.date) === currentMonth);
+  const yearExpenses = approvedExpenses.filter((expense) => monthKey(expense?.date).startsWith(currentYear));
+
+  const aggregateOrders = (field) => {
+    const map = new Map();
+    orders.forEach((order) => {
+      const name = String(order?.[field] || (field === "product_name" ? "Unknown item" : "Unknown")).trim() || "Unknown";
+      const current = map.get(name) || { name, sales: 0, orders: new Set(), items: 0, gross_profit: 0 };
+      current.sales += asNumber(order?.sale_total);
+      current.items += Math.max(1, asNumber(order?.quantity));
+      current.gross_profit += asNumber(order?.sale_total) - asNumber(order?.total_cost);
+      const key = orderKey(order);
+      if (key) current.orders.add(key);
+      map.set(name, current);
+    });
+    return [...map.values()].map((row) => ({ ...row, orders: row.orders.size }));
+  };
+
+  const expenseMap = new Map();
+  approvedExpenses.forEach((expense) => {
+    const name = String(expense?.category || "Uncategorized").trim() || "Uncategorized";
+    const current = expenseMap.get(name) || { name, amount: 0, count: 0 };
+    current.amount += asNumber(expense?.amount);
+    current.count += 1;
+    expenseMap.set(name, current);
+  });
+
+  const lowStock = inventory
+    .filter((item) => asNumber(item?.quantity_on_hand) <= asNumber(item?.low_stock_level))
+    .map((item) => ({
+      name: item?.name,
+      size: item?.size,
+      quantity: asNumber(item?.quantity_on_hand),
+      lowStockLevel: asNumber(item?.low_stock_level),
+      unitCost: asNumber(item?.total_unit_cost),
+    }))
+    .sort((a, b) => a.quantity - b.quantity);
+
+  const totalSales = sum(orders, "sale_total");
+  const orderCosts = sum(orders, "total_cost");
+  const totalExpenses = sum(approvedExpenses, "amount");
+  const monthSales = sum(monthOrders, "sale_total");
+  const monthCosts = sum(monthOrders, "total_cost");
+  const monthExpenseTotal = sum(monthExpenses, "amount");
+  const yearSales = sum(yearOrders, "sale_total");
+  const yearCosts = sum(yearOrders, "total_cost");
+  const yearExpenseTotal = sum(yearExpenses, "amount");
+  const totalOrders = distinctOrders(orders);
+
+  return {
+    generatedAt: new Date().toISOString(),
+    business: summary?.businesses?.[0] || null,
+    metrics: {
+      totalSales,
+      totalOrders,
+      totalItems: sum(orders, "quantity"),
+      orderCosts,
+      totalExpenses,
+      netProfit: totalSales - orderCosts - totalExpenses,
+      averageOrder: totalOrders ? totalSales / totalOrders : 0,
+      monthSales,
+      monthOrders: distinctOrders(monthOrders),
+      monthCosts,
+      monthExpenses: monthExpenseTotal,
+      monthNet: monthSales - monthCosts - monthExpenseTotal,
+      yearSales,
+      yearCosts,
+      yearExpenses: yearExpenseTotal,
+      yearNet: yearSales - yearCosts - yearExpenseTotal,
+    },
+    trend: {
+      currentSales: monthSales,
+      previousSales: sum(previousMonthOrders, "sale_total"),
+      currentOrders: distinctOrders(monthOrders),
+      previousOrders: distinctOrders(previousMonthOrders),
+    },
+    platforms: aggregateOrders("platform"),
+    sizes: aggregateOrders("size"),
+    products: aggregateOrders("product_name"),
+    expenseCategories: [...expenseMap.values()],
+    inventory: {
+      itemTypes: inventory.length,
+      unitsOnHand: sum(inventory, "quantity_on_hand"),
+      inventoryValue: inventory.reduce((total, item) => total + asNumber(item?.quantity_on_hand) * asNumber(item?.total_unit_cost), 0),
+      lowStock,
+    },
+    dataQuality: {
+      ordersMissingCost: orders.filter((order) => asNumber(order?.total_cost) === 0).length,
+      ordersMissingPlatform: orders.filter((order) => !String(order?.platform || "").trim()).length,
+      ordersMissingSize: orders.filter((order) => !String(order?.size || "").trim()).length,
+      pendingExpenses: pendingExpenses.length,
+    },
+  };
+}
+
 function businessRecommendations(snapshot) {
   const m = snapshot.metrics || {};
   const quality = snapshot.dataQuality || {};
@@ -166,21 +287,41 @@ export default function Assistant() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const scrollRef = useRef(null);
 
   const loadSnapshot = async ({ quiet = false } = {}) => {
     if (!quiet) setLoading(true);
     try {
-      const response = await fetch("/api/neon-data?op=advisor", {
+      const urls = [
+        "/api/neon-data?op=summary",
+        "/api/neon-data?op=orders",
+        "/api/neon-data?op=expenses",
+        "/api/neon-data?op=inventory",
+      ];
+      const responses = await Promise.all(urls.map((url) => fetch(url, {
         credentials: "include",
         cache: "no-store",
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data?.error || "Could not load business data");
+      })));
+      const bodies = await Promise.all(responses.map((response) => response.json().catch(() => ({}))));
+      const failedIndex = responses.findIndex((response) => !response.ok);
+      if (failedIndex >= 0) {
+        throw new Error(bodies[failedIndex]?.error || `Could not load business data (${responses[failedIndex].status})`);
+      }
+
+      const data = buildSnapshot(
+        bodies[0] || {},
+        Array.isArray(bodies[1]?.orders) ? bodies[1].orders : [],
+        Array.isArray(bodies[2]?.expenses) ? bodies[2].expenses : [],
+        Array.isArray(bodies[3]?.inventory) ? bodies[3].inventory : [],
+      );
       setSnapshot(data);
+      setLoadError("");
       return data;
     } catch (error) {
-      toast({ title: "Advisor data unavailable", description: error.message, variant: "destructive" });
+      const message = error?.message || "Could not load business data";
+      setLoadError(message);
+      if (!quiet) toast({ title: "Advisor data unavailable", description: message, variant: "destructive" });
       return null;
     } finally {
       if (!quiet) setLoading(false);
