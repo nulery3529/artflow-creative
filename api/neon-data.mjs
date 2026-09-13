@@ -413,19 +413,7 @@ async function writeInventory(client, session, req) {
 }
 
 async function listMarketplaceListings(client, session) {
-  let profile = await getLegacyProfile(client, session.user);
-  if (!profile) {
-    const profileId = `neon-user:${session.user.id}`;
-    await client.query(
-      `INSERT INTO artflow.legacy_users
-       (base44_id,email,full_name,role,active_business_id,disabled,auth_user_id,created_date,updated_date,data)
-       VALUES ($1,$2,$3,'user',NULL,false,$4,now(),now(),'{}'::jsonb)
-       ON CONFLICT (base44_id) DO NOTHING`,
-      [profileId, session.user.email || '', session.user.name || null, session.user.id]
-    );
-    profile = await getLegacyProfile(client, session.user);
-  }
-  const businesses = await getAccessibleBusinesses(client, profile, session.user);
+  const { businesses } = await existingWorkspace(client, session.user);
   const scopes = Array.from(new Set([`user:${session.user.id}`, ...businessIds(businesses)]));
   await client.query(`CREATE TABLE IF NOT EXISTS artflow.marketplace_listings (
     id text PRIMARY KEY,
