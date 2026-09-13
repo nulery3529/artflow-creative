@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import pg from "pg";
+import { pooledDatabaseUrl } from "../_db.mjs";
 
 const { Pool } = pg;
 
@@ -80,7 +81,7 @@ export const auth = betterAuth({
   baseURL,
   secret: process.env.BETTER_AUTH_SECRET,
   database: new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: pooledDatabaseUrl(),
     // Better Auth may need more than one connection during sign-in/session
     // handling. Keep this small to protect Neon, but not single-connection.
     max: 3,
