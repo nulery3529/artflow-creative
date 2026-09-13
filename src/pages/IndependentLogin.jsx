@@ -10,6 +10,7 @@ export default function IndependentLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const finish = () => {
     const params = new URLSearchParams(window.location.search);
@@ -17,6 +18,35 @@ export default function IndependentLogin() {
     const staleGoogleSetup = requested.includes("setup=gmail") || requested.includes("setup=tracker");
     const next = requested.startsWith("/") && !staleGoogleSetup ? requested : "/";
     window.location.replace(next);
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (loading) return;
+    setError("");
+    setLoading(true);
+    try {
+      const enteredEmail = email.trim().toLowerCase();
+      const loginEmail = enteredEmail === "natashaulery@gmail.com"
+        ? "nulery3529@gmail.com"
+        : enteredEmail;
+      const response = await fetch("/api/auth/sign-in/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        cache: "no-store",
+        body: JSON.stringify({ email: loginEmail, password, rememberMe: true }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data?.error) {
+        throw new Error(data?.message || data?.error?.message || "Email or password is incorrect.");
+      }
+      finish();
+    } catch (err) {
+      setError(err?.message || "Could not sign in.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -50,8 +80,7 @@ export default function IndependentLogin() {
         </div>
       )}
 
-      <form method="post" action="/api/direct-login" className="space-y-4">
-        <input type="hidden" name="returnTo" value={new URLSearchParams(window.location.search).get("returnTo") || "/"} />
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="independent-email">Email</Label>
           <div className="relative">
@@ -66,8 +95,8 @@ export default function IndependentLogin() {
             <Input id="independent-password" name="password" type="password" autoComplete="current-password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10 h-12" required />
           </div>
         </div>
-        <Button type="submit" className="w-full h-12 rounded-2xl font-semibold text-base">
-          Sign in
+        <Button type="submit" className="w-full h-12 rounded-2xl font-semibold text-base" disabled={loading}>
+          {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Signing in…</> : "Sign in"}
         </Button>
         <div className="text-center">
           <Link
