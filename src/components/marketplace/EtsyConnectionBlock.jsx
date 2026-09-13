@@ -17,6 +17,7 @@ export default function EtsyConnectionBlock() {
   const [busy, setBusy] = useState("");
   const [keystring, setKeystring] = useState("");
   const [sharedSecret, setSharedSecret] = useState("");
+  const [showCredentials, setShowCredentials] = useState(false);
 
   const load = async () => {
     try {
@@ -38,7 +39,21 @@ export default function EtsyConnectionBlock() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    try {
+      const url = new URL(window.location.href);
+      const result = url.searchParams.get("etsy");
+      const message = url.searchParams.get("message");
+      if (result === "error") toast.error("Etsy connection failed", { description: message || "Etsy returned an error." });
+      if (result === "connected") toast.success("Etsy connected");
+      if (result) {
+        url.searchParams.delete("etsy");
+        url.searchParams.delete("message");
+        window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+      }
+    } catch {}
+  }, []);
 
   const saveCredentials = async () => {
     if (!keystring.trim() || !sharedSecret.trim()) return;
@@ -48,6 +63,7 @@ export default function EtsyConnectionBlock() {
       const data = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(data.error || "Could not save Etsy credentials");
       setSharedSecret("");
+      setShowCredentials(false);
       toast.success("Etsy credentials saved securely");
       await load();
     } catch (error) {
@@ -131,11 +147,21 @@ export default function EtsyConnectionBlock() {
         </div>
       </div>
 
+      {!loading && status.can_manage_credentials && status.configured && !showCredentials && (
+        <button
+          type="button"
+          onClick={() => setShowCredentials(true)}
+          className="w-full h-10 rounded-2xl border border-[hsl(var(--border))] bg-background text-sm font-semibold"
+        >
+          Fix Etsy App Credentials
+        </button>
+      )}
+
       {loading ? (
         <button disabled className="w-full h-11 rounded-2xl bg-muted flex items-center justify-center">
           <Loader2 className="w-4 h-4 animate-spin" />
         </button>
-      ) : !status.configured && status.can_manage_credentials ? (
+      ) : status.can_manage_credentials && (!status.configured || showCredentials) ? (
         <div className="space-y-2">
           <input
             value={keystring}
@@ -163,7 +189,12 @@ export default function EtsyConnectionBlock() {
             {busy === "credentials" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
             Save Etsy Credentials
           </button>
-          <p className="text-[11px] text-muted-foreground">Owner setup only. Other Art Flow users will never see this form.</p>
+          <p className="text-[11px] text-muted-foreground">Owner setup only. Enter the exact Etsy Keystring and current Shared Secret. Other Art Flow users will never see this form.</p>
+          {status.configured && (
+            <button type="button" onClick={() => setShowCredentials(false)} className="w-full h-9 rounded-xl text-xs font-semibold text-muted-foreground">
+              Cancel
+            </button>
+          )}
         </div>
       ) : !status.configured ? (
         <div className="rounded-2xl bg-muted/60 p-3 text-xs text-muted-foreground">
