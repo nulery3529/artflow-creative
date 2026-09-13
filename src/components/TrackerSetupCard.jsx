@@ -63,6 +63,7 @@ export default function TrackerSetupCard() {
       await Promise.allSettled([
         fetch("/api/tracker-sync", { method: "POST", credentials: "include", cache: "no-store" }),
         fetch("/api/gmail-sales-sync", { method: "POST", credentials: "include", cache: "no-store" }),
+        fetch("/api/gmail-expense-sync", { method: "POST", credentials: "include", cache: "no-store" }),
       ]);
     } catch (error) {
       if (["GOOGLE_NOT_LINKED", "GOOGLE_RECONNECT"].includes(error?.code)) {
@@ -125,7 +126,7 @@ export default function TrackerSetupCard() {
         <div className="flex-1 min-w-0">
           <h2 className="font-heading text-lg">ArtFlow Creative Tracker</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Connect Google once so Art Flow can create your private tracker and read marketplace sale emails. The same authorization is used for both features and for automatic background syncing.
+            Connect Google once so Art Flow can create your private tracker and read marketplace sales and business expense receipts. The same authorization is used for all three features and for automatic background syncing.
           </p>
         </div>
         {status?.connected && status?.google_connected && <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-1" />}
@@ -175,7 +176,7 @@ export default function TrackerSetupCard() {
       ) : !status?.google_connected ? (
         <div className="space-y-3">
           <div className="rounded-2xl bg-muted/60 p-3 text-xs text-muted-foreground">
-            Connect the Google account where you want the ArtFlow tracker stored and where your marketplace sale emails arrive. Art Flow will request the tracker and Gmail permissions together so setup is complete for new users in one connection.
+            Connect the Google account where you want the ArtFlow tracker stored and where your marketplace sales and business receipts arrive. Art Flow will request the tracker and Gmail permissions together so sales and expense syncing are set up in one connection.
           </div>
           <button
             type="button"
