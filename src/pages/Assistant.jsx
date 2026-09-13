@@ -368,10 +368,13 @@ export default function Assistant() {
         setAiModel(result?.model || aiModel);
         setMessages((current) => [...current, { role: "assistant", content: result.answer }]);
       } catch (aiError) {
-        if (aiError?.code === "OPENAI_NOT_CONFIGURED") {
-          setAiConfigured(false);
+        if (aiError?.code === "OPENAI_NOT_CONFIGURED" || aiError?.code === "OPENAI_NO_CREDITS") {
+          setAiConfigured(aiError?.code === "OPENAI_NO_CREDITS" ? true : false);
           const answer = answerQuestion(content, source);
-          setMessages((current) => [...current, { role: "assistant", content: answer }]);
+          const note = aiError?.code === "OPENAI_NO_CREDITS"
+            ? "**ChatGPT API credits are currently empty, so I’m using the built-in Art Flow Advisor for this answer.**\n\n"
+            : "";
+          setMessages((current) => [...current, { role: "assistant", content: `${note}${answer}` }]);
         } else {
           throw aiError;
         }
