@@ -11,8 +11,13 @@ const pool = new Pool({
   max: 1,
 });
 
-const SUPPORTED = ['Vinted', 'Depop', 'Etsy', 'eBay'];
+const SUPPORTED = ['Vinted', 'Depop', 'Etsy', 'eBay', 'Poshmark'];
 const normalize = (value = '') => String(value || '').trim().toLowerCase();
+
+function normalizeLinks(value) {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  return Object.fromEntries(SUPPORTED.map((name) => [name, String(source[name] || '').trim()]));
+}
 
 async function getSession(req) {
   return auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
@@ -109,25 +114,31 @@ export default async function handler(req, res) {
     const current = configured
       ? data.tracked_marketplaces.filter((item) => SUPPORTED.includes(item))
       : [];
+    const currentLinks = normalizeLinks(data.marketplace_links);
 
     if (req.method === 'GET') {
       return res.status(200).json({
         supported: SUPPORTED,
         selected: current,
+        links: currentLinks,
         configured,
       });
     }
 
     const body = parseBody(req);
-    const requested = Array.isArray(body?.selected) ? body.selected : [];
-    const selected = SUPPORTED.filter((item) => requested.includes(item));
-    const nextData = { ...data, tracked_marketplaces: selected };
+    const selected = Array.isArray(body?.selected)
+      ? SUPPORTED.filter((item) => body.selected.includes(item))
+      : current;
+    const links = body?.links && typeof body.links === 'object'
+      ? normalizeLinks(body.links)
+      : currentLinks;
+    const nextData = { ...data, tracked_marketplaces: selected, marketplace_links: links };
     await client.query(
       `UPDATE artflow.businesses SET data=$2::jsonb WHERE base44_id=$1`,
       [business.base44_id, JSON.stringify(nextData)]
     );
 
-    return res.status(200).json({ ok: true, supported: SUPPORTED, selected, configured: true });
+    return res.status(200).json({ ok: true, supported: SUPPORTED, selected, links, configured: true });
   } catch (error) {
     console.error('marketplace preferences error', error?.message || error);
     return res.status(500).json({ error: 'Could not save marketplace preferences' });
