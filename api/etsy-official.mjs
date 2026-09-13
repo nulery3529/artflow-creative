@@ -23,6 +23,12 @@ async function ensureAppSettingsTable(client){
   )`);
 }
 
+async function appOwnerUserId(client){
+  const authTable=['public','"user"'].join('.');
+  const r=await client.query(`SELECT id FROM ${authTable} ORDER BY "createdAt" ASC LIMIT 1`);
+  return clean(r.rows[0]?.id);
+}
+
 async function etsyCredentials(client){
   await ensureAppSettingsTable(client);
   const r=await client.query(`SELECT data FROM artflow.app_settings WHERE key='etsy_credentials' LIMIT 1`);
