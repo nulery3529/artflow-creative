@@ -137,9 +137,9 @@ async function ensureListingsTable(client){
   await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS marketplace_listings_business_platform_url_idx ON artflow.marketplace_listings (business_id, platform, listing_url)`);
 }
 
-async function syncEtsyListings(client,business,accessToken,creds){
+async function syncEtsyListings(client,ownerScope,oauth,accessToken,creds){
   await ensureListingsTable(client);
-  const shopId=business.data?.etsy_oauth?.shop_id;
+  const shopId=oauth?.shop_id;
   if(!shopId) throw new Error('Etsy shop link is missing. Disconnect and connect Etsy again.');
 
   const urls=[];
@@ -158,7 +158,7 @@ async function syncEtsyListings(client,business,accessToken,creds){
       const price=moneyValue(listing?.price);
       const currency=clean(listing?.price?.currency_code||'USD').toUpperCase()||'USD';
       const quantity=Math.max(0,Number(listing?.quantity)||0);
-      const id=crypto.createHash('sha256').update(`${business.base44_id}|Etsy|${listingUrl}`).digest('hex');
+      const id=crypto.createHash('sha256').update(`${ownerScope}|Etsy|${listingUrl}`).digest('hex');
       await client.query(
         `INSERT INTO artflow.marketplace_listings (id,business_id,platform,listing_id,title,price,currency,image_url,listing_url,status,last_seen_at,sync_source,data)
          VALUES ($1,$2,'Etsy',$3,$4,$5,$6,$7,$8,'Active',now(),'etsy_official_oauth',jsonb_build_object('quantity',$9,'etsy_official',true))
@@ -170,7 +170,7 @@ async function syncEtsyListings(client,business,accessToken,creds){
            image_url=COALESCE(NULLIF(EXCLUDED.image_url,''),artflow.marketplace_listings.image_url),
            status='Active',last_seen_at=now(),sync_source='etsy_official_oauth',
            data=COALESCE(artflow.marketplace_listings.data,'{}'::jsonb) || EXCLUDED.data`,
-        [id,business.base44_id,listingId,title,price,currency,imageUrl||null,listingUrl,quantity]
+        [id,ownerScope,listingId,title,price,currency,imageUrl||null,listingUrl,quantity]
       );
       urls.push(listingUrl);
       saved+=1;
@@ -184,9 +184,9 @@ async function syncEtsyListings(client,business,accessToken,creds){
 
   if(!more){
     if(urls.length){
-      await client.query(`UPDATE artflow.marketplace_listings SET status='Inactive',last_seen_at=now(),sync_source='etsy_official_snapshot' WHERE business_id=$1 AND platform='Etsy' AND status='Active' AND NOT (listing_url=ANY($2::text[]))`,[business.base44_id,urls]);
+      await client.query(`UPDATE artflow.marketplace_listings SET status='Inactive',last_seen_at=now(),sync_source='etsy_official_snapshot' WHERE business_id=$1 AND platform='Etsy' AND status='Active' AND NOT (listing_url=ANY($2::text[]))`,[ownerScope,urls]);
     }else{
-      await client.query(`UPDATE artflow.marketplace_listings SET status='Inactive',last_seen_at=now(),sync_source='etsy_official_snapshot' WHERE business_id=$1 AND platform='Etsy' AND status='Active'`,[business.base44_id]);
+      await client.query(`UPDATE artflow.marketplace_listings SET status='Inactive',last_seen_at=now(),sync_source='etsy_official_snapshot' WHERE business_id=$1 AND platform='Etsy' AND status='Active'`,[ownerScope]);
     }
   }
   return {saved,more};
