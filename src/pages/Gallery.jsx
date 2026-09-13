@@ -524,7 +524,7 @@ export default function Gallery() {
               <input
                 value={linkUsername}
                 onChange={(event) => setLinkUsername(event.target.value)}
-                placeholder="username / shop name"
+                placeholder="shop name or listing link"
                 autoCapitalize="none"
                 autoCorrect="off"
                 className="min-w-0 flex-1 h-9 rounded-xl border border-[hsl(var(--border))] bg-background px-2.5 text-[11px]"
