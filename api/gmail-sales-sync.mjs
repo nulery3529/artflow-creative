@@ -83,6 +83,7 @@ export default async function handler(req, res) {
 
     let matchedAccounts = 0;
     let permissionErrors = 0;
+    let hardError = null;
     let scanned = 0;
     let parsed = 0;
     let imported = 0;
@@ -105,10 +106,17 @@ export default async function handler(req, res) {
           permissionErrors += 1;
           continue;
         }
+        hardError = error;
         console.warn('Gmail sales sync account failed', error?.message || error);
       }
     }
 
+    if (!matchedAccounts && hardError) {
+      return res.status(500).json({
+        error: hardError?.message || 'Gmail sales import failed.',
+        code: 'GMAIL_IMPORT_ERROR',
+      });
+    }
     if (!matchedAccounts && permissionErrors) {
       return res.status(409).json({
         error: 'Reconnect Google in Account so Art Flow can read marketplace sale emails.',
