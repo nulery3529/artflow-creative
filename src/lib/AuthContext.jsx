@@ -61,11 +61,12 @@ export const AuthProvider = ({ children }) => {
         });
         return { response, data: await response.json().catch(() => ({})) };
       };
-      const [gmail, tracker] = await Promise.all([
+      const [gmail, expenses, tracker] = await Promise.all([
         runSync('/api/gmail-sales-sync'),
+        runSync('/api/gmail-expense-sync'),
         runSync('/api/tracker-sync'),
       ]);
-      const results = [gmail, tracker];
+      const results = [gmail, expenses, tracker];
       const hardFailure = results.find(({ response }) => !response.ok && response.status !== 409);
       const connectorMessage = results
         .filter(({ response }) => response.status === 409)
@@ -75,6 +76,7 @@ export const AuthProvider = ({ children }) => {
         status: hardFailure ? 'error' : 'ok',
         at: new Date().toISOString(),
         gmail: gmail.response.ok ? gmail.data : null,
+        expenses: expenses.response.ok ? expenses.data : null,
         tracker: tracker.response.ok ? tracker.data : null,
         message: hardFailure?.data?.error || connectorMessage,
       };
