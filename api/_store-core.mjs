@@ -1,4 +1,5 @@
 import pg from 'pg';
+import { pooledDatabaseUrl } from './_db.mjs';
 import crypto from 'node:crypto';
 import { auth } from './auth/_auth.mjs';
 import { fromNodeHeaders } from 'better-auth/node';
@@ -6,7 +7,7 @@ import { fromNodeHeaders } from 'better-auth/node';
 const { Pool } = pg;
 
 export const storePool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: pooledDatabaseUrl(),
   ssl: { rejectUnauthorized: false },
   max: 1,
 });
