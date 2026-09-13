@@ -8,11 +8,7 @@ import { artflowAuthClient } from "@/lib/artflowAuthClient";
 import { useAuth } from "@/lib/AuthContext";
 import BusinessManager from "@/components/BusinessManager";
 import ThemeSettings from "@/components/ThemeSettings";
-import TrackerSetupCard from "@/components/TrackerSetupCard";
-import GmailSyncCard from "@/components/GmailSyncCard";
 import MarketplaceTrackingCard from "@/components/MarketplaceTrackingCard";
-import MobileMarketplaceSyncCard from "@/components/MobileMarketplaceSyncCard";
-import OfficialMarketplaceConnectionsCard from "@/components/OfficialMarketplaceConnectionsCard";
 
 export default function Account() {
   const navigate = useNavigate();
@@ -26,7 +22,7 @@ export default function Account() {
     if (new URLSearchParams(window.location.search).get("welcome") === "1") {
       toast({
         title: "Welcome to Art Flow Creative!",
-        description: "Your account was created. Connect Google once below to finish automatic sales, expense, and tracker setup.",
+        description: "Your account was created successfully.",
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -66,26 +62,9 @@ export default function Account() {
         </div>
       </section>
 
-      {new URLSearchParams(window.location.search).get("setup") === "tracker" && (
-        <section className="rounded-3xl p-5 border border-[hsl(var(--primary))]/30 bg-[hsl(var(--primary))]/5">
-          <h2 className="font-heading text-xl">Finish your Art Flow setup</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Connect the Google account you use for your business. Art Flow will create your tracker automatically and enable Gmail sales and expense syncing in the same setup.
-          </p>
-        </section>
-      )}
-
       <BusinessManager />
 
-      <TrackerSetupCard />
-
-      <GmailSyncCard />
-
       <MarketplaceTrackingCard />
-
-      <OfficialMarketplaceConnectionsCard />
-
-      <MobileMarketplaceSyncCard />
 
       <ThemeSettings />
 
