@@ -49,10 +49,10 @@ const vercelProductionURL = process.env.VERCEL_PROJECT_PRODUCTION_URL
 const vercelDeploymentURL = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
   : "";
-const canonicalProductionURL = "https://artflowcreative.com";
-// Never let a stale BETTER_AUTH_URL override the canonical host in production.
-// Google OAuth redirect URIs must match exactly, and Better Auth derives
-// /api/auth/callback/google from this base URL.
+const canonicalProductionURL = "https://art-flow-creative.vercel.app";
+// Keep Better Auth on the stable production hostname while the custom-domain
+// serverless route is unhealthy. Email/password login must issue its session
+// cookie for the same host the app is actually using.
 const baseURL = process.env.VERCEL_ENV === "production"
   ? canonicalProductionURL
   : process.env.BETTER_AUTH_URL || vercelDeploymentURL || vercelProductionURL || canonicalProductionURL;
