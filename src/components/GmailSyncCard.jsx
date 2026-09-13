@@ -126,7 +126,7 @@ export default function GmailSyncCard() {
         <div className="flex-1 min-w-0">
           <h2 className="font-heading text-lg">Gmail Sales & Expenses</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Connect the Google account that receives marketplace sales and business receipts. Sale emails sync automatically, and receipts with the subject “artflow expense” are imported to the expense review queue.
+            Connect the Google account that receives marketplace sales and business receipts. Art Flow automatically checks supported sale emails and recent receipt/invoice emails, then puts possible business expenses in the review queue.
           </p>
         </div>
         {connected ? <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-1" /> : needsReconnect ? <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-1" /> : null}
@@ -138,7 +138,7 @@ export default function GmailSyncCard() {
         <div className="space-y-3">
           <div className="rounded-2xl bg-muted/60 p-3">
             <p className="text-sm font-semibold">Gmail connected{accountEmail ? ` · ${accountEmail}` : ""}</p>
-            <p className="text-xs text-muted-foreground mt-1">Sales and “artflow expense” receipt emails are checked automatically when you sign in and every five minutes while Art Flow is open.</p>
+            <p className="text-xs text-muted-foreground mt-1">Sales and recent receipt/invoice emails are checked automatically when you sign in and every five minutes while Art Flow is open. You can still use “artflow expense” for a receipt you want Art Flow to pick up explicitly.</p>
           </div>
           <button
             type="button"
