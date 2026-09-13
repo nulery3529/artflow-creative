@@ -190,5 +190,79 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method === 'GET') return res.status(200).json({ ok: true, endpoint: 'Etsy webhook receiver' });
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  return res.status(501).json({ error: 'Webhook receiver setup is still being deployed' });
+
+  const raw = await rawBody(req);
+  const webhookId = clean(req.headers['webhook-id']);
+  const timestamp = clean(req.headers['webhook-timestamp']);
+  const signature = clean(req.headers['webhook-signature']);
+  const client = await pool.connect();
+  try {
+    await ensureTables(client);
+    const secret = await webhookSecret(client);
+    if (!secret) return res.status(503).json({ error: 'Etsy webhook signing secret is not configured' });
+    if (!verifySignature(raw, webhookId, timestamp, signature, secret)) return res.status(401).json({ error: 'Invalid Etsy webhook signature' });
+
+    let event;
+    try { event = JSON.parse(raw.toString('utf8')); } catch { return res.status(400).json({ error: 'Invalid JSON' }); }
+    const eventType = clean(event?.event_type);
+    const shopId = clean(event?.shop_id);
+    const resourceUrl = clean(event?.resource_url);
+    if (!webhookId || !eventType || !shopId || !resourceUrl) return res.status(400).json({ error: 'Invalid Etsy webhook envelope' });
+
+    const existing = await client.query(`SELECT processing_status FROM artflow.etsy_webhook_events WHERE webhook_id=$1 LIMIT 1`, [webhookId]);
+    if (existing.rows[0]) return res.status(200).json({ ok: true, duplicate: true, status: existing.rows[0].processing_status });
+
+    const userResult = await client.query(
+      `SELECT * FROM artflow.legacy_users
+       WHERE data->'etsy_oauth'->>'shop_id'=$1
+         AND COALESCE(data->'etsy_oauth'->>'connected','false')='true'
+       ORDER BY updated_date DESC LIMIT 1`,
+      [shopId]
+    );
+    const p = userResult.rows[0] || null;
+    const authUserId = clean(p?.auth_user_id);
+
+    await client.query(
+      `INSERT INTO artflow.etsy_webhook_events
+       (webhook_id,shop_id,auth_user_id,event_type,resource_url,webhook_timestamp,payload,processing_status)
+       VALUES ($1,$2,NULLIF($3,''),$4,$5,$6,$7::jsonb,$8)`,
+      [webhookId, shopId, authUserId, eventType, resourceUrl, Number(timestamp), JSON.stringify(event), p ? 'matched' : 'unmatched_shop']
+    );
+
+    if (!p) return res.status(200).json({ ok: true, matched: false });
+
+    const creds = await etsyCredentials(client);
+    if (!creds.key || !creds.secret) throw new Error('Etsy app credentials are not configured');
+    const accessToken = await validAccessToken(client, p, creds);
+    const receipt = await fetchResource(resourceUrl, accessToken, creds, shopId);
+    const syntheticUser = { id: authUserId, email: clean(p.email) };
+    const business = await businessForUser(client, p, syntheticUser);
+
+    let inserted = 0;
+    let updated = 0;
+    if (eventType === 'order.paid') {
+      const rows = rowsFromReceipt(receipt);
+      inserted = business ? await insertOrders(client, business.base44_id, rows, 'etsy_webhook_paid') : 0;
+      if (business) updated = await updateOrderState(client, business.base44_id, receipt, eventType);
+    } else if (['order.canceled', 'order.shipped', 'order.delivered'].includes(eventType)) {
+      updated = business ? await updateOrderState(client, business.base44_id, receipt, eventType) : 0;
+    }
+
+    await client.query(
+      `UPDATE artflow.etsy_webhook_events
+       SET processed_at=now(),processing_status='processed',payload=payload||$2::jsonb
+       WHERE webhook_id=$1`,
+      [webhookId, JSON.stringify({ inserted_orders: inserted, updated_orders: updated, has_business: Boolean(business) })]
+    );
+
+    return res.status(200).json({ ok: true, matched: true, event_type: eventType });
+  } catch (error) {
+    console.error('Etsy webhook processing failed', error?.message || error);
+    if (webhookId) {
+      try { await client.query(`UPDATE artflow.etsy_webhook_events SET processing_status='failed',processed_at=now() WHERE webhook_id=$1`, [webhookId]); } catch {}
+    }
+    return res.status(500).json({ error: 'Etsy webhook processing failed' });
+  } finally {
+    client.release();
+  }
 }
