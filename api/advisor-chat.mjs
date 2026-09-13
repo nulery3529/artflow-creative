@@ -147,11 +147,20 @@ ${businessContext}`;
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
       const detail = payload?.error?.message || payload?.error || `OpenAI request failed (${response.status})`;
-      console.error('advisor OpenAI error', response.status, typeof detail === 'string' ? detail.slice(0, 300) : detail);
+      const detailText = typeof detail === 'string' ? detail : JSON.stringify(detail || {});
+      console.error('advisor OpenAI error', response.status, detailText.slice(0, 300));
+      const noCredits = response.status === 429 && /no credits remaining|credit_balance_exhausted|insufficient_quota/i.test(detailText);
+      if (noCredits) {
+        return res.status(402).json({
+          error: 'ChatGPT API credits are empty. The built-in Advisor will answer until credits are added.',
+          code: 'OPENAI_NO_CREDITS',
+        });
+      }
       return res.status(response.status === 429 ? 429 : 502).json({
         error: response.status === 429
           ? 'The Advisor is temporarily busy. Please try again in a moment.'
           : 'The AI Advisor could not answer right now. Please try again.',
+        code: response.status === 429 ? 'OPENAI_RATE_LIMITED' : 'OPENAI_ERROR',
       });
     }
 
