@@ -640,7 +640,41 @@ export default function Gallery() {
                   className="text-left min-w-0 block"
                 >
                   <div className="relative aspect-square bg-muted overflow-hidden">
-                    {listing.image_url || listing.listing_url ? (
+                    {listing.image_url ? (
+                      <Image
+                        src={marketplaceImageSrc(listing)}
+                        fittingType="fill"
+                        className="w-full h-full object-cover"
+                        alt={listing.title || `${listing.platform || "Marketplace"} listing`}
+                      />
+                    ) : displayPlatform(listing.platform) === "Etsy" ? (
+                      <label
+                        onClick={(event) => { event.preventDefault(); event.stopPropagation(); }}
+                        className="w-full h-full flex flex-col items-center justify-center gap-2 text-xs text-muted-foreground cursor-pointer bg-muted"
+                      >
+                        <span className="w-10 h-10 rounded-full bg-background border border-[hsl(var(--border))] flex items-center justify-center">
+                          <ImagePlus className="w-5 h-5" />
+                        </span>
+                        <span className="font-semibold text-foreground">
+                          {photoUploadingId === listing.id ? "Adding photo…" : "Add Etsy photo"}
+                        </span>
+                        <span className="text-[10px] px-3 text-center">Choose the listing photo from your phone</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={Boolean(photoUploadingId)}
+                          onClick={(event) => { event.stopPropagation(); }}
+                          onChange={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            const file = event.target.files?.[0];
+                            if (file) uploadMarketplacePhoto(listing, file);
+                            event.target.value = "";
+                          }}
+                        />
+                      </label>
+                    ) : listing.listing_url ? (
                       <Image
                         src={marketplaceImageSrc(listing)}
                         fittingType="fill"
