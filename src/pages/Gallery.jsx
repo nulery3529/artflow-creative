@@ -131,7 +131,8 @@ function etsyRowsFromCsv(text = "") {
   };
   if (indexes.title < 0) return [];
   const get = (cols, index) => (index >= 0 ? String(cols[index] || "").trim() : "");
-  return table.slice(1).map((cols) => ({
+  return table.slice(1).map((cols, rowIndex) => ({
+    source_index: rowIndex + 1,
     title: get(cols, indexes.title),
     description: get(cols, indexes.description),
     price: get(cols, indexes.price),
