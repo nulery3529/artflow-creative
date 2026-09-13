@@ -260,8 +260,7 @@ export default async function handler(req,res){
       await client.query(`INSERT INTO artflow.marketplace_oauth_states (state,business_id,platform,code_verifier,expires_at) VALUES ($1,$2,'Etsy',$3,now()+interval '15 minutes')`,[state,business.base44_id,codeVerifier]);
       const q=[
         'response_type=code',
-      if(!creds.key||!creds.secret) return res.status(503).json({error:'Etsy credentials are not configured.'});
-      const token=await validAccessToken(client,business,creds);
+        `client_id=${encodeURIComponent(creds.key)}`,
         `redirect_uri=${encodeURIComponent(REDIRECT_URI)}`,
         `state=${encodeURIComponent(state)}`,
         `scope=${encodeURIComponent(SCOPES)}`,
@@ -279,8 +278,8 @@ export default async function handler(req,res){
     }
 
     if(action==='sync'){
-      if(!configured) return res.status(503).json({error:'Etsy credentials are not configured.'});
-      const token=await validAccessToken(client,business);
+      if(!creds.key||!creds.secret) return res.status(503).json({error:'Etsy credentials are not configured.'});
+      const token=await validAccessToken(client,business,creds);
       const shopId=business.data?.etsy_oauth?.shop_id;
       if(!shopId) return res.status(400).json({error:'Etsy shop link is missing. Disconnect and connect Etsy again.'});
       const listingSync=await syncEtsyListings(client,business,token,creds);
