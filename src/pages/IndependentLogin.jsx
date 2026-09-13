@@ -15,18 +15,19 @@ export default function IndependentLogin() {
 
   const finish = () => {
     const params = new URLSearchParams(window.location.search);
-    const next = params.get("returnTo") || "/";
-    window.location.replace(next.startsWith("/") ? next : "/");
+    const requested = params.get("returnTo") || "/";
+    const staleGoogleSetup = requested.includes("setup=gmail") || requested.includes("setup=tracker");
+    const next = requested.startsWith("/") && !staleGoogleSetup ? requested : "/";
+    window.location.replace(next);
   };
 
   useEffect(() => {
-    let active = true;
-    (async () => {
-      const sessionResult = await artflowAuthClient.getSession().catch(() => null);
-      const session = sessionResult?.data || sessionResult;
-      if (active && session?.user?.id) finish();
-    })();
-    return () => { active = false; };
+    // Never let a failed/abandoned Google OAuth attempt hijack Art Flow login.
+    // Login is always email/password only; Google can be reconnected later from Account.
+    try {
+      sessionStorage.removeItem("artflow_connect_gmail");
+      sessionStorage.removeItem("artflow_create_tracker_after_google");
+    } catch {}
   }, []);
 
   const handleEmail = async (event) => {
