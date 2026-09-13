@@ -4,6 +4,7 @@ import { RefreshCw, Send, Sparkles } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import ReactMarkdown from "react-markdown";
 import { useToast } from "@/components/ui/use-toast";
+import { askAdvisorAI, getAdvisorAIStatus } from "@/lib/advisorAi";
 
 const SUGGESTIONS = [
   "What should I focus on right now?",
@@ -332,10 +333,8 @@ export default function Assistant() {
 
   useEffect(() => {
     loadSnapshot();
-    fetch("/api/advisor-chat", { cache: "no-store" })
-      .then((response) => response.json().then((data) => ({ response, data })))
-      .then(({ response, data }) => {
-        if (!response.ok) throw new Error(data?.error || "Could not check AI connection");
+    getAdvisorAIStatus()
+      .then((data) => {
         setAiConfigured(Boolean(data?.configured));
         setAiModel(data?.model || "");
       })
@@ -362,10 +361,24 @@ export default function Assistant() {
       const fresh = await loadSnapshot({ quiet: true });
       const source = fresh || snapshot;
       if (!source) throw new Error("Your Art Flow data could not be loaded.");
-      const answer = answerQuestion(content, source);
-      setMessages((current) => [...current, { role: "assistant", content: answer }]);
+      const history = messages.map(({ role, content: messageContent }) => ({ role, content: messageContent }));
+      if (aiConfigured) {
+        const result = await askAdvisorAI(content, source, history);
+        setAiModel(result?.model || aiModel);
+        setMessages((current) => [...current, { role: "assistant", content: result.answer }]);
+      } else {
+        const answer = answerQuestion(content, source);
+        setMessages((current) => [...current, { role: "assistant", content: answer }]);
+      }
     } catch (error) {
-      setMessages((current) => [...current, { role: "assistant", content: `I couldn't read your current business data: ${error.message}` }]);
+      const isOpenAISetup = error?.code === "OPENAI_NOT_CONFIGURED";
+      if (isOpenAISetup) setAiConfigured(false);
+      setMessages((current) => [...current, {
+        role: "assistant",
+        content: isOpenAISetup
+          ? "ChatGPT is not connected to Art Flow yet. The built-in data advisor is still available until the OpenAI connection is added."
+          : `I couldn't answer that right now: ${error.message}`,
+      }]);
     } finally {
       setSending(false);
     }
