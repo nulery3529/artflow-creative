@@ -36,21 +36,30 @@ export default function GmailSyncCard() {
     if (syncing) return null;
     setSyncing(true);
     try {
-      const response = await fetch("/api/gmail-sales-sync", {
-        method: "POST",
-        credentials: "include",
-        cache: "no-store",
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        const error = new Error(data.error || "Gmail sync failed");
-        error.code = data.code;
+      const runSync = async (url) => {
+        const response = await fetch(url, {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+        });
+        return { response, data: await response.json().catch(() => ({})) };
+      };
+      const [sales, expenses] = await Promise.all([
+        runSync("/api/gmail-sales-sync"),
+        runSync("/api/gmail-expense-sync"),
+      ]);
+      const hardFailure = [sales, expenses].find(({ response }) => !response.ok && response.status !== 409);
+      if (hardFailure) {
+        const error = new Error(hardFailure.data?.error || "Gmail sync failed");
+        error.code = hardFailure.data?.code;
         throw error;
       }
-      if (!quiet) toast.success(data.message || "Gmail sales are up to date");
+      const message = [sales.data?.message, expenses.data?.message].filter(Boolean).join(" ");
+      if (!quiet) toast.success(message || "Gmail sales and expenses are up to date");
       await loadStatus();
-      window.dispatchEvent(new CustomEvent("artflow:data-synced", { detail: { gmail: data } }));
-      return data;
+      const detail = { gmail: sales.data, expenses: expenses.data };
+      window.dispatchEvent(new CustomEvent("artflow:data-synced", { detail }));
+      return detail;
     } catch (error) {
       if (!quiet) toast.error("Gmail sync needs attention", { description: error?.message });
       return null;
@@ -115,9 +124,9 @@ export default function GmailSyncCard() {
           <Mail className="w-5 h-5" />
         </div>
         <div className="flex-1 min-w-0">
-          <h2 className="font-heading text-lg">Gmail Sales Inbox</h2>
+          <h2 className="font-heading text-lg">Gmail Sales & Expenses</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Connect the Google account that receives marketplace sale emails. The same secure connection also keeps your private ArtFlow tracker authorized, so new accounts do not end up with partial Google permissions.
+            Connect the Google account that receives marketplace sales and business receipts. Sale emails sync automatically, and receipts with the subject “artflow expense” are imported to the expense review queue.
           </p>
         </div>
         {connected ? <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-1" /> : needsReconnect ? <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-1" /> : null}
@@ -129,7 +138,7 @@ export default function GmailSyncCard() {
         <div className="space-y-3">
           <div className="rounded-2xl bg-muted/60 p-3">
             <p className="text-sm font-semibold">Gmail connected{accountEmail ? ` · ${accountEmail}` : ""}</p>
-            <p className="text-xs text-muted-foreground mt-1">Marketplace sale emails are checked automatically when you sign in and every five minutes while Art Flow is open.</p>
+            <p className="text-xs text-muted-foreground mt-1">Sales and “artflow expense” receipt emails are checked automatically when you sign in and every five minutes while Art Flow is open.</p>
           </div>
           <button
             type="button"
@@ -138,7 +147,7 @@ export default function GmailSyncCard() {
             className="w-full h-12 rounded-2xl bg-muted text-foreground font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
           >
             <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
-            {syncing ? "Checking Gmail…" : "Check Gmail Now"}
+            {syncing ? "Checking Gmail…" : "Check Sales & Expenses Now"}
           </button>
         </div>
       ) : (
