@@ -169,7 +169,7 @@ async function syncEtsyListings(client,ownerScope,oauth,accessToken,creds){
       const id=crypto.createHash('sha256').update(`${ownerScope}|Etsy|${listingUrl}`).digest('hex');
       await client.query(
         `INSERT INTO artflow.marketplace_listings (id,business_id,platform,listing_id,title,price,currency,image_url,listing_url,status,last_seen_at,sync_source,data)
-         VALUES ($1,$2,'Etsy',$3,$4,$5,$6,$7,$8,'Active',now(),'etsy_official_oauth',jsonb_build_object('quantity',$9,'etsy_official',true))
+         VALUES ($1,$2,'Etsy',$3,$4,$5,$6,$7,$8,'Active',now(),'etsy_official_oauth',jsonb_build_object('quantity',$9::integer,'etsy_official',true))
          ON CONFLICT (business_id,platform,listing_url) DO UPDATE SET
            listing_id=EXCLUDED.listing_id,
            title=EXCLUDED.title,
