@@ -13,8 +13,8 @@ export async function profile(client,user){
   const email=normalize(user?.email);
   const r=await client.query(
     `SELECT * FROM artflow.legacy_users WHERE auth_user_id=$1 OR lower(email)=$2
-     ORDER BY CASE WHEN active_business_id IS NOT NULL THEN 0 ELSE 1 END,
-              CASE WHEN auth_user_id=$1 THEN 0 ELSE 1 END LIMIT 1`,
+     ORDER BY CASE WHEN auth_user_id=$1 THEN 0 ELSE 1 END,
+              created_date NULLS LAST LIMIT 1`,
     [user.id,email]
   );
   return r.rows[0]||null;
@@ -29,9 +29,10 @@ function businessEmails(row){
 export async function businessForUser(client,p,user){
   const active=p?.active_business_id || p?.data?.active_business_id || null;
   const email=normalize(user?.email);
-  const r=await client.query(`SELECT base44_id,name,primary_email,data FROM artflow.businesses ORDER BY name NULLS LAST`);
-  const activeRow=r.rows.find(x=>active && x.base44_id===active)||null;
-  const emailRows=r.rows.filter(x=>email && businessEmails(x).includes(email));
+  const r=await client.query(`SELECT base44_id,name,primary_email,created_by_id,data FROM artflow.businesses ORDER BY name NULLS LAST`);
+  const owns=(x)=>Boolean(x && ((email && businessEmails(x).includes(email)) || x.created_by_id===p?.base44_id || x.created_by_id===user?.id));
+  const activeRow=r.rows.find(x=>active && x.base44_id===active && owns(x))||null;
+  const emailRows=r.rows.filter(x=>owns(x));
   const placeholder=(row)=>{
     if(!row) return false;
     const d=row.data||{};
