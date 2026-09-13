@@ -320,8 +320,19 @@ export default async function handler(req,res){
     if(action==='sync'){
       if(!creds.key||!creds.secret) return res.status(503).json({error:'Etsy credentials are not configured.'});
       const token=await validAccessToken(client,p,creds);
-      const shopId=p.data?.etsy_oauth?.shop_id;
-      if(!shopId) return res.status(400).json({error:'Etsy shop link is missing. Disconnect and connect Etsy again.'});
+      let shopId=p.data?.etsy_oauth?.shop_id;
+      if(!shopId){
+        const userId=String(token||'').split('.')[0]||'';
+        if(/^\d+$/.test(userId)){
+          const ownedShop=await etsyGet(`/users/${userId}/shops`,token,creds);
+          shopId=ownedShop?.shop_id||null;
+          const shopName=clean(ownedShop?.shop_name);
+          if(shopId){
+            await saveUserOAuth(client,p,{shop_id:shopId,shop_name:shopName});
+          }
+        }
+      }
+      if(!shopId) return res.status(400).json({error:'Etsy could not identify a shop for this account. If this Etsy account has an active shop, reconnect Etsy and try again.'});
       const listingSync=await syncEtsyListings(client,ownerScope,p.data?.etsy_oauth||{},token,creds);
       const rows=[];
       let offset=0,pages=0,more=false;
