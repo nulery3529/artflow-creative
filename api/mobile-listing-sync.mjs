@@ -859,7 +859,30 @@ export default async function handler(req, res) {
       }
 
       if (isListingUrl(platform, raw)) {
-        directListings.push({ platform, url: normalizeUrl(raw) });
+        const normalizedListingUrl = normalizeUrl(raw);
+        if (platform === 'Etsy') {
+          let title = 'Etsy listing';
+          try {
+            const parts = new URL(normalizedListingUrl).pathname.split('/').filter(Boolean);
+            const listingIndex = parts.findIndex((part) => part.toLowerCase() === 'listing');
+            const slug = listingIndex >= 0 ? parts[listingIndex + 2] : '';
+            if (slug) title = decodeURIComponent(slug).replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim() || title;
+          } catch {}
+          directListings.push({
+            platform,
+            url: normalizedListingUrl,
+            meta: {
+              finalUrl: normalizedListingUrl,
+              title,
+              description: '',
+              imageUrl: '',
+              price: 0,
+              currency: 'USD',
+            },
+          });
+        } else {
+          directListings.push({ platform, url: normalizedListingUrl });
+        }
         continue;
       }
 
