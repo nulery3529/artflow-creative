@@ -4,6 +4,25 @@ import { pooledDatabaseUrl } from "../_db.mjs";
 
 const { Pool } = pg;
 
+// Keep Better Auth to a single Neon connection per serverless instance. Most
+// ArtFlow API routes also use one application-data connection, so allowing the
+// auth layer to open three more connections can exhaust Neon's backend slots
+// during bursts of login, Gmail sync, and dashboard requests.
+const authPoolKey = Symbol.for("artflow.betterAuth.pool");
+function getAuthPool() {
+  if (!globalThis[authPoolKey]) {
+    globalThis[authPoolKey] = new Pool({
+      connectionString: pooledDatabaseUrl(),
+      ssl: { rejectUnauthorized: false },
+      max: 1,
+      idleTimeoutMillis: 10000,
+      connectionTimeoutMillis: 10000,
+      allowExitOnIdle: true,
+    });
+  }
+  return globalThis[authPoolKey];
+}
+
 function cleanEnvValue(value) {
   const text = String(value || "").trim();
   if (text.length >= 2 && ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'")))) {
@@ -80,12 +99,7 @@ export const auth = betterAuth({
   appName: "Art Flow Creative",
   baseURL,
   secret: process.env.BETTER_AUTH_SECRET,
-  database: new Pool({
-    connectionString: pooledDatabaseUrl(),
-    // Better Auth may need more than one connection during sign-in/session
-    // handling. Keep this small to protect Neon, but not single-connection.
-    max: 3,
-  }),
+  database: getAuthPool(),
   emailAndPassword: {
     enabled: true,
     autoSignIn: true,
