@@ -744,6 +744,94 @@ export default async function handler(req, res) {
     }
 
     const action = clean(body.action);
+    if (action === 'import_etsy_csv') {
+      const rows = Array.isArray(body.rows) ? body.rows.slice(0, 2000) : [];
+      if (!rows.length) return send(400, { error: 'No Etsy listings were found in that CSV.' });
+
+      const savedShop = clean(
+        b.data?.marketplace_links?.Etsy || b.data?.marketplace_links?.etsy ||
+        b.data?.mobile_shop_urls?.Etsy || b.data?.mobile_shop_urls?.etsy || ''
+      );
+      const shopBase = allowedHost('Etsy', savedShop) && !isListingUrl('Etsy', savedShop)
+        ? normalizeUrl(savedShop)
+        : 'https://www.etsy.com/search';
+
+      const activeUrls = [];
+      let saved = 0;
+      await client.query('BEGIN');
+      try {
+        for (const row of rows) {
+          const title = clean(row?.title).slice(0, 300);
+          if (!title) continue;
+          const sku = clean(row?.sku).slice(0, 200);
+          const imageUrl = clean(row?.image_url);
+          let safeImage = '';
+          try {
+            const image = new URL(imageUrl);
+            const host = image.hostname.toLowerCase();
+            if (image.protocol === 'https:' && (host === 'etsystatic.com' || host.endsWith('.etsystatic.com') || host === 'etsy.com' || host.endsWith('.etsy.com'))) {
+              safeImage = image.toString();
+            }
+          } catch {}
+          const priceNumber = Number(String(row?.price ?? '').replace(/[^0-9.-]/g, ''));
+          const price = Number.isFinite(priceNumber) && priceNumber >= 0 ? priceNumber : 0;
+          const quantityNumber = Number.parseInt(String(row?.quantity ?? '0'), 10);
+          const quantity = Number.isFinite(quantityNumber) && quantityNumber >= 0 ? quantityNumber : 0;
+          const currency = clean(row?.currency || 'USD').toUpperCase().slice(0, 8) || 'USD';
+          const fingerprint = crypto.createHash('sha256')
+            .update(`${sku || title}|${title}|${price}|${safeImage}`)
+            .digest('hex');
+          const listingId = `csv_${fingerprint.slice(0, 24)}`;
+          const listingUrlObject = new URL(shopBase);
+          if (/\/shop\//i.test(listingUrlObject.pathname)) listingUrlObject.searchParams.set('search_query', title);
+          else listingUrlObject.searchParams.set('q', title);
+          listingUrlObject.searchParams.set('ref', 'artflow_csv');
+          listingUrlObject.searchParams.set('af', fingerprint.slice(0, 12));
+          const listingUrl = listingUrlObject.toString();
+          const id = crypto.createHash('sha256').update(`${b.base44_id}|Etsy|${listingId}`).digest('hex');
+
+          await client.query(
+            `INSERT INTO artflow.marketplace_listings
+               (id,business_id,platform,listing_id,title,price,currency,image_url,listing_url,status,last_seen_at,sync_source,data)
+             VALUES ($1,$2,'Etsy',$3,$4,$5,$6,$7,$8,'Active',now(),'etsy_csv_import',
+               jsonb_build_object('etsy_csv_import',true,'quantity',$9::int,'sku',$10::text,'description',$11::text,'tags',$12::text,'materials',$13::text))
+             ON CONFLICT (business_id,platform,listing_url) DO UPDATE SET
+               listing_id=EXCLUDED.listing_id,title=EXCLUDED.title,price=EXCLUDED.price,currency=EXCLUDED.currency,
+               image_url=COALESCE(NULLIF(EXCLUDED.image_url,''),artflow.marketplace_listings.image_url),
+               status='Active',last_seen_at=now(),sync_source='etsy_csv_import',data=EXCLUDED.data`,
+            [
+              id, b.base44_id, listingId, title, price, currency, safeImage || null, listingUrl,
+              quantity, sku, clean(row?.description).slice(0, 4000), clean(row?.tags).slice(0, 2000), clean(row?.materials).slice(0, 2000),
+            ]
+          );
+          activeUrls.push(listingUrl);
+          saved += 1;
+        }
+
+        let deactivated = 0;
+        if (activeUrls.length) {
+          const result = await client.query(
+            `UPDATE artflow.marketplace_listings
+                SET status='Inactive',last_seen_at=now()
+              WHERE business_id=$1 AND platform='Etsy' AND sync_source='etsy_csv_import'
+                AND NOT (listing_url = ANY($2::text[]))`,
+            [b.base44_id, activeUrls]
+          );
+          deactivated = Number(result.rowCount || 0);
+        }
+        await client.query('COMMIT');
+        return send(200, {
+          ok: true,
+          saved,
+          deactivated,
+          message: `Imported ${saved} Etsy listing${saved === 1 ? '' : 's'} into Gallery${deactivated ? ` and marked ${deactivated} old listing${deactivated === 1 ? '' : 's'} inactive` : ''}.`,
+        });
+      } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
+        throw error;
+      }
+    }
+
     if (action === 'update_listing_image') {
       const listingId = clean(body.id);
       const imageUrl = String(body.image_url || '').trim();
