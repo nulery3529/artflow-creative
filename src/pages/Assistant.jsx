@@ -332,6 +332,14 @@ export default function Assistant() {
 
   useEffect(() => {
     loadSnapshot();
+    fetch("/api/advisor-chat", { cache: "no-store" })
+      .then((response) => response.json().then((data) => ({ response, data })))
+      .then(({ response, data }) => {
+        if (!response.ok) throw new Error(data?.error || "Could not check AI connection");
+        setAiConfigured(Boolean(data?.configured));
+        setAiModel(data?.model || "");
+      })
+      .catch(() => setAiConfigured(false));
   }, []);
 
   useEffect(() => {
