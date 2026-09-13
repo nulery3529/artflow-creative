@@ -1,8 +1,9 @@
 import pg from 'pg';
+import { pooledDatabaseUrl } from './_db.mjs';
 import crypto from 'node:crypto';
 
 const { Pool } = pg;
-const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 1 });
+const pool = new Pool({ connectionString: pooledDatabaseUrl(), ssl: { rejectUnauthorized: false }, max: 1 });
 
 export const config = { api: { bodyParser: false } };
 
