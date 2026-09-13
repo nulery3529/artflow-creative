@@ -24,6 +24,7 @@ const SELL_SITE_URLS = {
 function marketplaceImageSrc(listing) {
   if (!listing?.image_url && !listing?.listing_url) return "";
   if (/^data:image\//i.test(String(listing?.image_url || ""))) return listing.image_url;
+  if (/^https:\/\/[^/]*etsystatic\.com\//i.test(String(listing?.image_url || ""))) return listing.image_url;
   const params = new URLSearchParams();
   if (listing.image_url) params.set("image", listing.image_url);
   if (listing.listing_url) params.set("listing", listing.listing_url);
@@ -228,6 +229,8 @@ export default function Gallery() {
   const [linkSaving, setLinkSaving] = useState(false);
   const [linkMessage, setLinkMessage] = useState("");
   const [photoUploadingId, setPhotoUploadingId] = useState("");
+  const [etsyCsvImporting, setEtsyCsvImporting] = useState(false);
+  const [etsyCsvMessage, setEtsyCsvMessage] = useState("");
   const officialRefreshInFlight = useRef(false);
   const lastOfficialRefresh = useRef(0);
   const vintedProfileRefreshAttempted = useRef(false);
@@ -438,6 +441,34 @@ export default function Gallery() {
 
   const refreshAll = async () => {
     await Promise.all([reload(), reloadOrders(), reloadMarketplaceListings()]);
+  };
+
+  const importEtsyCsv = async (file) => {
+    if (!file || etsyCsvImporting) return;
+    setEtsyCsvImporting(true);
+    setEtsyCsvMessage("");
+    try {
+      const text = await file.text();
+      const rows = etsyRowsFromCsv(text);
+      if (!rows.length) throw new Error("That file does not look like an Etsy Listings CSV.");
+      const response = await fetch("/api/mobile-listing-sync", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "import_etsy_csv", rows }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.ok === false) throw new Error(data.error || "Could not import Etsy listings");
+      await reloadMarketplaceListings();
+      setMarketplaceFilter("Etsy");
+      setEtsyCsvMessage(data.message || `Imported ${rows.length} Etsy listings into Gallery.`);
+      window.dispatchEvent(new CustomEvent("artflow:listings-synced", { detail: { platform: "Etsy", saved: data.saved || rows.length } }));
+    } catch (error) {
+      setEtsyCsvMessage(error?.message || "Could not import Etsy listings");
+    } finally {
+      setEtsyCsvImporting(false);
+    }
   };
 
   const uploadMarketplacePhoto = async (listing, file) => {
