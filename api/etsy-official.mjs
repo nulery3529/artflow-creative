@@ -173,7 +173,7 @@ export default async function handler(req,res){
       const saved=s.rows[0];
       if(!saved) return redirect(res,'error','Etsy connection expired. Try Connect again.');
       if(!etsyKey()||!etsySecret()) return redirect(res,'error','Etsy credentials are not configured in Art Flow.');
-      const token=await etsyToken({grant_type:'authorization_code',client_id:etsyKey(),redirect_uri:REDIRECT_URI,code});
+      const token=await etsyToken({grant_type:'authorization_code',client_id:etsyKey(),redirect_uri:REDIRECT_URI,code,code_verifier:saved.code_verifier});
       const br=await client.query(`SELECT base44_id,name,primary_email,data FROM artflow.businesses WHERE base44_id=$1 LIMIT 1`,[saved.business_id]);
       const business=br.rows[0];
       if(!business) return redirect(res,'error','Art Flow business workspace was not found.');
@@ -181,8 +181,14 @@ export default async function handler(req,res){
       let shopId=null, shopName='';
       try{
         const me=await etsyGet('/users/me',token.access_token);
+        const userId=String(me?.user_id||String(token.access_token||'').split('.')[0]||'');
         shopId=me?.shop_id||null;
-        if(shopId){
+        if(!shopId && userId){
+          const ownedShop=await etsyGet(`/users/${userId}/shops`,token.access_token);
+          shopId=ownedShop?.shop_id||null;
+          shopName=clean(ownedShop?.shop_name);
+        }
+        if(shopId && !shopName){
           const shop=await etsyGet(`/shops/${shopId}`,token.access_token);
           shopName=clean(shop?.shop_name);
         }
@@ -196,6 +202,7 @@ export default async function handler(req,res){
         shop_name:shopName,
         connected_at:business.data?.etsy_oauth?.connected_at||new Date().toISOString(),
       });
+      try{ await syncEtsyListings(client,business,token.access_token); }catch(error){ console.warn('Initial Etsy listing sync failed',error?.message||error); }
       return redirect(res,'connected');
     }
 
@@ -221,14 +228,18 @@ export default async function handler(req,res){
     if(action==='start'){
       if(!configured) return res.status(503).json({error:'Etsy credentials are not configured yet. Add ETSY_API_KEY and ETSY_SHARED_SECRET to the server environment.'});
       const state=crypto.randomBytes(32).toString('base64url');
+      const codeVerifier=crypto.randomBytes(48).toString('base64url');
+      const codeChallenge=crypto.createHash('sha256').update(codeVerifier).digest('base64url');
       await client.query(`DELETE FROM artflow.marketplace_oauth_states WHERE expires_at<=now()`);
-      await client.query(`INSERT INTO artflow.marketplace_oauth_states (state,business_id,platform,code_verifier,expires_at) VALUES ($1,$2,'Etsy','',now()+interval '15 minutes')`,[state,business.base44_id]);
+      await client.query(`INSERT INTO artflow.marketplace_oauth_states (state,business_id,platform,code_verifier,expires_at) VALUES ($1,$2,'Etsy',$3,now()+interval '15 minutes')`,[state,business.base44_id,codeVerifier]);
       const q=[
         'response_type=code',
         `client_id=${encodeURIComponent(etsyKey())}`,
         `redirect_uri=${encodeURIComponent(REDIRECT_URI)}`,
         `state=${encodeURIComponent(state)}`,
         `scope=${encodeURIComponent(SCOPES)}`,
+        `code_challenge=${encodeURIComponent(codeChallenge)}`,
+        'code_challenge_method=S256',
       ].join('&');
       return res.status(200).json({authorization_url:`${AUTH_URL}?${q}`});
     }
@@ -245,6 +256,7 @@ export default async function handler(req,res){
       const token=await validAccessToken(client,business);
       const shopId=business.data?.etsy_oauth?.shop_id;
       if(!shopId) return res.status(400).json({error:'Etsy shop link is missing. Disconnect and connect Etsy again.'});
+      const listingSync=await syncEtsyListings(client,business,token);
       const rows=[];
       let offset=0,pages=0,more=false;
       while(pages<3){
@@ -284,9 +296,10 @@ export default async function handler(req,res){
       return res.status(200).json({
         ok:true,
         saved,
+        listings_saved:listingSync.saved,
         checked:rows.length,
-        more_possible:more,
-        message:`${saved} new Etsy sale${saved===1?'':'s'} imported${rows.length?` from ${rows.length} paid order${rows.length===1?'':'s'}`:''}.`,
+        more_possible:more||listingSync.more,
+        message:`Etsy synced: ${listingSync.saved} active listing${listingSync.saved===1?'':'s'} refreshed in Gallery and ${saved} new sale${saved===1?'':'s'} imported.`,
       });
     }
 
