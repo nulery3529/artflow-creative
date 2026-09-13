@@ -100,7 +100,7 @@ export default function EtsyConnectionBlock() {
           </div>
           <p className="text-xs text-muted-foreground mt-1">
             {status.connected
-              ? `Connected${status.shop_name ? ` to ${status.shop_name}` : ""}. Paid orders sync straight into your sales.`
+              ? `Connected${status.shop_name ? ` to ${status.shop_name}` : ""}. Listings, photos, prices and paid orders sync into Art Flow.`
               : status.configured
                 ? "Official Etsy sign-in — no password stored, tokens encrypted."
                 : "Add ETSY_API_KEY and ETSY_SHARED_SECRET to the server environment, then reload this page."}
@@ -115,7 +115,7 @@ export default function EtsyConnectionBlock() {
       ) : status.connected ? (
         <div className="grid grid-cols-2 gap-2">
           <button onClick={sync} disabled={!!busy} className="h-11 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50">
-            {busy === "sync" ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Sync Etsy Sales
+            {busy === "sync" ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Sync Etsy
           </button>
           <button onClick={disconnect} disabled={!!busy} className="h-11 rounded-2xl bg-muted text-foreground text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50">
             <Unlink className="w-4 h-4" /> Disconnect
