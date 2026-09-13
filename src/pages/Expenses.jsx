@@ -20,7 +20,14 @@ export default function Expenses() {
   const { records: orders } = useOrders();
   const pending = useMemo(() => records.filter((e) => e?.status === "pending"), [records]);
   const approved = useMemo(() => records.filter(isApprovedExpense), [records]);
-  const refresh = async () => { await reloadExpenses(); };
+  const refresh = async () => {
+    await fetch("/api/gmail-expense-sync", {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+    }).catch(() => null);
+    await reloadExpenses();
+  };
   const [filter, setFilter] = useState("All");
   const { isOpen: formOpen, open: openForm, close: closeForm } = useModalRoute();
   const [editRecord, setEditRecord] = useState(null);
@@ -49,8 +56,18 @@ export default function Expenses() {
   const importForwardedExpenses = async () => {
     setImportingEmail(true);
     try {
+      const response = await fetch("/api/gmail-expense-sync", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok && response.status !== 409) {
+        throw new Error(data?.error || "Expense sync failed");
+      }
       await reloadExpenses();
-      toast.success("Expenses refreshed from Art Flow");
+      if (response.ok) toast.success(data?.message || "Expenses are up to date");
+      else toast.info(data?.error || "Reconnect Gmail to resume expense syncing");
     } catch (e) {
       toast.error("Expense refresh failed", { description: e?.message });
     } finally {
