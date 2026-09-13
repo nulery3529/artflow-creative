@@ -1,6 +1,5 @@
 import pg from 'pg';
 import { pooledDatabaseUrl } from './_db.mjs';
-import crypto from 'node:crypto';
 import { auth } from './auth/_auth.mjs';
 import { fromNodeHeaders } from 'better-auth/node';
 
@@ -25,15 +24,30 @@ async function getSession(req) {
 
 async function getProfile(client, user) {
   const email = normalize(user?.email);
-  if (!email) return null;
   const result = await client.query(
     `SELECT * FROM artflow.legacy_users
      WHERE auth_user_id=$1 OR lower(email)=$2
-     ORDER BY CASE WHEN active_business_id IS NOT NULL THEN 0 ELSE 1 END, CASE WHEN auth_user_id=$1 THEN 0 ELSE 1 END, created_date NULLS LAST
+     ORDER BY CASE WHEN auth_user_id=$1 THEN 0 ELSE 1 END, created_date NULLS LAST
      LIMIT 1`,
     [user.id, email]
   );
   return result.rows[0] || null;
+}
+
+async function ensureProfile(client, user) {
+  let profile = await getProfile(client, user);
+  if (profile) return profile;
+  const id = `neon-user:${user.id}`;
+  await client.query(
+    `INSERT INTO artflow.legacy_users
+      (base44_id,email,full_name,role,active_business_id,disabled,auth_user_id,created_date,updated_date,data)
+     VALUES ($1,$2,$3,'user',NULL,false,$4,now(),now(),'{}'::jsonb)
+     ON CONFLICT (base44_id) DO NOTHING`,
+    [id, user.email || '', user.name || null, user.id]
+  );
+  profile = await getProfile(client, user);
+  if (!profile) throw new Error('Art Flow user profile could not be created');
+  return profile;
 }
 
 function businessEmails(row) {
@@ -47,45 +61,13 @@ function businessEmails(row) {
   ].map(normalize).filter(Boolean);
 }
 
-async function getBusiness(client, profile, user) {
+async function findBusiness(client, profile, user) {
   const active = profile?.active_business_id || profile?.data?.active_business_id || null;
   const email = normalize(user?.email);
   const result = await client.query(`SELECT base44_id, name, primary_email, data FROM artflow.businesses ORDER BY name NULLS LAST`);
   const activeRow = result.rows.find((row) => active && row.base44_id === active) || null;
-  const emailRows = result.rows.filter((row) => email && businessEmails(row).includes(email));
-  const isPlaceholder = (row) => {
-    if (!row) return false;
-    const d = row.data || {};
-    const hasIdentity = businessEmails(row).length > 0;
-    const hasTracker = Boolean(d.spreadsheet_id || d.spreadsheetId || row.spreadsheet_id);
-    return !hasIdentity && !hasTracker && /^my business$/i.test(String(row.name || '').trim());
-  };
-  const canonical = emailRows.find((row) => {
-    const d = row.data || {};
-    return Boolean(d.spreadsheet_id || d.spreadsheetId || (Array.isArray(d.tracked_marketplaces) && d.tracked_marketplaces.length));
-  }) || emailRows[0] || null;
-  const existing = isPlaceholder(activeRow) && canonical ? canonical : (activeRow || canonical || null);
-  if (existing) {
-    if (profile?.base44_id && activeRow && existing.base44_id !== activeRow.base44_id && isPlaceholder(activeRow)) {
-      await client.query(`UPDATE artflow.legacy_users SET active_business_id=$2 WHERE base44_id=$1`, [profile.base44_id, existing.base44_id]);
-    }
-    return existing;
-  }
-
-  const id = crypto.randomUUID();
-  const name = `${String(user?.name || 'My').trim() || 'My'} Art Business`;
-  const data = {
-    primary_email: user.email,
-    member_emails: [user.email],
-    sales_emails: [user.email],
-    expense_emails: [user.email],
-    tracked_marketplaces: [],
-  };
-  await client.query(
-    `INSERT INTO artflow.businesses (base44_id, name, primary_email, data) VALUES ($1,$2,$3,$4::jsonb)`,
-    [id, name, user.email, JSON.stringify(data)]
-  );
-  return { base44_id: id, name, primary_email: user.email, data };
+  const emailRow = result.rows.find((row) => email && businessEmails(row).includes(email)) || null;
+  return activeRow || emailRow || null;
 }
 
 function parseBody(req) {
@@ -105,16 +87,15 @@ export default async function handler(req, res) {
 
   const client = await pool.connect();
   try {
-    const profile = await getProfile(client, session.user);
-    const business = await getBusiness(client, profile, session.user);
-    if (!business) return res.status(404).json({ error: 'Business workspace not found' });
-
-    const data = business.data || {};
-    const configured = Array.isArray(data.tracked_marketplaces);
-    const current = configured
-      ? data.tracked_marketplaces.filter((item) => SUPPORTED.includes(item))
-      : [];
-    const currentLinks = normalizeLinks(data.marketplace_links);
+    const profile = await ensureProfile(client, session.user);
+    const business = await findBusiness(client, profile, session.user);
+    const profileData = profile.data || {};
+    const businessData = business?.data || {};
+    const inheritedSelection = Array.isArray(businessData.tracked_marketplaces) ? businessData.tracked_marketplaces : [];
+    const configured = Array.isArray(profileData.tracked_marketplaces) || inheritedSelection.length > 0;
+    const current = (Array.isArray(profileData.tracked_marketplaces) ? profileData.tracked_marketplaces : inheritedSelection)
+      .filter((item) => SUPPORTED.includes(item));
+    const currentLinks = normalizeLinks({ ...(businessData.marketplace_links || {}), ...(profileData.marketplace_links || {}) });
 
     if (req.method === 'GET') {
       return res.status(200).json({
@@ -132,11 +113,21 @@ export default async function handler(req, res) {
     const links = body?.links && typeof body.links === 'object'
       ? normalizeLinks(body.links)
       : currentLinks;
-    const nextData = { ...data, tracked_marketplaces: selected, marketplace_links: links };
+    const nextProfileData = { ...profileData, tracked_marketplaces: selected, marketplace_links: links };
     await client.query(
-      `UPDATE artflow.businesses SET data=$2::jsonb WHERE base44_id=$1`,
-      [business.base44_id, JSON.stringify(nextData)]
+      `UPDATE artflow.legacy_users SET data=$2::jsonb,updated_date=now() WHERE base44_id=$1`,
+      [profile.base44_id, JSON.stringify(nextProfileData)]
     );
+
+    // Keep an existing business workspace in sync for older accounting features,
+    // but never create a business just to save marketplace preferences.
+    if (business) {
+      const nextBusinessData = { ...businessData, tracked_marketplaces: selected, marketplace_links: links };
+      await client.query(
+        `UPDATE artflow.businesses SET data=$2::jsonb WHERE base44_id=$1`,
+        [business.base44_id, JSON.stringify(nextBusinessData)]
+      );
+    }
 
     return res.status(200).json({ ok: true, supported: SUPPORTED, selected, links, configured: true });
   } catch (error) {
