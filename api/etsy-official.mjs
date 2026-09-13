@@ -15,15 +15,25 @@ const TOKEN_URL = 'https://api.etsy.com/v3/public/oauth/token';
 const API_BASE = 'https://openapi.etsy.com/v3/application';
 const SCOPES = 'transactions_r shops_r listings_r';
 
-function etsyCredentials(business){
+async function ensureAppSettingsTable(client){
+  await client.query(`CREATE TABLE IF NOT EXISTS artflow.app_settings (
+    key text PRIMARY KEY,
+    data jsonb NOT NULL DEFAULT '{}'::jsonb,
+    updated_at timestamptz DEFAULT now()
+  )`);
+}
+
+async function etsyCredentials(client){
   const envKey=clean(process.env.ETSY_API_KEY || process.env.ETSY_KEYSTRING);
   const envSecret=clean(process.env.ETSY_SHARED_SECRET || process.env.ETSY_CLIENT_SECRET);
-  if(envKey && envSecret) return {key:envKey,secret:envSecret,source:'environment'};
-  const stored=business?.data?.etsy_credentials||{};
+  if(envKey && envSecret) return {key:envKey,secret:envSecret,source:'environment',owner_user_id:null};
+  await ensureAppSettingsTable(client);
+  const r=await client.query(`SELECT data FROM artflow.app_settings WHERE key='etsy_credentials' LIMIT 1`);
+  const stored=r.rows[0]?.data||{};
   const key=clean(stored.keystring||stored.key);
   let secret='';
   try{ if(stored.shared_secret_enc) secret=clean(decrypt(stored.shared_secret_enc)); }catch{}
-  return {key,secret,source:key&&secret?'encrypted_workspace':'none'};
+  return {key,secret,source:key&&secret?'encrypted_app_setting':'none',owner_user_id:clean(stored.owner_user_id)};
 }
 const etsyApiHeader = (creds) => `${creds.key}:${creds.secret}`;
 
@@ -49,15 +59,31 @@ async function etsyGet(path,accessToken,creds){
   return data;
 }
 
-async function saveOAuth(client,business,patch){
-  const oauth={...(business.data?.etsy_oauth||{}),...patch,updated_at:new Date().toISOString()};
-  const next={...(business.data||{}),etsy_oauth:oauth};
-  await client.query(`UPDATE artflow.businesses SET data=$2::jsonb WHERE base44_id=$1`,[business.base44_id,JSON.stringify(next)]);
-  business.data=next;
+async function ensureUserProfile(client,user){
+  let p=await profile(client,user);
+  if(p) return p;
+  const id=`neon-user:${user.id}`;
+  await client.query(
+    `INSERT INTO artflow.legacy_users
+     (base44_id,email,full_name,role,active_business_id,disabled,auth_user_id,created_date,updated_date,data)
+     VALUES ($1,$2,$3,'user',NULL,false,$4,now(),now(),'{}'::jsonb)
+     ON CONFLICT (base44_id) DO NOTHING`,
+    [id,user.email||'',user.name||null,user.id]
+  );
+  p=await profile(client,user);
+  if(!p) throw new Error('Art Flow user profile could not be created');
+  return p;
 }
 
-async function validAccessToken(client,business,creds){
-  const oauth=business.data?.etsy_oauth||{};
+async function saveUserOAuth(client,p,patch){
+  const oauth={...(p.data?.etsy_oauth||{}),...patch,updated_at:new Date().toISOString()};
+  const next={...(p.data||{}),etsy_oauth:oauth};
+  await client.query(`UPDATE artflow.legacy_users SET data=$2::jsonb,updated_date=now() WHERE base44_id=$1`,[p.base44_id,JSON.stringify(next)]);
+  p.data=next;
+}
+
+async function validAccessToken(client,p,creds){
+  const oauth=p.data?.etsy_oauth||{};
   if(!oauth.refresh_token_enc) throw new Error('Etsy is not connected');
   const expiresAt=oauth.expires_at?new Date(oauth.expires_at).getTime():0;
   if(oauth.access_token_enc && expiresAt>Date.now()+60_000) return decrypt(oauth.access_token_enc);
@@ -67,7 +93,7 @@ async function validAccessToken(client,business,creds){
     refresh_token:decrypt(oauth.refresh_token_enc),
   });
   const expiresAtIso=new Date(Date.now()+(Number(refreshed.expires_in)||3600)*1000).toISOString();
-  await saveOAuth(client,business,{
+  await saveUserOAuth(client,p,{
     access_token_enc:refreshed.access_token?encrypt(refreshed.access_token):oauth.access_token_enc,
     refresh_token_enc:refreshed.refresh_token?encrypt(refreshed.refresh_token):oauth.refresh_token_enc,
     expires_at:expiresAtIso,
