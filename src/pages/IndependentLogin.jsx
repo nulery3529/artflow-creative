@@ -34,22 +34,35 @@ export default function IndependentLogin() {
     setError("");
     setLoading(true);
     try {
-      const enteredEmail = email.trim();
-      const loginEmail = enteredEmail.toLowerCase() === "natashaulery@gmail.com"
-        ? "nulery3529@gmail.com"
-        : enteredEmail;
-      const { error: signInError } = await artflowAuthClient.signIn.email({
-        email: loginEmail,
-        password,
-        rememberMe: true,
+      const loginEmail = email.trim().toLowerCase();
+      const response = await fetch("/api/auth/sign-in/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        cache: "no-store",
+        body: JSON.stringify({
+          email: loginEmail,
+          password,
+          rememberMe: true,
+        }),
       });
-      if (signInError) throw new Error(signInError.message || "Email or password is incorrect.");
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data?.error) {
+        throw new Error(data?.message || data?.error?.message || "Email or password is incorrect.");
+      }
 
-      // Email/password authentication success should not be blocked by a temporary data refresh.
-      // Confirm the Better Auth session exists, then let the app's normal Neon
-      // workspace recovery load the user's data after navigation.
-      const sessionResult = await artflowAuthClient.getSession().catch(() => null);
-      const session = sessionResult?.data || sessionResult;
+      let session = null;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const sessionResponse = await fetch("/api/auth/get-session", {
+          credentials: "include",
+          cache: "no-store",
+        }).catch(() => null);
+        if (sessionResponse?.ok) {
+          session = await sessionResponse.json().catch(() => null);
+          if (session?.user?.id) break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
       if (!session?.user?.id) {
         throw new Error("Your sign-in completed, but the session was not saved. Please try again.");
       }
