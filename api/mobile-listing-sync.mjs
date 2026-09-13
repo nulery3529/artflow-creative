@@ -795,15 +795,12 @@ export default async function handler(req, res) {
             `INSERT INTO artflow.marketplace_listings
                (id,business_id,platform,listing_id,title,price,currency,image_url,listing_url,status,last_seen_at,sync_source,data)
              VALUES ($1,$2,'Etsy',$3,$4,$5,$6,$7,$8,'Active',now(),'etsy_csv_import',
-               jsonb_build_object('etsy_csv_import',true,'quantity',$9::int,'sku',$10::text,'description',$11::text,'tags',$12::text,'materials',$13::text))
-             ON CONFLICT (business_id,platform,listing_url) DO UPDATE SET
+               jsonb_build_object('etsy_csv_import',true,'quantity',$9::int,'sku',$10::text))
+             ON CONFLICT (id) DO UPDATE SET
                listing_id=EXCLUDED.listing_id,title=EXCLUDED.title,price=EXCLUDED.price,currency=EXCLUDED.currency,
                image_url=COALESCE(NULLIF(EXCLUDED.image_url,''),artflow.marketplace_listings.image_url),
-               status='Active',last_seen_at=now(),sync_source='etsy_csv_import',data=EXCLUDED.data`,
-            [
-              id, b.base44_id, listingId, title, price, currency, safeImage || null, listingUrl,
-              quantity, sku, clean(row?.description).slice(0, 4000), clean(row?.tags).slice(0, 2000), clean(row?.materials).slice(0, 2000),
-            ]
+               listing_url=EXCLUDED.listing_url,status='Active',last_seen_at=now(),sync_source='etsy_csv_import',data=EXCLUDED.data`,
+            [id, b.base44_id, listingId, title, price, currency, safeImage || null, listingUrl, quantity, sku]
           );
           activeUrls.push(listingUrl);
           saved += 1;
