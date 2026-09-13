@@ -9,7 +9,7 @@ import {
 const { Pool } = pg;
 const pool = new Pool({ connectionString: pooledDatabaseUrl(), ssl: { rejectUnauthorized: false }, max: 1 });
 
-const REDIRECT_URI = 'https://artflowcreative.com/api/etsy-official?op=callback';
+const REDIRECT_URI = 'https://artflowcreative.com/api/etsy-official';
 const AUTH_URL = 'https://www.etsy.com/oauth/connect';
 const TOKEN_URL = 'https://api.etsy.com/v3/public/oauth/token';
 const API_BASE = 'https://openapi.etsy.com/v3/application';
@@ -199,7 +199,7 @@ export default async function handler(req,res){
     await ensureOAuthStateTable(client);
     const op=clean(req.query?.op);
 
-    if(req.method==='GET' && op==='callback'){
+    if(req.method==='GET' && (op==='callback' || clean(req.query?.code) || clean(req.query?.error))){
       const state=clean(req.query?.state), code=clean(req.query?.code), error=clean(req.query?.error);
       if(error) return redirect(res,'error',clean(req.query?.error_description||error));
       if(!state||!code) return redirect(res,'error','Missing Etsy authorization response');
