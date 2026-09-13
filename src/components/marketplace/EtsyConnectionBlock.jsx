@@ -12,7 +12,7 @@ const post = (body) =>
   });
 
 export default function EtsyConnectionBlock() {
-  const [status, setStatus] = useState({ configured: false, connected: false, shop_name: "" });
+  const [status, setStatus] = useState({ configured: false, connected: false, shop_name: "", can_manage_credentials: false, has_business: false });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [keystring, setKeystring] = useState("");
@@ -27,6 +27,8 @@ export default function EtsyConnectionBlock() {
           configured: data.configured === true,
           connected: data.connected === true,
           shop_name: data.shop_name || "",
+          can_manage_credentials: data.can_manage_credentials === true,
+          has_business: data.has_business === true,
         });
       }
     } catch {
@@ -119,7 +121,7 @@ export default function EtsyConnectionBlock() {
           </div>
           <p className="text-xs text-muted-foreground mt-1">
             {status.connected
-              ? `Connected${status.shop_name ? ` to ${status.shop_name}` : ""}. Listings, photos, prices and paid orders sync into Art Flow.`
+              ? `Connected${status.shop_name ? ` to ${status.shop_name}` : ""}. Your listings and photos sync into Gallery${status.has_business ? ", and paid orders can sync to your business" : ""}.`
               : status.configured
                 ? "Official Etsy sign-in — no password stored, tokens encrypted."
                 : "Enter your Etsy Keystring and newly rotated Shared Secret once. Art Flow encrypts the secret on the server."}
@@ -131,7 +133,7 @@ export default function EtsyConnectionBlock() {
         <button disabled className="w-full h-11 rounded-2xl bg-muted flex items-center justify-center">
           <Loader2 className="w-4 h-4 animate-spin" />
         </button>
-      ) : !status.configured ? (
+      ) : !status.configured && status.can_manage_credentials ? (
         <div className="space-y-2">
           <input
             value={keystring}
@@ -159,7 +161,11 @@ export default function EtsyConnectionBlock() {
             {busy === "credentials" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
             Save Etsy Credentials
           </button>
-          <p className="text-[11px] text-muted-foreground">Rotate the Shared Secret shown in your earlier screenshot before saving it here.</p>
+          <p className="text-[11px] text-muted-foreground">Owner setup only. Other Art Flow users will never see this form.</p>
+        </div>
+      ) : !status.configured ? (
+        <div className="rounded-2xl bg-muted/60 p-3 text-xs text-muted-foreground">
+          Etsy connection is being configured by Art Flow. You will only need to tap Connect Etsy when it is ready.
         </div>
       ) : status.connected ? (
         <div className="grid grid-cols-2 gap-2">
