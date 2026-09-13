@@ -1,6 +1,7 @@
 export async function askAdvisorAI(message, businessContext, history = []) {
   const response = await fetch('/api/advisor-chat', {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       message,
@@ -19,7 +20,10 @@ export async function askAdvisorAI(message, businessContext, history = []) {
 }
 
 export async function getAdvisorAIStatus() {
-  const response = await fetch('/api/advisor-chat', { cache: 'no-store' });
+  const response = await fetch('/api/advisor-chat', {
+    credentials: 'include',
+    cache: 'no-store',
+  });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data?.error || 'Could not check AI connection');
   return data;
