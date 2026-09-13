@@ -1,10 +1,11 @@
 import pg from 'pg';
+import { pooledDatabaseUrl } from './_db.mjs';
 import getRawBody from 'raw-body';
 import { Resend } from 'resend';
 
 const { Pool } = pg;
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: pooledDatabaseUrl(),
   ssl: { rejectUnauthorized: false },
   max: 1,
 });
