@@ -1,4 +1,5 @@
 import pg from 'pg';
+import { pooledDatabaseUrl } from './_db.mjs';
 import crypto from 'node:crypto';
 import {
   clean, session, profile, businessForUser, encrypt, decrypt, parseBody,
@@ -6,7 +7,7 @@ import {
 } from './_official-sync-shared.mjs';
 
 const { Pool } = pg;
-const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 1 });
+const pool = new Pool({ connectionString: pooledDatabaseUrl(), ssl: { rejectUnauthorized: false }, max: 1 });
 
 const REDIRECT_URI = 'https://artflowcreative.com/api/etsy-official?op=callback';
 const AUTH_URL = 'https://www.etsy.com/oauth/connect';
