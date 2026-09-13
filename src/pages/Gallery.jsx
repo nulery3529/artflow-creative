@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ExternalLink, ImagePlus, Search, X } from "lucide-react";
+import { ExternalLink, ImagePlus, Search, Upload, X } from "lucide-react";
 import { useEntity } from "@/lib/useBusinessData";
 import { useOrders } from "@/lib/useOrders";
 import { formatMoney } from "@/lib/format";
@@ -65,6 +65,82 @@ function listingIdFromMarketplaceUrl(platform, raw = "") {
     if (platform === "Poshmark") return path.match(/-([a-f0-9]{24})$/i)?.[1] || "";
   } catch {}
   return "";
+}
+
+function parseCsvTable(text = "") {
+  const rows = [];
+  let row = [];
+  let field = "";
+  let quoted = false;
+  const source = String(text || "").replace(/^\uFEFF/, "");
+  for (let i = 0; i < source.length; i += 1) {
+    const ch = source[i];
+    if (ch === '"') {
+      if (quoted && source[i + 1] === '"') {
+        field += '"';
+        i += 1;
+      } else {
+        quoted = !quoted;
+      }
+      continue;
+    }
+    if (ch === "," && !quoted) {
+      row.push(field);
+      field = "";
+      continue;
+    }
+    if ((ch === "\n" || ch === "\r") && !quoted) {
+      if (ch === "\r" && source[i + 1] === "\n") i += 1;
+      row.push(field);
+      field = "";
+      if (row.some((value) => String(value || "").trim())) rows.push(row);
+      row = [];
+      continue;
+    }
+    field += ch;
+  }
+  if (field || row.length) {
+    row.push(field);
+    if (row.some((value) => String(value || "").trim())) rows.push(row);
+  }
+  return rows;
+}
+
+function etsyRowsFromCsv(text = "") {
+  const table = parseCsvTable(text);
+  if (table.length < 2) return [];
+  const headers = table[0].map((value) => String(value || "").trim().toUpperCase().replace(/\s+/g, ""));
+  const column = (...names) => {
+    for (const name of names) {
+      const index = headers.indexOf(String(name).toUpperCase().replace(/\s+/g, ""));
+      if (index >= 0) return index;
+    }
+    return -1;
+  };
+  const indexes = {
+    title: column("TITLE"),
+    description: column("DESCRIPTION"),
+    price: column("PRICE"),
+    currency: column("CURRENCY_CODE", "CURRENCY"),
+    quantity: column("QUANTITY"),
+    tags: column("TAGS"),
+    materials: column("MATERIALS"),
+    image: column("IMAGE1", "IMAGE_1"),
+    sku: column("SKU"),
+  };
+  if (indexes.title < 0) return [];
+  const get = (cols, index) => (index >= 0 ? String(cols[index] || "").trim() : "");
+  return table.slice(1).map((cols) => ({
+    title: get(cols, indexes.title),
+    description: get(cols, indexes.description),
+    price: get(cols, indexes.price),
+    currency: get(cols, indexes.currency) || "USD",
+    quantity: get(cols, indexes.quantity),
+    tags: get(cols, indexes.tags),
+    materials: get(cols, indexes.materials),
+    image_url: get(cols, indexes.image),
+    sku: get(cols, indexes.sku),
+  })).filter((row) => row.title).slice(0, 2000);
 }
 
 function orderListingUrl(order) {
