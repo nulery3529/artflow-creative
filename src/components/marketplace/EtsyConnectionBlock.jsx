@@ -141,62 +141,15 @@ export default function EtsyConnectionBlock() {
               ? `Connected${status.shop_name ? ` to ${status.shop_name}` : ""}. Your listings and photos sync into Gallery${status.has_business ? ", and paid orders can sync to your business" : ""}.`
               : status.configured
                 ? "Official Etsy sign-in — no password stored, tokens encrypted."
-                : status.can_manage_credentials
-                  ? "Owner setup only: enter the Etsy Keystring and rotated Shared Secret once for the whole Art Flow app."
-                  : "Etsy is being configured by Art Flow. You will only need to tap Connect Etsy."}
+                : "Etsy is being configured by Art Flow. You will only need to tap Connect Etsy."}
           </p>
         </div>
       </div>
-
-      {!loading && status.can_manage_credentials && status.configured && status.credential_source !== "environment" && !showCredentials && (
-        <button
-          type="button"
-          onClick={() => setShowCredentials(true)}
-          className="w-full h-10 rounded-2xl border border-[hsl(var(--border))] bg-background text-sm font-semibold"
-        >
-          Fix Etsy App Credentials
-        </button>
-      )}
 
       {loading ? (
         <button disabled className="w-full h-11 rounded-2xl bg-muted flex items-center justify-center">
           <Loader2 className="w-4 h-4 animate-spin" />
         </button>
-      ) : status.can_manage_credentials && (!status.configured || showCredentials || (status.credential_source === "environment" && status.connected && !status.shop_name)) ? (
-        <div className="space-y-2">
-          <input
-            value={keystring}
-            onChange={(e) => setKeystring(e.target.value)}
-            autoCapitalize="none"
-            autoCorrect="off"
-            placeholder="Etsy Keystring"
-            className="w-full h-11 px-3 rounded-2xl border border-[hsl(var(--border))] bg-background text-sm"
-          />
-          <input
-            value={sharedSecret}
-            onChange={(e) => setSharedSecret(e.target.value)}
-            type="password"
-            autoCapitalize="none"
-            autoCorrect="off"
-            placeholder="New Etsy Shared Secret"
-            className="w-full h-11 px-3 rounded-2xl border border-[hsl(var(--border))] bg-background text-sm"
-          />
-          <button
-            type="button"
-            onClick={saveCredentials}
-            disabled={busy === "credentials" || !keystring.trim() || !sharedSecret.trim()}
-            className="w-full h-11 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
-          >
-            {busy === "credentials" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
-            Save Etsy Credentials
-          </button>
-          <p className="text-[11px] text-muted-foreground">Owner setup only. Enter the exact Etsy Keystring and current Shared Secret. Other Art Flow users will never see this form.</p>
-          {status.configured && (
-            <button type="button" onClick={() => setShowCredentials(false)} className="w-full h-9 rounded-xl text-xs font-semibold text-muted-foreground">
-              Cancel
-            </button>
-          )}
-        </div>
       ) : !status.configured ? (
         <div className="rounded-2xl bg-muted/60 p-3 text-xs text-muted-foreground">
           Etsy connection is being configured by Art Flow. You will only need to tap Connect Etsy when it is ready.
