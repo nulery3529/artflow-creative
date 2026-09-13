@@ -543,7 +543,7 @@ export default function Gallery() {
       setLinkedSellSites(data.urls || {});
 
       if (linkSite === "Etsy") {
-        setLinkMessage("Etsy shop linked. Paste an individual Etsy listing link here whenever you want to add it to Gallery.");
+        setLinkMessage("Etsy shop linked. Use Import Etsy CSV below to add all active listings and photos to Gallery at once.");
       } else if (["eBay", "Poshmark"].includes(linkSite)) {
         const importResponse = await fetch("/api/mobile-listing-sync", {
           method: "POST",
@@ -719,6 +719,39 @@ export default function Gallery() {
           </button>
         ))}
       </div>
+
+      <section className="bg-card rounded-3xl p-5 border border-[hsl(var(--border))] space-y-3">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-muted flex items-center justify-center shrink-0">
+            <Upload className="w-5 h-5" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="font-heading text-lg">Import All Etsy Listings</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Upload Etsy's Listings CSV to add all active Etsy listings to Gallery at once, including the first photo, title, price, quantity, and SKU.
+            </p>
+          </div>
+        </div>
+        <div className="rounded-2xl bg-muted/60 p-3 text-xs text-muted-foreground">
+          Etsy: Shop Manager → Settings → Options → Download Data → Download CSV. Then upload that file here.
+        </div>
+        <label className={`w-full h-12 rounded-2xl bg-foreground text-background font-semibold flex items-center justify-center gap-2 cursor-pointer ${etsyCsvImporting ? "opacity-60 pointer-events-none" : ""}`}>
+          <Upload className="w-4 h-4" />
+          {etsyCsvImporting ? "Importing Etsy listings…" : "Import Etsy CSV"}
+          <input
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            disabled={etsyCsvImporting}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) importEtsyCsv(file);
+              event.target.value = "";
+            }}
+          />
+        </label>
+        {etsyCsvMessage && <p className="text-xs text-muted-foreground rounded-xl bg-muted/50 p-3">{etsyCsvMessage}</p>}
+      </section>
 
       <MobileMarketplaceSyncCard />
 
