@@ -288,6 +288,8 @@ export default function Assistant() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [aiConfigured, setAiConfigured] = useState(null);
+  const [aiModel, setAiModel] = useState("");
   const scrollRef = useRef(null);
 
   const loadSnapshot = async ({ quiet = false } = {}) => {
