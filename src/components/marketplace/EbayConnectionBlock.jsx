@@ -100,7 +100,7 @@ export default function EbayConnectionBlock() {
           </div>
           <p className="text-xs text-muted-foreground mt-1">
             {status.connected
-              ? `Connected${status.username ? ` as ${status.username}` : ""}. Paid orders sync straight into your sales.`
+              ? `Connected${status.username ? ` as ${status.username}` : ""}. Active listings, photos, prices and paid orders sync into Art Flow.`
               : status.configured
                 ? "Official eBay sign-in — no password stored, tokens encrypted."
                 : "Add EBAY_CLIENT_ID, EBAY_CLIENT_SECRET and EBAY_RUNAME to the server environment, then reload this page."}
@@ -115,7 +115,7 @@ export default function EbayConnectionBlock() {
       ) : status.connected ? (
         <div className="grid grid-cols-2 gap-2">
           <button onClick={sync} disabled={!!busy} className="h-11 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50">
-            {busy === "sync" ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Sync eBay Sales
+            {busy === "sync" ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Sync eBay
           </button>
           <button onClick={disconnect} disabled={!!busy} className="h-11 rounded-2xl bg-muted text-foreground text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50">
             <Unlink className="w-4 h-4" /> Disconnect
