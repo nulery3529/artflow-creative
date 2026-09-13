@@ -128,7 +128,12 @@ async function readRange(accessToken, spreadsheetId, range) {
   if (!response.ok) {
     const text = await response.text();
     const error = new Error(`Could not read ArtFlow Tracker: ${text}`);
-    error.code = response.status === 401 || response.status === 403 ? 'GOOGLE_RECONNECT' : 'SHEETS_ERROR';
+    error.status = response.status;
+    error.code = response.status === 401 || response.status === 403
+      ? 'GOOGLE_RECONNECT'
+      : response.status === 404
+        ? 'SPREADSHEET_NOT_FOUND'
+        : 'SHEETS_ERROR';
     throw error;
   }
   const data = await response.json();
@@ -426,7 +431,7 @@ export default async function handler(req, res) {
         break;
       } catch (error) {
         lastReadError = error;
-        if (error?.code === 'GOOGLE_RECONNECT') throw error;
+        if (['GOOGLE_RECONNECT', 'SPREADSHEET_NOT_FOUND'].includes(error?.code)) throw error;
       }
     }
     if (!resolvedSheetName) throw lastReadError || new Error('Could not find the tracker Orders tab.');
@@ -443,6 +448,43 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error('tracker sync error', error?.message || error);
+
+    if (error?.code === 'SPREADSHEET_NOT_FOUND') {
+      // The tracker may have been deleted, moved out of the connected account,
+      // or the saved ID may be stale. Remove only the stale tracker reference so
+      // the Account screen can offer a clean create/reconnect flow. Gmail sales
+      // and expense syncing remain independent and continue working.
+      try {
+        const profile = await getLegacyProfile(client, session.user);
+        const business = await getBusiness(client, profile, session.user);
+        if (business?.base44_id) {
+          const nextBusinessData = { ...(business.data || {}) };
+          delete nextBusinessData.spreadsheet_id;
+          delete nextBusinessData.spreadsheetId;
+          delete nextBusinessData.spreadsheet_created_by_artflow;
+          await client.query(
+            `UPDATE artflow.businesses SET data=$2::jsonb, updated_date=now() WHERE base44_id=$1`,
+            [business.base44_id, JSON.stringify(nextBusinessData)]
+          );
+        }
+        if (profile?.base44_id) {
+          const nextProfileData = { ...(profile.data || {}) };
+          delete nextProfileData.spreadsheet_id;
+          delete nextProfileData.spreadsheetId;
+          await client.query(
+            `UPDATE artflow.legacy_users SET data=$2::jsonb, updated_date=now() WHERE base44_id=$1`,
+            [profile.base44_id, JSON.stringify(nextProfileData)]
+          );
+        }
+      } catch (cleanupError) {
+        console.warn('Could not clear stale tracker reference', cleanupError?.message || cleanupError);
+      }
+      return res.status(409).json({
+        error: 'Your saved ArtFlow Tracker could not be found. Open Account to create or reconnect the tracker. Gmail sales and expense syncing can continue without it.',
+        code: 'SPREADSHEET_NOT_FOUND',
+      });
+    }
+
     const status = error?.code === 'GOOGLE_RECONNECT' ? 409 : 500;
     return res.status(status).json({ error: error?.message || 'Could not sync ArtFlow Tracker.', code: error?.code || 'TRACKER_SYNC_ERROR' });
   } finally {
