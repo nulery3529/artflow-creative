@@ -18,7 +18,6 @@ import NeonDataTest from '@/pages/NeonDataTest';
 import Layout from '@/components/Layout';
 import Taxes from '@/pages/Taxes';
 import Reports from '@/pages/Reports';
-import Assistant from '@/pages/Assistant';
 import { Navigate } from 'react-router-dom';
 import { ThemeProvider } from "next-themes";
 import Account from '@/pages/Account';
@@ -144,7 +143,6 @@ const AuthenticatedApp = () => {
           <Route path="/expenses" element={<TabShell />} />
           <Route path="/taxes" element={<Taxes />} />
           <Route path="/reports" element={<Reports />} />
-          <Route path="/assistant" element={<Assistant />} />
           <Route path="/account" element={<Account />} />
           <Route path="/send-sale" element={<MobileSaleCapture />} />
           <Route path="/calendar" element={<Calendar />} />
