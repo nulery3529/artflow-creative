@@ -362,13 +362,19 @@ export default function Assistant() {
       const source = fresh || snapshot;
       if (!source) throw new Error("Your Art Flow data could not be loaded.");
       const history = messages.map(({ role, content: messageContent }) => ({ role, content: messageContent }));
-      if (aiConfigured) {
+      try {
         const result = await askAdvisorAI(content, source, history);
+        setAiConfigured(true);
         setAiModel(result?.model || aiModel);
         setMessages((current) => [...current, { role: "assistant", content: result.answer }]);
-      } else {
-        const answer = answerQuestion(content, source);
-        setMessages((current) => [...current, { role: "assistant", content: answer }]);
+      } catch (aiError) {
+        if (aiError?.code === "OPENAI_NOT_CONFIGURED") {
+          setAiConfigured(false);
+          const answer = answerQuestion(content, source);
+          setMessages((current) => [...current, { role: "assistant", content: answer }]);
+        } else {
+          throw aiError;
+        }
       }
     } catch (error) {
       const isOpenAISetup = error?.code === "OPENAI_NOT_CONFIGURED";
