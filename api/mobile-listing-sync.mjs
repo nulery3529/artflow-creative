@@ -737,9 +737,16 @@ export default async function handler(req, res) {
     if (!b) return send(404, { error: 'Business workspace not found' });
 
     if (req.method === 'GET') {
+      const mobileShopUrls = b.data?.mobile_shop_urls || {};
+      const marketplaceLinks = b.data?.marketplace_links || {};
+      const urls = { ...mobileShopUrls };
+      for (const site of SUPPORTED) {
+        const shared = clean(marketplaceLinks?.[site] || marketplaceLinks?.[normalize(site)] || '');
+        if (shared) urls[site] = shared;
+      }
       return res.status(200).json({
         supported: SUPPORTED,
-        urls: b.data?.mobile_shop_urls || {},
+        urls,
       });
     }
 
@@ -860,9 +867,12 @@ export default async function handler(req, res) {
       }
 
       const mobileShopUrls = { ...(b.data?.mobile_shop_urls || {}) };
+      const marketplaceLinks = { ...(b.data?.marketplace_links || {}) };
       if (action === 'unlink_site') {
         delete mobileShopUrls[platform];
         delete mobileShopUrls[normalize(platform)];
+        delete marketplaceLinks[platform];
+        delete marketplaceLinks[normalize(platform)];
       } else {
         if (platform === 'Vinted') {
           return send(400, { error: 'Use Pull Full Profile for Vinted so Art Flow can resolve the correct member page.' });
@@ -871,14 +881,20 @@ export default async function handler(req, res) {
         const profileUrl = linkedSiteProfileUrl(platform, username);
         if (!profileUrl) return send(400, { error: `Enter a valid ${platform} username or shop name.` });
         mobileShopUrls[platform] = profileUrl;
+        marketplaceLinks[platform] = profileUrl;
       }
 
-      const nextData = { ...(b.data || {}), mobile_shop_urls: mobileShopUrls };
+      const nextData = { ...(b.data || {}), mobile_shop_urls: mobileShopUrls, marketplace_links: marketplaceLinks };
       await client.query(`UPDATE artflow.businesses SET data=$2::jsonb WHERE base44_id=$1`, [b.base44_id, JSON.stringify(nextData)]);
       b.data = nextData;
+      const urls = { ...mobileShopUrls };
+      for (const site of SUPPORTED) {
+        const shared = clean(marketplaceLinks?.[site] || marketplaceLinks?.[normalize(site)] || '');
+        if (shared) urls[site] = shared;
+      }
       return send(200, {
         ok: true,
-        urls: mobileShopUrls,
+        urls,
         message: action === 'unlink_site' ? `${platform} profile unlinked.` : `${platform} profile linked.`,
       });
     }
