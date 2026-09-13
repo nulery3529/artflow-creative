@@ -9,7 +9,7 @@ import {
 const { Pool } = pg;
 const pool = new Pool({ connectionString: pooledDatabaseUrl(), ssl: { rejectUnauthorized: false }, max: 1 });
 
-const REDIRECT_URI = 'https://artflowcreative.com/api/etsy-official';
+const REDIRECT_URI = 'https://art-flow-creative.vercel.app/api/etsy-official';
 const AUTH_URL = 'https://www.etsy.com/oauth/connect';
 const TOKEN_URL = 'https://api.etsy.com/v3/public/oauth/token';
 const API_BASE = 'https://openapi.etsy.com/v3/application';
