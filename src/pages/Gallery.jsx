@@ -408,7 +408,9 @@ export default function Gallery() {
       if (!response.ok) throw new Error(data.error || "Could not link seller profile");
       setLinkedSellSites(data.urls || {});
 
-      if (["Etsy", "eBay", "Poshmark"].includes(linkSite)) {
+      if (linkSite === "Etsy") {
+        setLinkMessage("Etsy shop linked. Paste an individual Etsy listing link here whenever you want to add it to Gallery.");
+      } else if (["eBay", "Poshmark"].includes(linkSite)) {
         const importResponse = await fetch("/api/mobile-listing-sync", {
           method: "POST",
           credentials: "include",
