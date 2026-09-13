@@ -775,7 +775,8 @@ export default async function handler(req, res) {
     }
 
     const requestedPlatform = clean(body.platform);
-    const requestedUsername = cleanMarketplaceUsername(body.username || body.profile_username || '');
+    const rawProfileInput = clean(body.username || body.profile_username || '');
+    const requestedUsername = cleanMarketplaceUsername(rawProfileInput);
     const isVintedUsernameRequest = requestedPlatform === 'Vinted' && Boolean(requestedUsername);
     const isPoshmarkUsernameRequest = requestedPlatform === 'Poshmark' && Boolean(requestedUsername);
     const isPublicShopUsernameRequest = ['Depop', 'Etsy', 'eBay'].includes(requestedPlatform) && Boolean(requestedUsername);
