@@ -17,6 +17,7 @@ export function GET() {
   return Response.json({
     emailPassword: true,
     google: Boolean(googleClientId && googleClientSecret),
+    googleClientFingerprint: googleClientId ? (() => { const body = googleClientId.split('-').slice(1).join('-').split('.')[0]; return `${body.slice(0, 8)}…${body.slice(-4)}`; })() : null,
     googleClientIdFormatValid: Boolean(googleClientId && /^[0-9]+-[a-zA-Z0-9_-]+\.apps\.googleusercontent\.com$/.test(googleClientId)),
     googleClientIdLength: googleClientId.length,
     googleClientSecretLooksLikeClientId: looksLikeGoogleClientId(googleClientSecret),
