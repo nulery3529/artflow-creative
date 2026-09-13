@@ -6,6 +6,7 @@ import {
   getBusiness,
   googleJson,
   normalize,
+  approveGmailEmail,
   syncGmailAccount,
 } from './_gmail-sales-core.mjs';
 
@@ -49,7 +50,15 @@ export default async function handler(req, res) {
           const profileData = await googleJson(accessToken, 'https://gmail.googleapis.com/gmail/v1/users/me/profile');
           const gmailAddress = normalize(profileData?.emailAddress || '');
           if (!gmailAddress) continue;
-          connectedAccounts.push({ email: gmailAddress, approved: allowedEmails.has(gmailAddress) });
+          if (!allowedEmails.has(gmailAddress)) {
+            // A user explicitly connected this Gmail inbox from the Sales Inbox
+            // workflow. Register it to the active business immediately so the
+            // status check and the first sync agree instead of showing a false
+            // "not listed as a sales email" warning.
+            await approveGmailEmail(client, business, gmailAddress);
+            allowedEmails.add(gmailAddress);
+          }
+          connectedAccounts.push({ email: gmailAddress, approved: true });
         } catch (error) {
           if (error?.status === 401 || error?.status === 403 || error?.code === 'GMAIL_RECONNECT') reconnectRequired = true;
         }
