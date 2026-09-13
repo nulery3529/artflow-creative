@@ -368,16 +368,41 @@ export default function Gallery() {
 
   const saveLinkedSite = async (event) => {
     event.preventDefault();
-    if (!linkUsername.trim() || linkSaving) return;
+    const input = linkUsername.trim();
+    if (!input || linkSaving) return;
     setLinkSaving(true);
     setLinkMessage("");
     try {
+      const isUrl = /^https?:\/\//i.test(input);
+      const isDirectListing =
+        (linkSite === "Etsy" && /etsy\.(?:com|me)\/.*\/listing\/\d+|etsy\.com\/listing\/\d+/i.test(input)) ||
+        (linkSite === "eBay" && /ebay\.[^/]+\/itm\//i.test(input)) ||
+        (linkSite === "Poshmark" && /poshmark\.com\/listing\//i.test(input));
+
+      if (isUrl && isDirectListing) {
+        const importResponse = await fetch("/api/mobile-listing-sync", {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ platform: linkSite, url: input }),
+        });
+        const importData = await importResponse.json().catch(() => ({}));
+        if (!importResponse.ok || importData.ok === false) {
+          throw new Error(importData.error || `Could not import that ${linkSite} listing.`);
+        }
+        await reloadMarketplaceListings();
+        setLinkMessage(importData.message || `${linkSite} listing added to Gallery.`);
+        setLinkUsername("");
+        return;
+      }
+
       const response = await fetch("/api/mobile-listing-sync", {
         method: "POST",
         credentials: "include",
         cache: "no-store",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "link_site", platform: linkSite, username: linkUsername.trim() }),
+        body: JSON.stringify({ action: "link_site", platform: linkSite, username: input }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Could not link seller profile");
@@ -389,7 +414,7 @@ export default function Gallery() {
           credentials: "include",
           cache: "no-store",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ platform: linkSite, username: linkUsername.trim() }),
+          body: JSON.stringify({ platform: linkSite, username: input }),
         });
         const importData = await importResponse.json().catch(() => ({}));
         if (!importResponse.ok || importData.ok === false) {
