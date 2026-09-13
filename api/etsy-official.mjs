@@ -24,16 +24,18 @@ async function ensureAppSettingsTable(client){
 }
 
 async function etsyCredentials(client){
-  const envKey=clean(process.env.ETSY_API_KEY || process.env.ETSY_KEYSTRING);
-  const envSecret=clean(process.env.ETSY_SHARED_SECRET || process.env.ETSY_CLIENT_SECRET);
-  if(envKey && envSecret) return {key:envKey,secret:envSecret,source:'environment',owner_user_id:null};
   await ensureAppSettingsTable(client);
   const r=await client.query(`SELECT data FROM artflow.app_settings WHERE key='etsy_credentials' LIMIT 1`);
   const stored=r.rows[0]?.data||{};
-  const key=clean(stored.keystring||stored.key);
-  let secret='';
-  try{ if(stored.shared_secret_enc) secret=clean(decrypt(stored.shared_secret_enc)); }catch{}
-  return {key,secret,source:key&&secret?'encrypted_app_setting':'none',owner_user_id:clean(stored.owner_user_id)};
+  const storedKey=clean(stored.keystring||stored.key);
+  let storedSecret='';
+  try{ if(stored.shared_secret_enc) storedSecret=clean(decrypt(stored.shared_secret_enc)); }catch{}
+  if(storedKey && storedSecret){
+    return {key:storedKey,secret:storedSecret,source:'encrypted_app_setting',owner_user_id:clean(stored.owner_user_id)};
+  }
+  const envKey=clean(process.env.ETSY_API_KEY || process.env.ETSY_KEYSTRING);
+  const envSecret=clean(process.env.ETSY_SHARED_SECRET || process.env.ETSY_CLIENT_SECRET);
+  return {key:envKey,secret:envSecret,source:envKey&&envSecret?'environment':'none',owner_user_id:clean(stored.owner_user_id)};
 }
 const etsyApiHeader = (creds) => `${creds.key}:${creds.secret}`;
 
