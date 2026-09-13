@@ -389,11 +389,11 @@ export default function Assistant() {
       <PageHeader
         className="mb-2"
         title="Business Advisor"
-        subtitle="Live advice from your Art Flow sales, expenses & inventory"
+        subtitle="Chat with AI about your Art Flow business"
         onBack={() => navigate("/")}
       />
 
-      <div className="flex items-center justify-between px-1 pb-3 text-xs text-muted-foreground">
+      <div className="flex items-center justify-between px-1 pb-2 text-xs text-muted-foreground">
         <span>{loading ? "Loading business data…" : snapshot ? `Live business data loaded${freshness ? ` · ${freshness}` : ""}` : loadError ? "Business data needs a retry" : "Business data unavailable"}</span>
         <button
           type="button"
@@ -404,6 +404,15 @@ export default function Assistant() {
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
           Refresh
         </button>
+      </div>
+
+      <div className={`mx-1 mb-3 rounded-xl border px-3 py-2 text-xs ${aiConfigured ? "bg-card border-[hsl(var(--border))]" : "bg-muted/50 border-[hsl(var(--border))]"}`}>
+        <div className="flex items-center gap-1.5 font-medium">
+          <Sparkles className="w-3.5 h-3.5" />
+          {aiConfigured === null ? "Checking ChatGPT connection…" : aiConfigured ? "ChatGPT connected" : "ChatGPT connection not configured yet"}
+        </div>
+        {aiConfigured && aiModel && <p className="mt-0.5 text-muted-foreground">Using {aiModel} with your live Art Flow data.</p>}
+        {aiConfigured === false && <p className="mt-0.5 text-muted-foreground">The built-in advisor will answer until the OpenAI API key is added.</p>}
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 no-scrollbar pb-2">
@@ -453,7 +462,7 @@ export default function Assistant() {
         {sending && (
           <div className="flex justify-start">
             <div className="px-4 py-3 rounded-3xl rounded-bl-lg bg-card border border-[hsl(var(--border))] text-sm text-muted-foreground">
-              Reading your latest Art Flow data…
+              {aiConfigured ? "ChatGPT is analyzing your Art Flow data…" : "Reading your latest Art Flow data…"}
             </div>
           </div>
         )}
