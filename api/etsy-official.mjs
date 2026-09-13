@@ -180,24 +180,25 @@ export default async function handler(req,res){
       const s=await client.query(`DELETE FROM artflow.marketplace_oauth_states WHERE state=$1 AND platform='Etsy' AND expires_at>now() RETURNING *`,[state]);
       const saved=s.rows[0];
       if(!saved) return redirect(res,'error','Etsy connection expired. Try Connect again.');
-      if(!etsyKey()||!etsySecret()) return redirect(res,'error','Etsy credentials are not configured in Art Flow.');
-      const token=await etsyToken({grant_type:'authorization_code',client_id:etsyKey(),redirect_uri:REDIRECT_URI,code,code_verifier:saved.code_verifier});
       const br=await client.query(`SELECT base44_id,name,primary_email,data FROM artflow.businesses WHERE base44_id=$1 LIMIT 1`,[saved.business_id]);
       const business=br.rows[0];
       if(!business) return redirect(res,'error','Art Flow business workspace was not found.');
+      const creds=etsyCredentials(business);
+      if(!creds.key||!creds.secret) return redirect(res,'error','Etsy credentials are not configured in Art Flow.');
+      const token=await etsyToken({grant_type:'authorization_code',client_id:creds.key,redirect_uri:REDIRECT_URI,code,code_verifier:saved.code_verifier});
       const expiresAtIso=new Date(Date.now()+(Number(token.expires_in)||3600)*1000).toISOString();
       let shopId=null, shopName='';
       try{
-        const me=await etsyGet('/users/me',token.access_token);
+        const me=await etsyGet('/users/me',token.access_token,creds);
         const userId=String(me?.user_id||String(token.access_token||'').split('.')[0]||'');
         shopId=me?.shop_id||null;
         if(!shopId && userId){
-          const ownedShop=await etsyGet(`/users/${userId}/shops`,token.access_token);
+          const ownedShop=await etsyGet(`/users/${userId}/shops`,token.access_token,creds);
           shopId=ownedShop?.shop_id||null;
           shopName=clean(ownedShop?.shop_name);
         }
         if(shopId && !shopName){
-          const shop=await etsyGet(`/shops/${shopId}`,token.access_token);
+          const shop=await etsyGet(`/shops/${shopId}`,token.access_token,creds);
           shopName=clean(shop?.shop_name);
         }
       }catch{}
@@ -210,7 +211,7 @@ export default async function handler(req,res){
         shop_name:shopName,
         connected_at:business.data?.etsy_oauth?.connected_at||new Date().toISOString(),
       });
-      try{ await syncEtsyListings(client,business,token.access_token); }catch(error){ console.warn('Initial Etsy listing sync failed',error?.message||error); }
+      try{ await syncEtsyListings(client,business,token.access_token,creds); }catch(error){ console.warn('Initial Etsy listing sync failed',error?.message||error); }
       return redirect(res,'connected');
     }
 
@@ -219,7 +220,8 @@ export default async function handler(req,res){
     const p=await profile(client,s.user);
     const business=await businessForUser(client,p,s.user);
     if(!business) return res.status(404).json({error:'Business workspace not found'});
-    const configured=Boolean(etsyKey()&&etsySecret());
+    let creds=etsyCredentials(business);
+    const configured=Boolean(creds.key&&creds.secret);
     const oauth=business.data?.etsy_oauth||{};
 
     if(req.method==='GET'){
@@ -228,13 +230,29 @@ export default async function handler(req,res){
         connected:Boolean(oauth.connected&&oauth.refresh_token_enc),
         shop_name:clean(oauth.shop_name),
         redirect_uri:REDIRECT_URI,
+        credential_source:creds.source,
       });
     }
     if(req.method!=='POST') return res.status(405).json({error:'Method not allowed'});
     const body=parseBody(req), action=clean(body.action);
 
+    if(action==='save_credentials'){
+      const keystring=clean(body.keystring);
+      const sharedSecret=clean(body.shared_secret);
+      if(keystring.length<8 || sharedSecret.length<8) return res.status(400).json({error:'Enter the Etsy Keystring and Shared Secret.'});
+      const next={...(business.data||{}),etsy_credentials:{
+        keystring,
+        shared_secret_enc:encrypt(sharedSecret),
+        updated_at:new Date().toISOString(),
+      }};
+      await client.query(`UPDATE artflow.businesses SET data=$2::jsonb WHERE base44_id=$1`,[business.base44_id,JSON.stringify(next)]);
+      business.data=next;
+      creds=etsyCredentials(business);
+      return res.status(200).json({ok:true,configured:Boolean(creds.key&&creds.secret)});
+    }
+
     if(action==='start'){
-      if(!configured) return res.status(503).json({error:'Etsy credentials are not configured yet. Add ETSY_API_KEY and ETSY_SHARED_SECRET to the server environment.'});
+      if(!creds.key||!creds.secret) return res.status(503).json({error:'Etsy credentials are not configured yet.'});
       const state=crypto.randomBytes(32).toString('base64url');
       const codeVerifier=crypto.randomBytes(48).toString('base64url');
       const codeChallenge=crypto.createHash('sha256').update(codeVerifier).digest('base64url');
@@ -242,7 +260,8 @@ export default async function handler(req,res){
       await client.query(`INSERT INTO artflow.marketplace_oauth_states (state,business_id,platform,code_verifier,expires_at) VALUES ($1,$2,'Etsy',$3,now()+interval '15 minutes')`,[state,business.base44_id,codeVerifier]);
       const q=[
         'response_type=code',
-        `client_id=${encodeURIComponent(etsyKey())}`,
+      if(!creds.key||!creds.secret) return res.status(503).json({error:'Etsy credentials are not configured.'});
+      const token=await validAccessToken(client,business,creds);
         `redirect_uri=${encodeURIComponent(REDIRECT_URI)}`,
         `state=${encodeURIComponent(state)}`,
         `scope=${encodeURIComponent(SCOPES)}`,
@@ -264,11 +283,11 @@ export default async function handler(req,res){
       const token=await validAccessToken(client,business);
       const shopId=business.data?.etsy_oauth?.shop_id;
       if(!shopId) return res.status(400).json({error:'Etsy shop link is missing. Disconnect and connect Etsy again.'});
-      const listingSync=await syncEtsyListings(client,business,token);
+      const listingSync=await syncEtsyListings(client,business,token,creds);
       const rows=[];
       let offset=0,pages=0,more=false;
       while(pages<3){
-        const data=await etsyGet(`/shops/${shopId}/receipts?limit=100&offset=${offset}`,token);
+        const data=await etsyGet(`/shops/${shopId}/receipts?limit=100&offset=${offset}`,token,creds);
         const results=Array.isArray(data?.results)?data.results:[];
         for(const receipt of results){
           if(receipt?.was_paid===false) continue;
