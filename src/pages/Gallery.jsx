@@ -120,12 +120,9 @@ function etsyRowsFromCsv(text = "") {
   };
   const indexes = {
     title: column("TITLE"),
-    description: column("DESCRIPTION"),
     price: column("PRICE"),
     currency: column("CURRENCY_CODE", "CURRENCY"),
     quantity: column("QUANTITY"),
-    tags: column("TAGS"),
-    materials: column("MATERIALS"),
     image: column("IMAGE1", "IMAGE_1"),
     sku: column("SKU"),
   };
@@ -134,12 +131,9 @@ function etsyRowsFromCsv(text = "") {
   return table.slice(1).map((cols, rowIndex) => ({
     source_index: rowIndex + 1,
     title: get(cols, indexes.title),
-    description: get(cols, indexes.description),
     price: get(cols, indexes.price),
     currency: get(cols, indexes.currency) || "USD",
     quantity: get(cols, indexes.quantity),
-    tags: get(cols, indexes.tags),
-    materials: get(cols, indexes.materials),
     image_url: get(cols, indexes.image),
     sku: get(cols, indexes.sku),
   })).filter((row) => row.title).slice(0, 2000);
