@@ -251,9 +251,10 @@ export default function Gallery() {
 
     officialRefreshInFlight.current = true;
     try {
-      const [depopStatusResult, vintedStatusResult] = await Promise.allSettled([
+      const [depopStatusResult, vintedStatusResult, etsyStatusResult] = await Promise.allSettled([
         fetch("/api/depop-official", { credentials: "include", cache: "no-store" }).then(async (response) => ({ response, data: await response.json().catch(() => ({})) })),
         fetch("/api/vinted-official", { credentials: "include", cache: "no-store" }).then(async (response) => ({ response, data: await response.json().catch(() => ({})) })),
+        fetch("/api/etsy-official", { credentials: "include", cache: "no-store" }).then(async (response) => ({ response, data: await response.json().catch(() => ({})) })),
       ]);
 
       const jobs = [];
@@ -273,6 +274,15 @@ export default function Gallery() {
           cache: "no-store",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "sync_imported" }),
+        }));
+      }
+      if (etsyStatusResult.status === "fulfilled" && etsyStatusResult.value.response.ok && etsyStatusResult.value.data?.connected) {
+        jobs.push(fetch("/api/etsy-official", {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "sync" }),
         }));
       }
 
