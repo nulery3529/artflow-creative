@@ -216,6 +216,7 @@ export default async function handler(req, res) {
       `SELECT * FROM artflow.legacy_users
        WHERE data->'etsy_oauth'->>'shop_id'=$1
          AND COALESCE(data->'etsy_oauth'->>'connected','false')='true'
+         AND NULLIF(data->'etsy_oauth'->>'artflow_user_id','')=auth_user_id
        ORDER BY updated_date DESC LIMIT 1`,
       [shopId]
     );
