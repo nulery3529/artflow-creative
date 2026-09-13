@@ -124,7 +124,9 @@ export default function EtsyConnectionBlock() {
               ? `Connected${status.shop_name ? ` to ${status.shop_name}` : ""}. Your listings and photos sync into Gallery${status.has_business ? ", and paid orders can sync to your business" : ""}.`
               : status.configured
                 ? "Official Etsy sign-in — no password stored, tokens encrypted."
-                : "Enter your Etsy Keystring and newly rotated Shared Secret once. Art Flow encrypts the secret on the server."}
+                : status.can_manage_credentials
+                  ? "Owner setup only: enter the Etsy Keystring and rotated Shared Secret once for the whole Art Flow app."
+                  : "Etsy is being configured by Art Flow. You will only need to tap Connect Etsy."}
           </p>
         </div>
       </div>
