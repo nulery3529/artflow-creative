@@ -23,7 +23,7 @@ async function getLegacyProfile(client, user) {
   const found = await client.query(
     `SELECT * FROM artflow.legacy_users
      WHERE auth_user_id = $1 OR lower(email) = $2
-     ORDER BY CASE WHEN active_business_id IS NOT NULL THEN 0 ELSE 1 END, CASE WHEN auth_user_id = $1 THEN 0 ELSE 1 END, created_date NULLS LAST
+     ORDER BY CASE WHEN auth_user_id = $1 THEN 0 ELSE 1 END, created_date NULLS LAST
      LIMIT 1`,
     [user.id, email]
   );
@@ -69,7 +69,7 @@ async function getAccessibleBusinesses(client, profile, user) {
   const email = normalize(user?.email);
   const active = profile?.active_business_id || profile?.data?.active_business_id || null;
   const result = await client.query(`
-    SELECT b.base44_id, b.name, b.primary_email, b.data,
+    SELECT b.base44_id, b.name, b.primary_email, b.created_by_id, b.data,
            (
              (SELECT count(*) FROM artflow.orders o WHERE o.business_id = b.base44_id AND o.archived IS NOT TRUE) +
              (SELECT count(*) FROM artflow.marketplace_listings m WHERE m.business_id = b.base44_id) +
@@ -79,8 +79,12 @@ async function getAccessibleBusinesses(client, profile, user) {
      ORDER BY activity_score DESC, b.name NULLS LAST
   `);
   return result.rows.filter((row) => {
+    const owns = businessMatchesEmail(row, email)
+      || row.created_by_id === profile?.base44_id
+      || row.created_by_id === user?.id;
+    if (!owns) return false;
     if (active && row.base44_id === active) return true;
-    return businessMatchesEmail(row, email);
+    return owns;
   });
 }
 
