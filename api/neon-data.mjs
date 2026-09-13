@@ -610,6 +610,190 @@ async function writeOrder(client, session, req) {
   return result.rows[0];
 }
 
+async function advisorSnapshot(client, session) {
+  const { businesses, ids, email } = await ensureWorkspace(client, session.user);
+  const accessSql = `(
+    business_id = ANY($1::text[])
+    OR EXISTS (
+      SELECT 1
+        FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(data->'access_emails')='array' THEN data->'access_emails' ELSE '[]'::jsonb END) access(value)
+       WHERE lower(access.value) = $2
+    )
+  )`;
+
+  const [totals, platforms, sizes, products, expenseCategories, inventory, monthTrend, dataQuality] = await Promise.all([
+    client.query(
+      `SELECT
+         COALESCE(sum(sale_total),0)::numeric AS total_sales,
+         count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(source_email_id,''), base44_id))::int AS total_orders,
+         COALESCE(sum(COALESCE(quantity,1)),0)::numeric AS total_items,
+         COALESCE(sum(total_cost),0)::numeric AS order_costs,
+         COALESCE(sum(estimated_profit),0)::numeric AS gross_profit,
+         COALESCE(sum(sale_total) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM')),0)::numeric AS month_sales,
+         count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(source_email_id,''), base44_id)) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM'))::int AS month_orders,
+         COALESCE(sum(total_cost) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM')),0)::numeric AS month_costs,
+         COALESCE(sum(sale_total) FILTER (WHERE left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')),0)::numeric AS year_sales,
+         COALESCE(sum(total_cost) FILTER (WHERE left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')),0)::numeric AS year_costs
+       FROM artflow.orders
+       WHERE archived IS NOT TRUE AND ${accessSql}`,
+      [ids, email]
+    ),
+    client.query(
+      `SELECT COALESCE(NULLIF(platform,''),'Unknown') AS name,
+              COALESCE(sum(sale_total),0)::numeric AS sales,
+              count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(source_email_id,''), base44_id))::int AS orders,
+              COALESCE(sum(COALESCE(quantity,1)),0)::numeric AS items,
+              COALESCE(sum(estimated_profit),0)::numeric AS gross_profit
+         FROM artflow.orders
+        WHERE archived IS NOT TRUE AND ${accessSql}
+        GROUP BY 1 ORDER BY sales DESC, orders DESC LIMIT 10`,
+      [ids, email]
+    ),
+    client.query(
+      `SELECT COALESCE(NULLIF(size,''),'Unknown') AS name,
+              COALESCE(sum(sale_total),0)::numeric AS sales,
+              COALESCE(sum(COALESCE(quantity,1)),0)::numeric AS items,
+              count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(source_email_id,''), base44_id))::int AS orders
+         FROM artflow.orders
+        WHERE archived IS NOT TRUE AND ${accessSql}
+        GROUP BY 1 ORDER BY items DESC, sales DESC LIMIT 12`,
+      [ids, email]
+    ),
+    client.query(
+      `SELECT COALESCE(NULLIF(product_name,''),'Unknown item') AS name,
+              COALESCE(sum(sale_total),0)::numeric AS sales,
+              COALESCE(sum(COALESCE(quantity,1)),0)::numeric AS items,
+              count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(source_email_id,''), base44_id))::int AS orders,
+              COALESCE(sum(estimated_profit),0)::numeric AS gross_profit
+         FROM artflow.orders
+        WHERE archived IS NOT TRUE AND ${accessSql}
+        GROUP BY 1 ORDER BY items DESC, sales DESC LIMIT 12`,
+      [ids, email]
+    ),
+    client.query(
+      `SELECT COALESCE(NULLIF(category,''),'Uncategorized') AS name,
+              COALESCE(sum(amount),0)::numeric AS amount,
+              count(*)::int AS count
+         FROM artflow.expenses
+        WHERE archived IS NOT TRUE
+          AND COALESCE(data->>'status','approved') <> 'pending'
+          AND ${accessSql}
+        GROUP BY 1 ORDER BY amount DESC LIMIT 12`,
+      [ids, email]
+    ),
+    client.query(
+      `SELECT
+         count(*)::int AS item_types,
+         COALESCE(sum(quantity_on_hand),0)::numeric AS units_on_hand,
+         COALESCE(sum(quantity_on_hand * total_unit_cost),0)::numeric AS inventory_value,
+         COALESCE(jsonb_agg(jsonb_build_object(
+           'name', name,
+           'size', size,
+           'quantity', quantity_on_hand,
+           'lowStockLevel', low_stock_level,
+           'unitCost', total_unit_cost
+         ) ORDER BY quantity_on_hand ASC) FILTER (WHERE quantity_on_hand <= low_stock_level), '[]'::jsonb) AS low_stock
+       FROM artflow.inventory_costs
+       WHERE business_id = ANY($1::text[])`,
+      [ids]
+    ),
+    client.query(
+      `SELECT
+         COALESCE(sum(sale_total) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM')),0)::numeric AS current_sales,
+         COALESCE(sum(sale_total) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE - interval '1 month','YYYY-MM')),0)::numeric AS previous_sales,
+         count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(source_email_id,''), base44_id)) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM'))::int AS current_orders,
+         count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(source_email_id,''), base44_id)) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE - interval '1 month','YYYY-MM'))::int AS previous_orders
+       FROM artflow.orders
+       WHERE archived IS NOT TRUE AND ${accessSql}`,
+      [ids, email]
+    ),
+    client.query(
+      `SELECT
+         count(*) FILTER (WHERE COALESCE(total_cost,0)=0)::int AS orders_missing_cost,
+         count(*) FILTER (WHERE COALESCE(NULLIF(platform,''),'')='')::int AS orders_missing_platform,
+         count(*) FILTER (WHERE COALESCE(NULLIF(size,''),'')='')::int AS orders_missing_size
+       FROM artflow.orders
+       WHERE archived IS NOT TRUE AND ${accessSql}`,
+      [ids, email]
+    ),
+  ]);
+
+  const expenseTotals = await client.query(
+    `SELECT
+       COALESCE(sum(amount) FILTER (WHERE COALESCE(data->>'status','approved') <> 'pending'),0)::numeric AS total_expenses,
+       COALESCE(sum(amount) FILTER (WHERE COALESCE(data->>'status','approved') <> 'pending' AND left(COALESCE(expense_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM')),0)::numeric AS month_expenses,
+       COALESCE(sum(amount) FILTER (WHERE COALESCE(data->>'status','approved') <> 'pending' AND left(COALESCE(expense_date,''),4)=to_char(CURRENT_DATE,'YYYY')),0)::numeric AS year_expenses,
+       count(*) FILTER (WHERE COALESCE(data->>'status','approved')='pending')::int AS pending_expenses
+     FROM artflow.expenses
+     WHERE archived IS NOT TRUE AND ${accessSql}`,
+    [ids, email]
+  );
+
+  const num = (value) => Number(value) || 0;
+  const mapRows = (rows) => rows.map((row) => Object.fromEntries(
+    Object.entries(row).map(([key, value]) => [key, ['sales','gross_profit','amount'].includes(key) ? num(value) : value])
+  ));
+  const t = totals.rows[0] || {};
+  const e = expenseTotals.rows[0] || {};
+  const inv = inventory.rows[0] || {};
+  const trend = monthTrend.rows[0] || {};
+  const quality = dataQuality.rows[0] || {};
+  const totalSales = num(t.total_sales);
+  const orderCosts = num(t.order_costs);
+  const totalExpenses = num(e.total_expenses);
+  const monthSales = num(t.month_sales);
+  const monthCosts = num(t.month_costs);
+  const monthExpenses = num(e.month_expenses);
+  const yearSales = num(t.year_sales);
+  const yearCosts = num(t.year_costs);
+  const yearExpenses = num(e.year_expenses);
+
+  return {
+    generatedAt: new Date().toISOString(),
+    business: businesses[0] ? { id: businesses[0].base44_id, name: businesses[0].name || 'Business' } : null,
+    metrics: {
+      totalSales,
+      totalOrders: num(t.total_orders),
+      totalItems: num(t.total_items),
+      orderCosts,
+      totalExpenses,
+      netProfit: totalSales - orderCosts - totalExpenses,
+      averageOrder: num(t.total_orders) ? totalSales / num(t.total_orders) : 0,
+      monthSales,
+      monthOrders: num(t.month_orders),
+      monthCosts,
+      monthExpenses,
+      monthNet: monthSales - monthCosts - monthExpenses,
+      yearSales,
+      yearCosts,
+      yearExpenses,
+      yearNet: yearSales - yearCosts - yearExpenses,
+    },
+    trend: {
+      currentSales: num(trend.current_sales),
+      previousSales: num(trend.previous_sales),
+      currentOrders: num(trend.current_orders),
+      previousOrders: num(trend.previous_orders),
+    },
+    platforms: mapRows(platforms.rows),
+    sizes: mapRows(sizes.rows),
+    products: mapRows(products.rows),
+    expenseCategories: mapRows(expenseCategories.rows),
+    inventory: {
+      itemTypes: num(inv.item_types),
+      unitsOnHand: num(inv.units_on_hand),
+      inventoryValue: num(inv.inventory_value),
+      lowStock: Array.isArray(inv.low_stock) ? inv.low_stock : [],
+    },
+    dataQuality: {
+      ordersMissingCost: num(quality.orders_missing_cost),
+      ordersMissingPlatform: num(quality.orders_missing_platform),
+      ordersMissingSize: num(quality.orders_missing_size),
+      pendingExpenses: num(e.pending_expenses),
+    },
+  };
+}
+
 async function summary(client, session) {
   const { profile, businesses, ids } = await ensureWorkspace(client, session.user);
   const email = normalize(session.user.email);
@@ -725,6 +909,7 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: 'Method not allowed' });
     }
     if (op === 'summary') return res.status(200).json(await summary(client, session));
+    if (op === 'advisor') return res.status(200).json(await advisorSnapshot(client, session));
     if (op === 'orders') return res.status(200).json({ orders: await listOrders(client, session) });
     if (op === 'expenses') return res.status(200).json({ expenses: await listExpenses(client, session) });
     if (op === 'inventory') return res.status(200).json({ inventory: await listInventory(client, session) });
