@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ExternalLink, Search, X } from "lucide-react";
+import { ExternalLink, ImagePlus, Search, X } from "lucide-react";
 import { useEntity } from "@/lib/useBusinessData";
 import { useOrders } from "@/lib/useOrders";
 import { formatMoney } from "@/lib/format";
@@ -9,6 +9,7 @@ import PageHeader from "@/components/PageHeader";
 import { useNavigate } from "react-router-dom";
 import { Image } from "@/components/ui/image";
 import MobileMarketplaceSyncCard from "@/components/MobileMarketplaceSyncCard";
+import { prepareImageForStorage } from "@/lib/imageUpload";
 
 const marketplaceTabs = ["All sites", "Vinted", "Depop", "Etsy", "eBay", "Poshmark"];
 const SELL_SITE_URLS = {
@@ -22,6 +23,7 @@ const SELL_SITE_URLS = {
 // Marketplace photos always load through Art Flow so seller CDNs cannot block the gallery.
 function marketplaceImageSrc(listing) {
   if (!listing?.image_url && !listing?.listing_url) return "";
+  if (/^data:image\//i.test(String(listing?.image_url || ""))) return listing.image_url;
   const params = new URLSearchParams();
   if (listing.image_url) params.set("image", listing.image_url);
   if (listing.listing_url) params.set("listing", listing.listing_url);
