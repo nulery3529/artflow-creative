@@ -3,17 +3,22 @@ import ReactDOM from 'react-dom/client'
 import App from '@/App.jsx'
 import '@/index.css'
 
-// Keep authentication and OAuth on one canonical host. Better Auth cookies
-// are issued for artflowcreative.com; signing in from a Vercel alias can create
-// a valid Neon session while the browser rejects/loses the cookie for that
-// different hostname. Canonicalize every public Art Flow alias before React or
-// any auth request runs so users cannot get stuck in a login/logout loop.
+// Keep authentication on one working canonical host. The custom domain is
+// currently serving static assets correctly but its serverless auth route is
+// failing, while the stable Vercel production hostname serves the same app and
+// auth API successfully. Redirect all alternate Art Flow hosts there before
+// React or any auth request runs so the Better Auth cookie stays on one host.
 const currentHost = window.location.hostname.toLowerCase()
+const canonicalHost = 'art-flow-creative.vercel.app'
 const isArtFlowVercelHost = currentHost.endsWith('.vercel.app') && currentHost.startsWith('art-flow-creative')
-if (currentHost === 'www.artflowcreative.com' || isArtFlowVercelHost) {
+const shouldUseCanonicalHost =
+  currentHost === 'artflowcreative.com' ||
+  currentHost === 'www.artflowcreative.com' ||
+  (isArtFlowVercelHost && currentHost !== canonicalHost)
+if (shouldUseCanonicalHost) {
   const canonicalURL = new URL(window.location.href)
   canonicalURL.protocol = 'https:'
-  canonicalURL.hostname = 'artflowcreative.com'
+  canonicalURL.hostname = canonicalHost
   canonicalURL.port = ''
   window.location.replace(canonicalURL.toString())
 }
