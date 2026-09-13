@@ -12,7 +12,7 @@ const post = (body) =>
   });
 
 export default function EtsyConnectionBlock() {
-  const [status, setStatus] = useState({ configured: false, connected: false, shop_name: "", can_manage_credentials: false, has_business: false });
+  const [status, setStatus] = useState({ configured: false, connected: false, shop_name: "", credential_source: "", can_manage_credentials: false, has_business: false });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [keystring, setKeystring] = useState("");
@@ -28,6 +28,7 @@ export default function EtsyConnectionBlock() {
           configured: data.configured === true,
           connected: data.connected === true,
           shop_name: data.shop_name || "",
+          credential_source: data.credential_source || "",
           can_manage_credentials: data.can_manage_credentials === true,
           has_business: data.has_business === true,
         });
@@ -147,7 +148,7 @@ export default function EtsyConnectionBlock() {
         </div>
       </div>
 
-      {!loading && status.can_manage_credentials && status.configured && !showCredentials && (
+      {!loading && status.can_manage_credentials && status.configured && status.credential_source !== "environment" && !showCredentials && (
         <button
           type="button"
           onClick={() => setShowCredentials(true)}
@@ -161,7 +162,7 @@ export default function EtsyConnectionBlock() {
         <button disabled className="w-full h-11 rounded-2xl bg-muted flex items-center justify-center">
           <Loader2 className="w-4 h-4 animate-spin" />
         </button>
-      ) : status.can_manage_credentials && (!status.configured || showCredentials) ? (
+      ) : status.can_manage_credentials && (!status.configured || showCredentials || (status.credential_source === "environment" && status.connected && !status.shop_name)) ? (
         <div className="space-y-2">
           <input
             value={keystring}
