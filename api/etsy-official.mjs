@@ -283,6 +283,24 @@ export default async function handler(req,res){
       const keystring=clean(body.keystring);
       const sharedSecret=clean(body.shared_secret);
       if(keystring.length<8 || sharedSecret.length<8) return res.status(400).json({error:'Enter the Etsy Keystring and Shared Secret.'});
+
+      const candidateCreds={key:keystring,secret:sharedSecret};
+      let verifiedShopId=null, verifiedShopName='';
+      try{
+        const existingOauth=p.data?.etsy_oauth||{};
+        if(existingOauth.refresh_token_enc || existingOauth.access_token_enc){
+          const token=await validAccessToken(client,p,candidateCreds);
+          const userId=String(token||'').split('.')[0]||'';
+          if(!/^\d+$/.test(userId)) throw new Error('Etsy did not return a valid seller user ID.');
+          const ownedShop=await etsyGet(`/users/${userId}/shops`,token,candidateCreds);
+          verifiedShopId=ownedShop?.shop_id||null;
+          verifiedShopName=clean(ownedShop?.shop_name);
+          if(!verifiedShopId) throw new Error('Etsy did not return a shop for this account.');
+        }
+      }catch(error){
+        return res.status(400).json({error:`Etsy rejected these app credentials: ${clean(error?.message||'Invalid Keystring or Shared Secret')}`});
+      }
+
       await ensureAppSettingsTable(client);
       const setting={
         keystring,
@@ -295,8 +313,11 @@ export default async function handler(req,res){
          ON CONFLICT (key) DO UPDATE SET data=EXCLUDED.data,updated_at=now()`,
         [JSON.stringify(setting)]
       );
+      if(verifiedShopId){
+        await saveUserOAuth(client,p,{shop_id:verifiedShopId,shop_name:verifiedShopName});
+      }
       creds=await etsyCredentials(client);
-      return res.status(200).json({ok:true,configured:Boolean(creds.key&&creds.secret)});
+      return res.status(200).json({ok:true,configured:Boolean(creds.key&&creds.secret),verified:Boolean(verifiedShopId),shop_name:verifiedShopName});
     }
 
     if(action==='start'){
