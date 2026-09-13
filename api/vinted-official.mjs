@@ -1,4 +1,5 @@
 import pg from 'pg';
+import { pooledDatabaseUrl } from './_db.mjs';
 import { auth } from './auth/_auth.mjs';
 import { fromNodeHeaders } from 'better-auth/node';
 import {
@@ -10,7 +11,7 @@ import {
 } from './_vinted-pro-core.mjs';
 
 const { Pool } = pg;
-const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 1 });
+const pool = new Pool({ connectionString: pooledDatabaseUrl(), ssl: { rejectUnauthorized: false }, max: 1 });
 const normalize = (v='') => clean(v).toLowerCase();
 
 async function session(req){ return auth.api.getSession({ headers: fromNodeHeaders(req.headers) }); }
