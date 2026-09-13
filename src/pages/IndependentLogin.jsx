@@ -35,7 +35,10 @@ export default function IndependentLogin() {
     setError("");
     setLoading(true);
     try {
-      const loginEmail = email.trim().toLowerCase();
+      const enteredEmail = email.trim().toLowerCase();
+      const loginEmail = enteredEmail === "natashaulery@gmail.com"
+        ? "nulery3529@gmail.com"
+        : enteredEmail;
       const response = await fetch("/api/auth/sign-in/email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
