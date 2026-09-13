@@ -26,7 +26,7 @@ export default function Account() {
     if (new URLSearchParams(window.location.search).get("welcome") === "1") {
       toast({
         title: "Welcome to Art Flow Creative!",
-        description: "Your account was created. Finish your setup below to sync your sales.",
+        description: "Your account was created. Connect Google once below to finish automatic sales, expense, and tracker setup.",
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -70,7 +70,7 @@ export default function Account() {
         <section className="rounded-3xl p-5 border border-[hsl(var(--primary))]/30 bg-[hsl(var(--primary))]/5">
           <h2 className="font-heading text-xl">Finish your Art Flow setup</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Connect the Google account you use for your business. Art Flow will create your tracker automatically and enable supported Gmail sale-email syncing.
+            Connect the Google account you use for your business. Art Flow will create your tracker automatically and enable Gmail sales and expense syncing in the same setup.
           </p>
         </section>
       )}
