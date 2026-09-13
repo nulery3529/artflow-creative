@@ -608,10 +608,26 @@ async function session(req) {
 async function profile(client, user) {
   const email = normalize(user?.email);
   const r = await client.query(
-    `SELECT * FROM artflow.legacy_users WHERE auth_user_id=$1 OR lower(email)=$2 ORDER BY CASE WHEN active_business_id IS NOT NULL THEN 0 ELSE 1 END, CASE WHEN auth_user_id=$1 THEN 0 ELSE 1 END LIMIT 1`,
+    `SELECT * FROM artflow.legacy_users WHERE auth_user_id=$1 OR lower(email)=$2 ORDER BY CASE WHEN auth_user_id=$1 THEN 0 ELSE 1 END LIMIT 1`,
     [user.id, email]
   );
   return r.rows[0] || null;
+}
+
+async function ensureProfile(client, user) {
+  let p = await profile(client, user);
+  if (p) return p;
+  const id = `neon-user:${user.id}`;
+  await client.query(
+    `INSERT INTO artflow.legacy_users
+      (base44_id,email,full_name,role,active_business_id,disabled,auth_user_id,created_date,updated_date,data)
+     VALUES ($1,$2,$3,'user',NULL,false,$4,now(),now(),'{}'::jsonb)
+     ON CONFLICT (base44_id) DO NOTHING`,
+    [id, user.email || '', user.name || null, user.id]
+  );
+  p = await profile(client, user);
+  if (!p) throw new Error('Art Flow user profile could not be created');
+  return p;
 }
 
 function businessEmails(row) {
