@@ -744,6 +744,29 @@ export default async function handler(req, res) {
     }
 
     const action = clean(body.action);
+    if (action === 'update_listing_image') {
+      const listingId = clean(body.id);
+      const imageUrl = String(body.image_url || '').trim();
+      if (!listingId) return send(400, { error: 'Listing id is required.' });
+      if (!/^data:image\//i.test(imageUrl) && !/^https:\/\//i.test(imageUrl)) {
+        return send(400, { error: 'Choose a valid image.' });
+      }
+      if (imageUrl.length > 3_500_000) {
+        return send(413, { error: 'That image is too large. Choose a smaller photo.' });
+      }
+      const updated = await client.query(
+        `UPDATE artflow.marketplace_listings
+            SET image_url=$3,
+                data=COALESCE(data,'{}'::jsonb) || jsonb_build_object('gallery_photo_manual',true,'gallery_photo_updated_at',now()),
+                last_seen_at=now()
+          WHERE id=$1 AND business_id=$2
+          RETURNING id,image_url`,
+        [listingId, b.base44_id, imageUrl]
+      );
+      if (!updated.rows[0]) return send(404, { error: 'Gallery listing not found.' });
+      return send(200, { ok: true, id: updated.rows[0].id, image_url: updated.rows[0].image_url });
+    }
+
     if (action === 'link_site' || action === 'unlink_site') {
       const platform = linkedSitePlatform(body.platform);
       if (!platform || !LINKED_SITE_PLATFORMS.includes(platform)) {
