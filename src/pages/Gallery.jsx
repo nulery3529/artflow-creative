@@ -151,6 +151,7 @@ export default function Gallery() {
   const [linkUsername, setLinkUsername] = useState("");
   const [linkSaving, setLinkSaving] = useState(false);
   const [linkMessage, setLinkMessage] = useState("");
+  const [photoUploadingId, setPhotoUploadingId] = useState("");
   const officialRefreshInFlight = useRef(false);
   const lastOfficialRefresh = useRef(0);
   const vintedProfileRefreshAttempted = useRef(false);
@@ -361,6 +362,30 @@ export default function Gallery() {
 
   const refreshAll = async () => {
     await Promise.all([reload(), reloadOrders(), reloadMarketplaceListings()]);
+  };
+
+  const uploadMarketplacePhoto = async (listing, file) => {
+    if (!listing?.id || !file || photoUploadingId) return;
+    setPhotoUploadingId(listing.id);
+    setLinkMessage("");
+    try {
+      const imageUrl = await prepareImageForStorage(file, 900);
+      const response = await fetch("/api/mobile-listing-sync", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update_listing_image", id: listing.id, image_url: imageUrl }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.ok === false) throw new Error(data.error || "Could not save listing photo");
+      await reloadMarketplaceListings();
+      setLinkMessage(`${displayPlatform(listing.platform)} photo added to Gallery.`);
+    } catch (error) {
+      setLinkMessage(error?.message || "Could not save listing photo");
+    } finally {
+      setPhotoUploadingId("");
+    }
   };
 
   const linkedSiteOrder = ["Vinted", "Depop", "Etsy", "eBay", "Poshmark"];
