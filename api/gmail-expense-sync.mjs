@@ -164,18 +164,28 @@ async function accessTokenForAccount(req, accountId) {
   return token.accessToken;
 }
 
+const EXPENSE_QUERIES = [
+  // Explicit Art Flow forwarding/labeling remains supported for up to 90 days.
+  'newer_than:90d subject:"artflow expense" -in:sent',
+  // New users should not have to rename every receipt. Pull common recent
+  // receipt/invoice/order-payment subjects into the pending review queue.
+  'newer_than:30d {subject:receipt subject:invoice subject:"order confirmation" subject:"payment confirmation" subject:"payment receipt" subject:"purchase confirmation" subject:"thanks for your order" subject:"your order" subject:"subscription renewal"} -in:sent',
+];
+
 async function listMessageIds(accessToken) {
   const ids = new Set();
-  let pageToken = '';
-  for (let page = 0; page < 10; page += 1) {
-    const url = new URL('https://gmail.googleapis.com/gmail/v1/users/me/messages');
-    url.searchParams.set('q', 'newer_than:90d subject:"artflow expense" -in:sent');
-    url.searchParams.set('maxResults', '100');
-    if (pageToken) url.searchParams.set('pageToken', pageToken);
-    const data = await googleJson(accessToken, url);
-    for (const message of data?.messages || []) if (message?.id) ids.add(message.id);
-    pageToken = clean(data?.nextPageToken || '');
-    if (!pageToken) break;
+  for (const query of EXPENSE_QUERIES) {
+    let pageToken = '';
+    for (let page = 0; page < 10; page += 1) {
+      const url = new URL('https://gmail.googleapis.com/gmail/v1/users/me/messages');
+      url.searchParams.set('q', query);
+      url.searchParams.set('maxResults', '100');
+      if (pageToken) url.searchParams.set('pageToken', pageToken);
+      const data = await googleJson(accessToken, url);
+      for (const message of data?.messages || []) if (message?.id) ids.add(message.id);
+      pageToken = clean(data?.nextPageToken || '');
+      if (!pageToken) break;
+    }
   }
   return [...ids];
 }
