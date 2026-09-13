@@ -117,19 +117,33 @@ function looksLikePurchase(subject = '', text = '') {
 
 function categoryFor(subject = '', text = '') {
   const value = `${subject}\n${text}`.toLowerCase();
+  if (/\b(etsy fee|ebay fee|depop fee|vinted fee|poshmark fee|seller fee|listing fee|marketplace fee|platform fee|transaction fee)\b/.test(value)) return 'Marketplace & Selling Fees';
+  if (/\b(processing fee|payment processing|stripe fee|paypal fee|bank fee|service charge|merchant fee)\b/.test(value)) return 'Bank & Payment Processing Fees';
   if (/\b(camera|lens|tripod|photo light|light box|photography|backdrop)\b/.test(value)) return 'Photography Equipment';
   if (/\b(picture frame|photo frame|frames|framed|display stand|easel|magnetic frame|acrylic frame)\b/.test(value)) return 'Frames & Display';
   if (/\b(printer ink|ink cartridge|cartridge|toner|cli-\d+|pgi-\d+|refill ink)\b/.test(value)) return 'Ink & Printing Supplies';
   if (/\b(photo paper|printer paper|matte paper|glossy paper|cardstock|print media|canvas sheet|sticker paper)\b/.test(value)) return 'Paper & Print Media';
   if (/\b(poly mailer|mailer|mailing box|shipping box|envelope|bubble mailer|packing tape|packaging|protective sleeve|cellophane sleeve|packing supply)\b/.test(value)) return 'Packaging & Shipping Supplies';
   if (/\b(postage|shipping label|usps|ups shipping|fedex shipping|postal)\b/.test(value)) return 'Shipping & Postage';
-  if (/\b(printer|laminator|paper cutter|trimmer|cutting machine|cricut|tool|equipment|tablet)\b/.test(value)) return 'Equipment & Tools';
-  if (/\b(subscription|software|hosting|domain renewal|base44|vercel|wix|adobe|canva)\b/.test(value)) return 'Software & Subscriptions';
-  if (/\b(phone bill|mobile service|wireless|internet service|visible wireless|cellular)\b/.test(value)) return 'Phone / Internet';
-  if (/\b(advertising|advertisement|facebook ads|meta ads|instagram ads|promoted listing|marketing)\b/.test(value)) return 'Advertising & Marketing';
+  if (/\b(inventory|wholesale|resale|merchandise|stock purchase|product purchase)\b/.test(value)) return 'Inventory & Resale Purchases';
+  if (/\b(printer|laminator|paper cutter|trimmer|cutting machine|cricut|tool|equipment|tablet|computer|laptop|monitor)\b/.test(value)) return 'Equipment & Tools';
+  if (/\b(repair|maintenance|replacement part|service call)\b/.test(value)) return 'Repairs & Maintenance';
+  if (/\b(subscription|software|hosting|domain renewal|base44|vercel|wix|adobe|canva|google workspace|dropbox|icloud)\b/.test(value)) return 'Software & Subscriptions';
+  if (/\b(phone bill|mobile service|wireless|internet service|visible wireless|cellular|broadband|wifi)\b/.test(value)) return 'Phone / Internet';
+  if (/\b(advertising|advertisement|facebook ads|meta ads|instagram ads|promoted listing|marketing|sponsored ad)\b/.test(value)) return 'Advertising & Marketing';
+  if (/\b(attorney|lawyer|legal service|bookkeeper|bookkeeping|accountant|accounting|tax preparer)\b/.test(value)) return 'Legal & Accounting';
+  if (/\b(consulting|consultant|freelancer|contractor|professional service|virtual assistant|designer service)\b/.test(value)) return 'Professional Services';
+  if (/\b(business insurance|liability insurance|insurance premium)\b/.test(value)) return 'Insurance';
+  if (/\b(rent|studio rent|office rent|coworking|workspace)\b/.test(value)) return 'Rent & Workspace';
+  if (/\b(electric|electricity|gas bill|water bill|utility|utilities)\b/.test(value)) return 'Utilities';
+  if (/\b(mileage|fuel|gasoline|parking|toll|vehicle|car wash)\b/.test(value)) return 'Mileage & Vehicle';
+  if (/\b(hotel|lodging|airfare|flight|rental car|business travel|train ticket)\b/.test(value)) return 'Travel & Lodging';
+  if (/\b(business meal|restaurant|meal receipt|lunch|dinner|coffee meeting)\b/.test(value)) return 'Business Meals';
+  if (/\b(course|class|workshop|training|conference|seminar|webinar|certification)\b/.test(value)) return 'Education & Training';
+  if (/\b(business license|permit|registration fee|annual filing|state filing)\b/.test(value)) return 'Business Licenses & Fees';
   if (/\b(art kit|art supply|paint|paintbrush|brush set|marker|colored pencil|pencil set|watercolor|acrylic paint|glue|adhesive|craft supply|quilling)\b/.test(value)) return 'Art Materials & Supplies';
-  if (/\b(office supply|office supplies|desk|filing|label maker)\b/.test(value)) return 'Office & Business';
-  return 'Purchase';
+  if (/\b(office supply|office supplies|desk|filing|label maker|notebook|pens|printer labels)\b/.test(value)) return 'Office Supplies';
+  return 'Other Business Expense';
 }
 
 function sourceName(subject = '', text = '', sender = '') {
