@@ -96,7 +96,7 @@ export default function MobileMarketplaceSyncCard() {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-        {["Vinted", "Depop", "Etsy", "eBay", "Poshmark"].map((site) => (
+        {["Vinted", "Depop", "eBay", "Poshmark"].map((site) => (
           <button
             key={site}
             type="button"
@@ -114,8 +114,8 @@ export default function MobileMarketplaceSyncCard() {
 
       <div className="rounded-2xl bg-muted/60 p-3 text-xs text-muted-foreground space-y-1">
         <p><strong className="text-foreground">No website link needed.</strong> Enter your {platform} username, with or without the @.</p>
-        <p>Example: <strong className="text-foreground">natashaulery</strong></p>
         <p>Running the sync again refreshes the Available Gallery to match the marketplace profile.</p>
+        <p><strong className="text-foreground">Etsy:</strong> use the Etsy link box above instead. Shop links are saved, and individual Etsy listing links can be added to Gallery without an Etsy API login.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-3">
