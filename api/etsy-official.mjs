@@ -261,7 +261,8 @@ export default async function handler(req,res){
     const configured=Boolean(creds.key&&creds.secret);
     const oauth=p.data?.etsy_oauth||{};
     const ownerScope=`user:${s.user.id}`;
-    const canManageCredentials=!creds.owner_user_id || creds.owner_user_id===String(s.user.id);
+    const appOwnerId=await appOwnerUserId(client);
+    const canManageCredentials=Boolean(appOwnerId && String(s.user.id)===appOwnerId);
 
     if(req.method==='GET'){
       return res.status(200).json({
