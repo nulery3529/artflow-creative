@@ -15,6 +15,8 @@ export default function EtsyConnectionBlock() {
   const [status, setStatus] = useState({ configured: false, connected: false, shop_name: "" });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
+  const [keystring, setKeystring] = useState("");
+  const [sharedSecret, setSharedSecret] = useState("");
 
   const load = async () => {
     try {
@@ -35,6 +37,23 @@ export default function EtsyConnectionBlock() {
   };
 
   useEffect(() => { load(); }, []);
+
+  const saveCredentials = async () => {
+    if (!keystring.trim() || !sharedSecret.trim()) return;
+    setBusy("credentials");
+    try {
+      const r = await post({ action: "save_credentials", keystring: keystring.trim(), shared_secret: sharedSecret.trim() });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.error || "Could not save Etsy credentials");
+      setSharedSecret("");
+      toast.success("Etsy credentials saved securely");
+      await load();
+    } catch (error) {
+      toast.error("Could not save Etsy credentials", { description: error?.message });
+    } finally {
+      setBusy("");
+    }
+  };
 
   const connect = async () => {
     setBusy("connect");
@@ -103,7 +122,7 @@ export default function EtsyConnectionBlock() {
               ? `Connected${status.shop_name ? ` to ${status.shop_name}` : ""}. Listings, photos, prices and paid orders sync into Art Flow.`
               : status.configured
                 ? "Official Etsy sign-in — no password stored, tokens encrypted."
-                : "Add ETSY_API_KEY and ETSY_SHARED_SECRET to the server environment, then reload this page."}
+                : "Enter your Etsy Keystring and newly rotated Shared Secret once. Art Flow encrypts the secret on the server."}
           </p>
         </div>
       </div>
@@ -112,6 +131,36 @@ export default function EtsyConnectionBlock() {
         <button disabled className="w-full h-11 rounded-2xl bg-muted flex items-center justify-center">
           <Loader2 className="w-4 h-4 animate-spin" />
         </button>
+      ) : !status.configured ? (
+        <div className="space-y-2">
+          <input
+            value={keystring}
+            onChange={(e) => setKeystring(e.target.value)}
+            autoCapitalize="none"
+            autoCorrect="off"
+            placeholder="Etsy Keystring"
+            className="w-full h-11 px-3 rounded-2xl border border-[hsl(var(--border))] bg-background text-sm"
+          />
+          <input
+            value={sharedSecret}
+            onChange={(e) => setSharedSecret(e.target.value)}
+            type="password"
+            autoCapitalize="none"
+            autoCorrect="off"
+            placeholder="New Etsy Shared Secret"
+            className="w-full h-11 px-3 rounded-2xl border border-[hsl(var(--border))] bg-background text-sm"
+          />
+          <button
+            type="button"
+            onClick={saveCredentials}
+            disabled={busy === "credentials" || !keystring.trim() || !sharedSecret.trim()}
+            className="w-full h-11 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {busy === "credentials" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+            Save Etsy Credentials
+          </button>
+          <p className="text-[11px] text-muted-foreground">Rotate the Shared Secret shown in your earlier screenshot before saving it here.</p>
+        </div>
       ) : status.connected ? (
         <div className="grid grid-cols-2 gap-2">
           <button onClick={sync} disabled={!!busy} className="h-11 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50">
