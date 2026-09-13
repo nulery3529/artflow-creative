@@ -630,7 +630,7 @@ async function advisorSnapshot(client, session) {
          COALESCE(sum(total_cost),0)::numeric AS order_costs,
          COALESCE(sum(estimated_profit),0)::numeric AS gross_profit,
          COALESCE(sum(sale_total) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM')),0)::numeric AS month_sales,
-         count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(source_email_id,''), base44_id)) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM'))::int AS month_orders,
+         (count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(source_email_id,''), base44_id)) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM')))::int AS month_orders,
          COALESCE(sum(total_cost) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM')),0)::numeric AS month_costs,
          COALESCE(sum(sale_total) FILTER (WHERE left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')),0)::numeric AS year_sales,
          COALESCE(sum(total_cost) FILTER (WHERE left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')),0)::numeric AS year_costs
@@ -701,17 +701,17 @@ async function advisorSnapshot(client, session) {
       `SELECT
          COALESCE(sum(sale_total) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM')),0)::numeric AS current_sales,
          COALESCE(sum(sale_total) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE - interval '1 month','YYYY-MM')),0)::numeric AS previous_sales,
-         count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(source_email_id,''), base44_id)) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM'))::int AS current_orders,
-         count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(source_email_id,''), base44_id)) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE - interval '1 month','YYYY-MM'))::int AS previous_orders
+         (count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(source_email_id,''), base44_id)) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM')))::int AS current_orders,
+         (count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(source_email_id,''), base44_id)) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE - interval '1 month','YYYY-MM')))::int AS previous_orders
        FROM artflow.orders
        WHERE archived IS NOT TRUE AND ${accessSql}`,
       [ids, email]
     ),
     client.query(
       `SELECT
-         count(*) FILTER (WHERE COALESCE(total_cost,0)=0)::int AS orders_missing_cost,
-         count(*) FILTER (WHERE COALESCE(NULLIF(platform,''),'')='')::int AS orders_missing_platform,
-         count(*) FILTER (WHERE COALESCE(NULLIF(size,''),'')='')::int AS orders_missing_size
+         (count(*) FILTER (WHERE COALESCE(total_cost,0)=0))::int AS orders_missing_cost,
+         (count(*) FILTER (WHERE COALESCE(NULLIF(platform,''),'')=''))::int AS orders_missing_platform,
+         (count(*) FILTER (WHERE COALESCE(NULLIF(size,''),'')=''))::int AS orders_missing_size
        FROM artflow.orders
        WHERE archived IS NOT TRUE AND ${accessSql}`,
       [ids, email]
@@ -723,7 +723,7 @@ async function advisorSnapshot(client, session) {
        COALESCE(sum(amount) FILTER (WHERE COALESCE(data->>'status','approved') <> 'pending'),0)::numeric AS total_expenses,
        COALESCE(sum(amount) FILTER (WHERE COALESCE(data->>'status','approved') <> 'pending' AND left(COALESCE(expense_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM')),0)::numeric AS month_expenses,
        COALESCE(sum(amount) FILTER (WHERE COALESCE(data->>'status','approved') <> 'pending' AND left(COALESCE(expense_date,''),4)=to_char(CURRENT_DATE,'YYYY')),0)::numeric AS year_expenses,
-       count(*) FILTER (WHERE COALESCE(data->>'status','approved')='pending')::int AS pending_expenses
+       (count(*) FILTER (WHERE COALESCE(data->>'status','approved')='pending'))::int AS pending_expenses
      FROM artflow.expenses
      WHERE archived IS NOT TRUE AND ${accessSql}`,
     [ids, email]
@@ -731,7 +731,7 @@ async function advisorSnapshot(client, session) {
 
   const num = (value) => Number(value) || 0;
   const mapRows = (rows) => rows.map((row) => Object.fromEntries(
-    Object.entries(row).map(([key, value]) => [key, ['sales','gross_profit','amount'].includes(key) ? num(value) : value])
+    Object.entries(row).map(([key, value]) => [key, ['sales','gross_profit','amount','orders','items','count'].includes(key) ? num(value) : value])
   ));
   const t = totals.rows[0] || {};
   const e = expenseTotals.rows[0] || {};
