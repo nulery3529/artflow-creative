@@ -3,12 +3,18 @@ import ReactDOM from 'react-dom/client'
 import App from '@/App.jsx'
 import '@/index.css'
 
-// Keep authentication and OAuth on one canonical host. Google callbacks are
-// registered for artflowcreative.com, and starting a flow from the www alias
-// can split OAuth state across hosts on mobile browsers.
-if (window.location.hostname === 'www.artflowcreative.com') {
+// Keep authentication and OAuth on one canonical host. Better Auth cookies
+// are issued for artflowcreative.com; signing in from a Vercel alias can create
+// a valid Neon session while the browser rejects/loses the cookie for that
+// different hostname. Canonicalize every public Art Flow alias before React or
+// any auth request runs so users cannot get stuck in a login/logout loop.
+const currentHost = window.location.hostname.toLowerCase()
+const isArtFlowVercelHost = currentHost.endsWith('.vercel.app') && currentHost.startsWith('art-flow-creative')
+if (currentHost === 'www.artflowcreative.com' || isArtFlowVercelHost) {
   const canonicalURL = new URL(window.location.href)
+  canonicalURL.protocol = 'https:'
   canonicalURL.hostname = 'artflowcreative.com'
+  canonicalURL.port = ''
   window.location.replace(canonicalURL.toString())
 }
 
