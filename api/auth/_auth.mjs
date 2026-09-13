@@ -103,8 +103,7 @@ export const auth = betterAuth({
   },
   advanced: {
     crossSubDomainCookies: {
-      enabled: true,
-      domain: "artflowcreative.com",
+      enabled: false,
     },
   },
   account: {
