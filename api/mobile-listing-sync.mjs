@@ -639,9 +639,10 @@ function businessEmails(row) {
 async function businessForUser(client, p, user) {
   const active = p?.active_business_id || p?.data?.active_business_id || null;
   const email = normalize(user?.email);
-  const r = await client.query(`SELECT base44_id,name,primary_email,data FROM artflow.businesses ORDER BY name NULLS LAST`);
-  const activeRow = r.rows.find((x) => active && x.base44_id === active) || null;
-  const emailRows = r.rows.filter((x) => email && businessEmails(x).includes(email));
+  const r = await client.query(`SELECT base44_id,name,primary_email,created_by_id,data FROM artflow.businesses ORDER BY name NULLS LAST`);
+  const owns = (x) => Boolean(x && ((email && businessEmails(x).includes(email)) || x.created_by_id === p?.base44_id || x.created_by_id === user?.id));
+  const activeRow = r.rows.find((x) => active && x.base44_id === active && owns(x)) || null;
+  const emailRows = r.rows.filter((x) => owns(x));
   const isPlaceholder = (row) => {
     if (!row) return false;
     const d = row.data || {};
