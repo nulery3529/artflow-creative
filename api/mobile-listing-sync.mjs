@@ -748,13 +748,16 @@ export default async function handler(req, res) {
   const client = await pool.connect();
   try {
     await ensureTable(client);
-    const p = await profile(client, s.user);
+    const p = await ensureProfile(client, s.user);
     const b = await businessForUser(client, p, s.user);
-    if (!b) return send(404, { error: 'Business workspace not found' });
+    const userScope = `user:${s.user.id}`;
+    const listingScopes = Array.from(new Set([userScope, b?.base44_id].filter(Boolean)));
+    const profileData = p.data || {};
+    const businessData = b?.data || {};
 
     if (req.method === 'GET') {
-      const mobileShopUrls = b.data?.mobile_shop_urls || {};
-      const marketplaceLinks = b.data?.marketplace_links || {};
+      const mobileShopUrls = { ...(businessData.mobile_shop_urls || {}), ...(profileData.mobile_shop_urls || {}) };
+      const marketplaceLinks = { ...(businessData.marketplace_links || {}), ...(profileData.marketplace_links || {}) };
       const urls = { ...mobileShopUrls };
       for (const site of SUPPORTED) {
         const shared = clean(marketplaceLinks?.[site] || marketplaceLinks?.[normalize(site)] || '');
@@ -772,8 +775,10 @@ export default async function handler(req, res) {
       if (!rows.length) return send(400, { error: 'No Etsy listings were found in that CSV.' });
 
       const savedShop = clean(
-        b.data?.marketplace_links?.Etsy || b.data?.marketplace_links?.etsy ||
-        b.data?.mobile_shop_urls?.Etsy || b.data?.mobile_shop_urls?.etsy || ''
+        profileData?.marketplace_links?.Etsy || profileData?.marketplace_links?.etsy ||
+        profileData?.mobile_shop_urls?.Etsy || profileData?.mobile_shop_urls?.etsy ||
+        businessData?.marketplace_links?.Etsy || businessData?.marketplace_links?.etsy ||
+        businessData?.mobile_shop_urls?.Etsy || businessData?.mobile_shop_urls?.etsy || ''
       );
       const shopBase = allowedHost('Etsy', savedShop) && !isListingUrl('Etsy', savedShop)
         ? normalizeUrl(savedShop)
@@ -812,7 +817,7 @@ export default async function handler(req, res) {
           listingUrlObject.searchParams.set('ref', 'artflow_csv');
           listingUrlObject.searchParams.set('af', fingerprint.slice(0, 12));
           const listingUrl = listingUrlObject.toString();
-          const id = crypto.createHash('sha256').update(`${b.base44_id}|Etsy|${listingId}`).digest('hex');
+          const id = crypto.createHash('sha256').update(`${userScope}|Etsy|${listingId}`).digest('hex');
 
           await client.query(
             `INSERT INTO artflow.marketplace_listings
@@ -823,7 +828,7 @@ export default async function handler(req, res) {
                listing_id=EXCLUDED.listing_id,title=EXCLUDED.title,price=EXCLUDED.price,currency=EXCLUDED.currency,
                image_url=COALESCE(NULLIF(EXCLUDED.image_url,''),artflow.marketplace_listings.image_url),
                listing_url=EXCLUDED.listing_url,status='Active',last_seen_at=now(),sync_source='etsy_csv_import',data=EXCLUDED.data`,
-            [id, b.base44_id, listingId, title, price, currency, safeImage || null, listingUrl, quantity, sku]
+            [id, userScope, listingId, title, price, currency, safeImage || null, listingUrl, quantity, sku]
           );
           activeUrls.push(listingUrl);
           saved += 1;
@@ -836,7 +841,7 @@ export default async function handler(req, res) {
                 SET status='Inactive',last_seen_at=now()
               WHERE business_id=$1 AND platform='Etsy' AND sync_source='etsy_csv_import'
                 AND NOT (listing_url = ANY($2::text[]))`,
-            [b.base44_id, activeUrls]
+            [userScope, activeUrls]
           );
           deactivated = Number(result.rowCount || 0);
         }
@@ -868,9 +873,9 @@ export default async function handler(req, res) {
             SET image_url=$3,
                 data=COALESCE(data,'{}'::jsonb) || jsonb_build_object('gallery_photo_manual',true,'gallery_photo_updated_at',now()),
                 last_seen_at=now()
-          WHERE id=$1 AND business_id=$2
+          WHERE id=$1 AND business_id=ANY($2::text[])
           RETURNING id,image_url`,
-        [listingId, b.base44_id, imageUrl]
+        [listingId, listingScopes, imageUrl]
       );
       if (!updated.rows[0]) return send(404, { error: 'Gallery listing not found.' });
       return send(200, { ok: true, id: updated.rows[0].id, image_url: updated.rows[0].image_url });
@@ -882,8 +887,8 @@ export default async function handler(req, res) {
         return send(400, { error: 'Choose a supported selling site.' });
       }
 
-      const mobileShopUrls = { ...(b.data?.mobile_shop_urls || {}) };
-      const marketplaceLinks = { ...(b.data?.marketplace_links || {}) };
+      const mobileShopUrls = { ...(businessData.mobile_shop_urls || {}), ...(profileData.mobile_shop_urls || {}) };
+      const marketplaceLinks = { ...(businessData.marketplace_links || {}), ...(profileData.marketplace_links || {}) };
       if (action === 'unlink_site') {
         delete mobileShopUrls[platform];
         delete mobileShopUrls[normalize(platform)];
@@ -900,9 +905,14 @@ export default async function handler(req, res) {
         marketplaceLinks[platform] = profileUrl;
       }
 
-      const nextData = { ...(b.data || {}), mobile_shop_urls: mobileShopUrls, marketplace_links: marketplaceLinks };
-      await client.query(`UPDATE artflow.businesses SET data=$2::jsonb WHERE base44_id=$1`, [b.base44_id, JSON.stringify(nextData)]);
-      b.data = nextData;
+      const nextProfileData = { ...profileData, mobile_shop_urls: mobileShopUrls, marketplace_links: marketplaceLinks };
+      await client.query(`UPDATE artflow.legacy_users SET data=$2::jsonb,updated_date=now() WHERE base44_id=$1`, [p.base44_id, JSON.stringify(nextProfileData)]);
+      p.data = nextProfileData;
+      if (b) {
+        const nextBusinessData = { ...businessData, mobile_shop_urls: mobileShopUrls, marketplace_links: marketplaceLinks };
+        await client.query(`UPDATE artflow.businesses SET data=$2::jsonb WHERE base44_id=$1`, [b.base44_id, JSON.stringify(nextBusinessData)]);
+        b.data = nextBusinessData;
+      }
       const urls = { ...mobileShopUrls };
       for (const site of SUPPORTED) {
         const shared = clean(marketplaceLinks?.[site] || marketplaceLinks?.[normalize(site)] || '');
@@ -1208,7 +1218,7 @@ export default async function handler(req, res) {
     const counts = {};
     for (const listing of listings) {
       if (!listing.listing_url || !listing.platform) continue;
-      const id = crypto.createHash('sha256').update(`${b.base44_id}|${listing.platform}|${listing.listing_url}`).digest('hex');
+      const id = crypto.createHash('sha256').update(`${userScope}|${listing.platform}|${listing.listing_url}`).digest('hex');
 
       let updatedExistingId = false;
       if (listing.listing_id) {
@@ -1216,7 +1226,7 @@ export default async function handler(req, res) {
           `SELECT id FROM artflow.marketplace_listings
            WHERE business_id=$1 AND platform=$2 AND listing_id=$3
            LIMIT 1`,
-          [b.base44_id, listing.platform, listing.listing_id]
+          [userScope, listing.platform, listing.listing_id]
         );
         if (existingByListingId.rows[0]?.id) {
           await client.query(
@@ -1252,7 +1262,7 @@ export default async function handler(req, res) {
              END,
              last_seen_at=now(),sync_source='mobile_listing_sync',
              data=COALESCE(artflow.marketplace_listings.data,'{}'::jsonb) || jsonb_build_object('gallery_manual',true,'gallery_added_at',now())`,
-          [id,b.base44_id,listing.platform,listing.listing_id || null,listing.title,listing.price || 0,listing.currency || 'USD',listing.image_url || null,listing.listing_url]
+          [id,userScope,listing.platform,listing.listing_id || null,listing.title,listing.price || 0,listing.currency || 'USD',listing.image_url || null,listing.listing_url]
         );
       }
       counts[listing.platform] = (counts[listing.platform] || 0) + 1;
@@ -1266,17 +1276,26 @@ export default async function handler(req, res) {
         `UPDATE artflow.marketplace_listings
          SET status='Inactive',last_seen_at=now(),sync_source=$4
          WHERE business_id=$1 AND platform=$2 AND status='Active' AND NOT (listing_url = ANY($3::text[]))`,
-        [b.base44_id, snapshot.platform, snapshot.urls, `${normalize(snapshot.platform)}_profile_snapshot`]
+        [userScope, snapshot.platform, snapshot.urls, `${normalize(snapshot.platform)}_profile_snapshot`]
       );
       deactivated += Number(result.rowCount || 0);
     }
 
     if (fullProfileSnapshots.length) {
-      const mobileShopUrls = { ...(b.data?.mobile_shop_urls || {}) };
-      for (const snapshot of fullProfileSnapshots) mobileShopUrls[snapshot.platform] = snapshot.profileUrl;
-      const nextData = { ...(b.data || {}), mobile_shop_urls: mobileShopUrls };
-      await client.query(`UPDATE artflow.businesses SET data=$2::jsonb WHERE base44_id=$1`, [b.base44_id, JSON.stringify(nextData)]);
-      b.data = nextData;
+      const mobileShopUrls = { ...(businessData.mobile_shop_urls || {}), ...(p.data?.mobile_shop_urls || {}) };
+      const marketplaceLinks = { ...(businessData.marketplace_links || {}), ...(p.data?.marketplace_links || {}) };
+      for (const snapshot of fullProfileSnapshots) {
+        mobileShopUrls[snapshot.platform] = snapshot.profileUrl;
+        marketplaceLinks[snapshot.platform] = snapshot.profileUrl;
+      }
+      const nextProfileData = { ...(p.data || {}), mobile_shop_urls: mobileShopUrls, marketplace_links: marketplaceLinks };
+      await client.query(`UPDATE artflow.legacy_users SET data=$2::jsonb,updated_date=now() WHERE base44_id=$1`, [p.base44_id, JSON.stringify(nextProfileData)]);
+      p.data = nextProfileData;
+      if (b) {
+        const nextBusinessData = { ...(b.data || {}), mobile_shop_urls: mobileShopUrls, marketplace_links: marketplaceLinks };
+        await client.query(`UPDATE artflow.businesses SET data=$2::jsonb WHERE base44_id=$1`, [b.base44_id, JSON.stringify(nextBusinessData)]);
+        b.data = nextBusinessData;
+      }
     }
 
     const breakdown = Object.entries(counts).map(([site, count]) => `${site}: ${count}`).join(' · ');
