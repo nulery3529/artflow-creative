@@ -64,9 +64,10 @@ function businessEmails(row) {
 async function findBusiness(client, profile, user) {
   const active = profile?.active_business_id || profile?.data?.active_business_id || null;
   const email = normalize(user?.email);
-  const result = await client.query(`SELECT base44_id, name, primary_email, data FROM artflow.businesses ORDER BY name NULLS LAST`);
-  const activeRow = result.rows.find((row) => active && row.base44_id === active) || null;
-  const emailRow = result.rows.find((row) => email && businessEmails(row).includes(email)) || null;
+  const result = await client.query(`SELECT base44_id, name, primary_email, created_by_id, data FROM artflow.businesses ORDER BY name NULLS LAST`);
+  const owns = (row) => Boolean(row && ((email && businessEmails(row).includes(email)) || row.created_by_id === profile?.base44_id || row.created_by_id === user?.id));
+  const activeRow = result.rows.find((row) => active && row.base44_id === active && owns(row)) || null;
+  const emailRow = result.rows.find((row) => owns(row)) || null;
   return activeRow || emailRow || null;
 }
 
