@@ -26,6 +26,23 @@ function applyHeaders(res, headers) {
   }
 }
 
+function errorStatus(error) {
+  for (const candidate of [error?.statusCode, error?.status]) {
+    const numeric = Number(candidate);
+    if (Number.isInteger(numeric) && numeric >= 400 && numeric <= 599) return numeric;
+  }
+
+  const named = String(error?.status || error?.body?.code || "").toUpperCase();
+  return ({
+    BAD_REQUEST: 400,
+    UNAUTHORIZED: 401,
+    FORBIDDEN: 403,
+    NOT_FOUND: 404,
+    CONFLICT: 409,
+    TOO_MANY_REQUESTS: 429,
+  })[named] || 500;
+}
+
 async function directEmailSignup(req, res) {
   try {
     const result = await auth.api.signUpEmail({
@@ -37,7 +54,7 @@ async function directEmailSignup(req, res) {
     applyHeaders(res, result?.headers);
     return res.status(result?.status || 200).json(result?.response ?? {});
   } catch (error) {
-    const status = Number(error?.statusCode || error?.status || 500);
+    const status = errorStatus(error);
     const body = error?.body && typeof error.body === "object"
       ? error.body
       : { message: error?.message || "Could not create account." };
@@ -57,7 +74,7 @@ async function directEmailSignIn(req, res) {
     applyHeaders(res, result?.headers);
     return res.status(result?.status || 200).json(result?.response ?? {});
   } catch (error) {
-    const status = Number(error?.statusCode || error?.status || 500);
+    const status = errorStatus(error);
     const body = error?.body && typeof error.body === "object"
       ? error.body
       : { message: error?.message || "Could not sign in." };
