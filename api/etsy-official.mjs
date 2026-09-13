@@ -13,10 +13,11 @@ const REDIRECT_URI = 'https://artflowcreative.com/api/etsy-official?op=callback'
 const AUTH_URL = 'https://www.etsy.com/oauth/connect';
 const TOKEN_URL = 'https://api.etsy.com/v3/public/oauth/token';
 const API_BASE = 'https://openapi.etsy.com/v3/application';
-const SCOPES = 'transactions_r shops_r';
+const SCOPES = 'transactions_r shops_r listings_r';
 
 const etsyKey = () => clean(process.env.ETSY_API_KEY || process.env.ETSY_KEYSTRING);
 const etsySecret = () => clean(process.env.ETSY_SHARED_SECRET || process.env.ETSY_CLIENT_SECRET);
+const etsyApiHeader = () => `${etsyKey()}:${etsySecret()}`;
 
 async function etsyToken(params){
   const r=await fetch(TOKEN_URL,{
@@ -32,7 +33,7 @@ async function etsyToken(params){
 
 async function etsyGet(path,accessToken){
   const r=await fetch(`${API_BASE}${path}`,{
-    headers:{Authorization:`Bearer ${accessToken}`,'x-api-key':etsyKey(),Accept:'application/json'},
+    headers:{Authorization:`Bearer ${accessToken}`,'x-api-key':etsyApiHeader(),Accept:'application/json'},
   });
   const text=await r.text();
   let data={}; try{data=text?JSON.parse(text):{}}catch{data={raw:text}}
@@ -70,8 +71,91 @@ function redirect(res,kind,message=''){
   const q=new URLSearchParams({etsy:kind});
   if(message) q.set('message',message.slice(0,180));
   res.statusCode=302;
-  res.setHeader('Location',`/account?${q.toString()}`);
+  res.setHeader('Location',`/gallery?${q.toString()}`);
   return res.end();
+}
+
+function moneyValue(value){
+  if(value && typeof value==='object'){
+    const amount=Number(value.amount||0), divisor=Number(value.divisor||100)||100;
+    return Number((amount/divisor).toFixed(2));
+  }
+  const n=Number(value||0);
+  return Number.isFinite(n)?n:0;
+}
+
+async function ensureListingsTable(client){
+  await client.query(`CREATE TABLE IF NOT EXISTS artflow.marketplace_listings (
+    id text PRIMARY KEY,
+    business_id text NOT NULL,
+    platform text NOT NULL,
+    listing_id text,
+    title text NOT NULL,
+    price numeric DEFAULT 0,
+    currency text DEFAULT 'USD',
+    image_url text,
+    listing_url text NOT NULL,
+    status text DEFAULT 'Active',
+    last_seen_at timestamptz DEFAULT now(),
+    sync_source text,
+    data jsonb DEFAULT '{}'::jsonb
+  )`);
+  await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS marketplace_listings_business_platform_url_idx ON artflow.marketplace_listings (business_id, platform, listing_url)`);
+}
+
+async function syncEtsyListings(client,business,accessToken){
+  await ensureListingsTable(client);
+  const shopId=business.data?.etsy_oauth?.shop_id;
+  if(!shopId) throw new Error('Etsy shop link is missing. Disconnect and connect Etsy again.');
+
+  const urls=[];
+  let saved=0, offset=0, pages=0, more=false;
+  while(pages<5){
+    const data=await etsyGet(`/shops/${shopId}/listings?state=active&limit=100&offset=${offset}&includes=Images`,accessToken);
+    const results=Array.isArray(data?.results)?data.results:[];
+    for(const listing of results){
+      const listingId=String(listing?.listing_id||'');
+      if(!listingId) continue;
+      const listingUrl=clean(listing?.url)||`https://www.etsy.com/listing/${listingId}`;
+      const images=Array.isArray(listing?.images)?listing.images:[];
+      const firstImage=[...images].sort((a,b)=>Number(a?.rank||0)-Number(b?.rank||0))[0]||{};
+      const imageUrl=clean(firstImage?.url_570xN||firstImage?.url_fullxfull||firstImage?.url_170x135);
+      const title=clean(listing?.title)||`Etsy listing ${listingId}`;
+      const price=moneyValue(listing?.price);
+      const currency=clean(listing?.price?.currency_code||'USD').toUpperCase()||'USD';
+      const quantity=Math.max(0,Number(listing?.quantity)||0);
+      const id=crypto.createHash('sha256').update(`${business.base44_id}|Etsy|${listingUrl}`).digest('hex');
+      await client.query(
+        `INSERT INTO artflow.marketplace_listings (id,business_id,platform,listing_id,title,price,currency,image_url,listing_url,status,last_seen_at,sync_source,data)
+         VALUES ($1,$2,'Etsy',$3,$4,$5,$6,$7,$8,'Active',now(),'etsy_official_oauth',jsonb_build_object('quantity',$9,'etsy_official',true))
+         ON CONFLICT (business_id,platform,listing_url) DO UPDATE SET
+           listing_id=EXCLUDED.listing_id,
+           title=EXCLUDED.title,
+           price=EXCLUDED.price,
+           currency=EXCLUDED.currency,
+           image_url=COALESCE(NULLIF(EXCLUDED.image_url,''),artflow.marketplace_listings.image_url),
+           status='Active',last_seen_at=now(),sync_source='etsy_official_oauth',
+           data=COALESCE(artflow.marketplace_listings.data,'{}'::jsonb) || EXCLUDED.data`,
+        [id,business.base44_id,listingId,title,price,currency,imageUrl||null,listingUrl,quantity]
+      );
+      urls.push(listingUrl);
+      saved+=1;
+    }
+    pages+=1;
+    offset+=100;
+    const count=Number(data?.count||0);
+    if(results.length<100 || (count && offset>=count)) break;
+    if(pages===5) more=true;
+  }
+
+  if(!more){
+    if(urls.length){
+      await client.query(`UPDATE artflow.marketplace_listings SET status='Inactive',last_seen_at=now(),sync_source='etsy_official_snapshot' WHERE business_id=$1 AND platform='Etsy' AND status='Active' AND NOT (listing_url=ANY($2::text[]))`,[business.base44_id,urls]);
+    }else{
+      await client.query(`UPDATE artflow.marketplace_listings SET status='Inactive',last_seen_at=now(),sync_source='etsy_official_snapshot' WHERE business_id=$1 AND platform='Etsy' AND status='Active'`,[business.base44_id]);
+    }
+  }
+  return {saved,more};
 }
 
 export default async function handler(req,res){
