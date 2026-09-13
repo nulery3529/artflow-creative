@@ -9,6 +9,7 @@ import PageHeader from "@/components/PageHeader";
 import { useNavigate } from "react-router-dom";
 import { Image } from "@/components/ui/image";
 import MobileMarketplaceSyncCard from "@/components/MobileMarketplaceSyncCard";
+import EtsyConnectionBlock from "@/components/marketplace/EtsyConnectionBlock";
 import { prepareImageForStorage } from "@/lib/imageUpload";
 
 const marketplaceTabs = ["All sites", "Vinted", "Depop", "Etsy", "eBay", "Poshmark"];
@@ -714,6 +715,14 @@ export default function Gallery() {
           </button>
         ))}
       </div>
+
+      <section className="bg-card rounded-3xl p-5 border border-[hsl(var(--border))] space-y-3">
+        <div>
+          <h2 className="font-heading text-lg">Official Etsy Connection</h2>
+          <p className="text-sm text-muted-foreground mt-1">Connect your approved Etsy app to pull active listings, photos, prices and paid orders directly into Art Flow.</p>
+        </div>
+        <EtsyConnectionBlock />
+      </section>
 
       <section className="bg-card rounded-3xl p-5 border border-[hsl(var(--border))] space-y-3">
         <div className="flex items-start gap-3">
