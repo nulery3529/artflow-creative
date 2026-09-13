@@ -158,6 +158,29 @@ async function ensureWorkspace(client, user) {
   return { profile, businesses, ids, email };
 }
 
+async function ensureUserProfileOnly(client, user) {
+  let profile = await getLegacyProfile(client, user);
+  if (!profile) {
+    const profileId = `neon-user:${user.id}`;
+    await client.query(
+      `INSERT INTO artflow.legacy_users
+       (base44_id,email,full_name,role,active_business_id,disabled,auth_user_id,created_date,updated_date,data)
+       VALUES ($1,$2,$3,'user',NULL,false,$4,now(),now(),'{}'::jsonb)
+       ON CONFLICT (base44_id) DO NOTHING`,
+      [profileId, user.email || '', user.name || null, user.id]
+    );
+    profile = await getLegacyProfile(client, user);
+  }
+  return profile;
+}
+
+async function existingWorkspace(client, user) {
+  const profile = await ensureUserProfileOnly(client, user);
+  const email = normalize(user?.email);
+  const businesses = await getAccessibleBusinesses(client, profile, user);
+  return { profile, businesses, ids: businessIds(businesses), email };
+}
+
 async function countBusinessRows(client, table, ids, email, archivedColumn = false) {
   const params = [ids, email];
   const archived = archivedColumn ? `AND archived IS NOT TRUE` : '';
@@ -178,7 +201,7 @@ async function countBusinessRows(client, table, ids, email, archivedColumn = fal
 }
 
 async function listOrders(client, session) {
-  const { ids, email } = await ensureWorkspace(client, session.user);
+  const { ids, email } = await existingWorkspace(client, session.user);
   const result = await client.query(
     `SELECT
        base44_id AS id,
@@ -454,7 +477,7 @@ function selectedBusinessId(profile, ids, requested) {
 }
 
 async function listArtPieces(client, session) {
-  const { profile, email } = await ensureWorkspace(client, session.user);
+  const { profile, email } = await existingWorkspace(client, session.user);
   const creators = userCreatorIds(profile, session.user);
   const result = await client.query(
     `SELECT base44_id AS id,title,medium,size,price,status,sale_price,sale_date,buyer,platform,created_by_id,created_date,updated_date,data
