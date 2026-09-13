@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/AuthContext";
 import BusinessManager from "@/components/BusinessManager";
 import ThemeSettings from "@/components/ThemeSettings";
 import MarketplaceTrackingCard from "@/components/MarketplaceTrackingCard";
+import MarketplaceLinksCard from "@/components/MarketplaceLinksCard";
 
 export default function Account() {
   const navigate = useNavigate();
@@ -65,6 +66,8 @@ export default function Account() {
       <BusinessManager />
 
       <MarketplaceTrackingCard />
+
+      <MarketplaceLinksCard />
 
       <ThemeSettings />
 
