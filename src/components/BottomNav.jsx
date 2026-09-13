@@ -6,7 +6,6 @@ import {
   Package,
   Receipt,
   MoreHorizontal,
-  Sparkles,
   Calendar as CalendarIcon,
   Image as ImageIcon,
   Percent,
@@ -35,7 +34,6 @@ const more = [
   { label: "Calendar", to: "/calendar", icon: CalendarIcon },
   { label: "Mileage", to: "/mileage", icon: Car },
   { label: "Taxes", to: "/taxes", icon: Percent },
-  { label: "Advisor", to: "/assistant", icon: Sparkles },
   { label: "Account", to: "/account", icon: UserRound },
 ];
 
