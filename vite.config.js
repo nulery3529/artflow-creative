@@ -2,6 +2,11 @@ import base44 from "@base44/vite-plugin"
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
+// Ensure the Base44 Vite plugin has the app id during Vercel builds.
+// The frontend also has this id as a fallback, but the plugin reads the
+// environment while the Vite config is being evaluated.
+process.env.VITE_BASE44_APP_ID ||= '6a91be5ced6058323eb21f7d'
+
 // https://vite.dev/config/
 export default defineConfig({
   resolve: {
