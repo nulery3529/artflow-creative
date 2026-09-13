@@ -109,7 +109,7 @@ function vintedRows(subject, text) {
     sale_total: price,
     unit_price: quantity > 1 ? Number((price / quantity).toFixed(2)) : price,
     buyer: clean(match[1]),
-    order_id: null,
+    order_id: '',
   }];
 }
 
@@ -154,7 +154,7 @@ function depopRows(subject, text) {
         sale_total: price,
         unit_price: price,
         buyer,
-        order_id: null,
+        order_id: '',
       });
       i += 1;
     }
