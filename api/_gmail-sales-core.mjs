@@ -1,8 +1,9 @@
 import pg from 'pg';
+import { pooledDatabaseUrl } from './_db.mjs';
 
 const { Pool } = pg;
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: pooledDatabaseUrl(),
   ssl: { rejectUnauthorized: false },
   max: 1,
 });
