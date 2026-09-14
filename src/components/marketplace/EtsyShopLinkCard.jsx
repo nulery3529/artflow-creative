@@ -6,12 +6,27 @@ function etsyUrl(urls) {
   return String(urls?.Etsy || urls?.etsy || "").trim();
 }
 
+function etsyUsername(value = "") {
+  const raw = String(value || "").trim().replace(/^@+/, "");
+  if (!raw) return "";
+  if (!/^https?:\/\//i.test(raw)) return raw;
+  try {
+    const url = new URL(raw);
+    const parts = url.pathname.split("/").filter(Boolean);
+    const shopIndex = parts.findIndex((part) => part.toLowerCase() === "shop");
+    return shopIndex >= 0 ? String(parts[shopIndex + 1] || "").replace(/^@+/, "") : "";
+  } catch {
+    return "";
+  }
+}
+
 async function readJson(response) {
   return response.json().catch(() => ({}));
 }
 
 export default function EtsyShopLinkCard({ onChanged, onListingsSynced }) {
-  const [shopLink, setShopLink] = useState("");
+  const [shopUsername, setShopUsername] = useState("");
+  const [savedUsername, setSavedUsername] = useState("");
   const [savedLink, setSavedLink] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
@@ -26,7 +41,9 @@ export default function EtsyShopLinkCard({ onChanged, onListingsSynced }) {
       const data = await readJson(response);
       if (!response.ok) throw new Error(data.error || "Could not load Etsy shop link");
       const value = etsyUrl(data.urls);
-      setShopLink(value);
+      const username = etsyUsername(value);
+      setShopUsername(username);
+      setSavedUsername(username);
       setSavedLink(value);
       onChanged?.(data.urls || {});
     } catch (error) {
@@ -60,7 +77,7 @@ export default function EtsyShopLinkCard({ onChanged, onListingsSynced }) {
 
   const save = async (event) => {
     event.preventDefault();
-    const value = shopLink.trim();
+    const value = etsyUsername(shopUsername);
     if (!value || busy) return;
     setBusy("save");
     setMessage("");
@@ -74,13 +91,15 @@ export default function EtsyShopLinkCard({ onChanged, onListingsSynced }) {
       });
       const data = await readJson(response);
       if (!response.ok || data.ok === false) throw new Error(data.error || "Could not save Etsy shop link");
-      const valueSaved = etsyUrl(data.urls) || value;
+      const valueSaved = etsyUrl(data.urls) || `https://www.etsy.com/shop/${encodeURIComponent(value)}`;
+      const usernameSaved = etsyUsername(valueSaved) || value;
       setSavedLink(valueSaved);
-      setShopLink(valueSaved);
+      setSavedUsername(usernameSaved);
+      setShopUsername(usernameSaved);
       onChanged?.(data.urls || {});
 
       try {
-        const imported = await importListings(valueSaved);
+        const imported = await importListings(usernameSaved);
         const importedCount = Number(imported.saved || imported.imported || 0);
         const successMessage = imported.message || `Etsy shop linked${importedCount ? ` and ${importedCount} listings loaded` : " and listings refreshed"}.`;
         setMessage(successMessage);
@@ -100,7 +119,7 @@ export default function EtsyShopLinkCard({ onChanged, onListingsSynced }) {
   };
 
   const refresh = async () => {
-    const value = savedLink || shopLink.trim();
+    const value = savedUsername || etsyUsername(shopUsername);
     if (!value || busy) return;
     setBusy("refresh");
     setMessage("");
@@ -132,7 +151,8 @@ export default function EtsyShopLinkCard({ onChanged, onListingsSynced }) {
       });
       const data = await readJson(response);
       if (!response.ok || data.ok === false) throw new Error(data.error || "Could not unlink Etsy shop");
-      setShopLink("");
+      setShopUsername("");
+      setSavedUsername("");
       setSavedLink("");
       onChanged?.(data.urls || {});
       setMessage("Etsy shop unlinked from this Art Flow business.");
@@ -153,9 +173,9 @@ export default function EtsyShopLinkCard({ onChanged, onListingsSynced }) {
           <Link2 className="w-5 h-5" />
         </div>
         <div className="min-w-0">
-          <h2 className="font-heading text-lg">Etsy Shop Link</h2>
+          <h2 className="font-heading text-lg">Etsy Shop Username</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Paste this business&apos;s Etsy shop link. Art Flow saves it only to this account and loads that shop&apos;s public listings into Gallery. No Etsy sign-in is required.
+            Enter only this business&apos;s Etsy shop username. Art Flow creates the Etsy shop link automatically and keeps it separate for this account.
           </p>
         </div>
       </div>
@@ -165,22 +185,23 @@ export default function EtsyShopLinkCard({ onChanged, onListingsSynced }) {
       ) : (
         <form onSubmit={save} className="space-y-3">
           <input
-            type="url"
-            value={shopLink}
-            onChange={(event) => setShopLink(event.target.value)}
-            placeholder="https://www.etsy.com/shop/YourShopName"
-            inputMode="url"
+            type="text"
+            value={shopUsername}
+            onChange={(event) => setShopUsername(event.target.value)}
+            placeholder="YourShopName"
+            inputMode="text"
             autoCapitalize="none"
             autoCorrect="off"
+            spellCheck={false}
             className="form-input"
           />
           <button
             type="submit"
-            disabled={!!busy || !shopLink.trim()}
+            disabled={!!busy || !etsyUsername(shopUsername)}
             className="w-full h-12 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {busy === "save" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
-            {busy === "save" ? "Linking Etsy shop…" : savedLink ? "Save & Reload Etsy Listings" : "Link Etsy Shop & Load Listings"}
+            {busy === "save" ? "Linking Etsy shop…" : savedUsername ? "Save & Reload Etsy Listings" : "Link Etsy Shop & Load Listings"}
           </button>
         </form>
       )}
