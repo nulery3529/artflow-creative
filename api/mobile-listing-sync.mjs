@@ -157,6 +157,111 @@ function linkedSiteProfileUrl(platform, usernameInput = '') {
   return '';
 }
 
+function etsyPublicApiHeader() {
+  const key = clean(process.env.ETSY_API_KEY || process.env.ETSY_KEYSTRING);
+  const secret = clean(process.env.ETSY_SHARED_SECRET || process.env.ETSY_CLIENT_SECRET);
+  return key && secret ? `${key}:${secret}` : '';
+}
+
+async function etsyPublicGet(path) {
+  const apiKey = etsyPublicApiHeader();
+  if (!apiKey) {
+    const error = new Error('Etsy public listing access is not configured yet.');
+    error.code = 'ETSY_PUBLIC_API_NOT_CONFIGURED';
+    throw error;
+  }
+  const response = await fetch(`https://openapi.etsy.com/v3/application${path}`, {
+    headers: { 'x-api-key': apiKey, accept: 'application/json' },
+  });
+  const text = await response.text();
+  let data = {};
+  try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+  if (!response.ok) {
+    const detail = clean(data?.error || data?.error_description || data?.message || text || `Etsy API returned ${response.status}`);
+    const error = new Error(detail || `Etsy API returned ${response.status}`);
+    error.status = response.status;
+    error.code = response.status === 401 || response.status === 403 ? 'ETSY_API_NOT_ACTIVE' : 'ETSY_API_ERROR';
+    throw error;
+  }
+  return data;
+}
+
+function etsyMoney(value) {
+  if (value && typeof value === 'object') {
+    const amount = Number(value.amount || 0);
+    const divisor = Number(value.divisor || 100) || 100;
+    return Number.isFinite(amount) ? Number((amount / divisor).toFixed(2)) : 0;
+  }
+  const n = Number(value || 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+async function collectEtsyProfileListings(usernameInput) {
+  const requested = cleanMarketplaceUsername(usernameInput);
+  if (!isValidMarketplaceUsername(requested)) throw new Error('Enter a valid Etsy shop username.');
+
+  const shopSearch = await etsyPublicGet(`/shops?shop_name=${encodeURIComponent(requested)}&limit=25`);
+  const shops = Array.isArray(shopSearch?.results) ? shopSearch.results : [];
+  const shop = shops.find((entry) => normalize(entry?.shop_name) === normalize(requested)) || shops[0];
+  if (!shop?.shop_id) {
+    const error = new Error(`Etsy shop ${requested} was not found.`);
+    error.code = 'ETSY_SHOP_NOT_FOUND';
+    throw error;
+  }
+
+  const username = clean(shop.shop_name || requested);
+  const profileUrl = `https://www.etsy.com/shop/${encodeURIComponent(username)}`;
+  const active = [];
+  let offset = 0;
+  let total = null;
+  for (let page = 0; page < 10 && active.length < 1000; page += 1) {
+    const data = await etsyPublicGet(`/shops/${shop.shop_id}/listings/active?limit=100&offset=${offset}`);
+    const results = Array.isArray(data?.results) ? data.results : [];
+    active.push(...results);
+    if (total === null) total = Number(data?.count || 0) || null;
+    offset += results.length;
+    if (!results.length || results.length < 100 || (total && offset >= total)) break;
+  }
+
+  if (!active.length) return { username, profileUrl, listings: [] };
+
+  const detailedById = new Map();
+  for (let index = 0; index < active.length; index += 100) {
+    const ids = active.slice(index, index + 100).map((item) => item?.listing_id).filter(Boolean);
+    if (!ids.length) continue;
+    try {
+      const batch = await etsyPublicGet(`/listings/batch?listing_ids=${encodeURIComponent(ids.join(','))}&includes=Images`);
+      const results = Array.isArray(batch?.results) ? batch.results : [];
+      for (const item of results) detailedById.set(String(item?.listing_id || ''), item);
+    } catch (error) {
+      console.warn('Etsy listing image batch lookup failed', error?.message || error);
+    }
+  }
+
+  const listings = active.map((basic) => {
+    const item = detailedById.get(String(basic?.listing_id || '')) || basic;
+    const listingId = String(item?.listing_id || basic?.listing_id || '');
+    const images = Array.isArray(item?.images) ? item.images : [];
+    const firstImage = [...images].sort((a, b) => Number(a?.rank || 0) - Number(b?.rank || 0))[0] || {};
+    const url = normalizeUrl(item?.url || basic?.url || (listingId ? `https://www.etsy.com/listing/${listingId}` : ''));
+    if (!url || !listingId) return null;
+    return {
+      platform: 'Etsy',
+      url,
+      meta: {
+        finalUrl: url,
+        title: clean(item?.title || basic?.title || `Etsy listing ${listingId}`).slice(0, 300),
+        description: clean(item?.description || basic?.description || '').slice(0, 800),
+        imageUrl: clean(firstImage?.url_570xN || firstImage?.url_fullxfull || firstImage?.url_170x135 || ''),
+        price: etsyMoney(item?.price || basic?.price),
+        currency: clean(item?.price?.currency_code || basic?.price?.currency_code || 'USD').toUpperCase() || 'USD',
+      },
+    };
+  }).filter(Boolean);
+
+  return { username, profileUrl, listings };
+}
+
 function parseSetCookieHeader(raw = '') {
   const cookies = {};
   for (const match of String(raw || '').matchAll(/(?:^|, )([A-Za-z0-9_\-]+)=([^;,]+)/g)) cookies[match[1]] = match[2];
@@ -931,9 +1036,10 @@ export default async function handler(req, res) {
     const requestedUsername = cleanMarketplaceUsername(rawProfileInput);
     const isVintedUsernameRequest = requestedPlatform === 'Vinted' && Boolean(requestedUsername);
     const isPoshmarkUsernameRequest = requestedPlatform === 'Poshmark' && Boolean(requestedUsername);
-    const isPublicShopUsernameRequest = ['Depop', 'Etsy', 'eBay'].includes(requestedPlatform) && Boolean(requestedUsername);
+    const isEtsyUsernameRequest = requestedPlatform === 'Etsy' && Boolean(requestedUsername);
+    const isPublicShopUsernameRequest = ['Depop', 'eBay'].includes(requestedPlatform) && Boolean(requestedUsername);
     const submitted = splitUrls(body.urls || body.url || '');
-    if (!submitted.length && !isVintedUsernameRequest && !isPoshmarkUsernameRequest && !isPublicShopUsernameRequest) {
+    if (!submitted.length && !isVintedUsernameRequest && !isPoshmarkUsernameRequest && !isEtsyUsernameRequest && !isPublicShopUsernameRequest) {
       return send(400, { error: 'Enter a marketplace username or paste a supported marketplace link.' });
     }
 
@@ -947,6 +1053,43 @@ export default async function handler(req, res) {
       const profileUrl = linkedSiteProfileUrl(requestedPlatform, requestedUsername);
       if (!profileUrl) return send(400, { error: `Enter a valid ${requestedPlatform} username or shop name.` });
       shopPages.push({ platform: requestedPlatform, url: profileUrl, profileUsername: requestedUsername });
+    }
+
+    if (isEtsyUsernameRequest) {
+      try {
+        const profile = await collectEtsyProfileListings(requestedUsername);
+        if (!profile.listings.length) {
+          return send(422, {
+            error: `${profile.username || requestedUsername} does not have any currently active Etsy listings.`,
+            reason: 'etsy_profile_empty',
+          });
+        }
+        directListings.push(...profile.listings);
+        fullProfileSnapshots.push({
+          platform: 'Etsy',
+          profileUrl: profile.profileUrl,
+          username: profile.username,
+          urls: profile.listings.map((item) => normalizeUrl(item.url)).filter(Boolean),
+        });
+      } catch (error) {
+        console.warn('Etsy username import failed', error?.message || error);
+        if (error?.code === 'ETSY_PUBLIC_API_NOT_CONFIGURED') {
+          return send(503, {
+            error: 'Etsy username import is ready, but the Etsy API key is not configured on Art Flow yet.',
+            reason: 'etsy_api_not_configured',
+          });
+        }
+        if (error?.code === 'ETSY_API_NOT_ACTIVE') {
+          return send(503, {
+            error: 'Etsy username import is ready, but Etsy has not activated the Art Flow API key yet. Try again after Etsy approves the key.',
+            reason: 'etsy_api_not_active',
+          });
+        }
+        return send(error?.code === 'ETSY_SHOP_NOT_FOUND' ? 404 : 502, {
+          error: clean(error?.message || 'Could not load that Etsy shop by username.'),
+          reason: 'etsy_username_import_failed',
+        });
+      }
     }
 
     if (isVintedUsernameRequest) {
