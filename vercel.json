@@ -6,7 +6,8 @@
     "VITE_BASE44_APP_ID": "6a91be5ced6058323eb21f7d"
   },
   "crons": [
-    { "path": "/api/gmail-sales-cron", "schedule": "0 6 * * *" }
+    { "path": "/api/gmail-sales-cron", "schedule": "0 6 * * *" },
+    { "path": "/api/gmail-expense-cron", "schedule": "*/5 * * * *" }
   ],
   "outputDirectory": "dist",
   "alias": [
