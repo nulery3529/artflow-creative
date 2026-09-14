@@ -301,7 +301,7 @@ async function insertExpense(client, business, message, gmailAddress) {
   return { imported: result.rows[0] ? 1 : 0, skipped: result.rows[0] ? 0 : 1 };
 }
 
-async function syncAccount(client, business, accessToken) {
+export async function syncExpenseAccount(client, business, accessToken) {
   const profileData = await googleJson(accessToken, 'https://gmail.googleapis.com/gmail/v1/users/me/profile');
   const gmailAddress = normalize(profileData?.emailAddress || '');
   if (!gmailAddress) return { matched: 0, scanned: 0, imported: 0, skipped: 0 };
@@ -365,7 +365,7 @@ export default async function handler(req, res) {
     for (const account of googleAccounts) {
       try {
         const accessToken = await accessTokenForAccount(req, account.id);
-        const result = await syncAccount(client, business, accessToken);
+        const result = await syncExpenseAccount(client, business, accessToken);
         matchedAccounts += result.matched;
         scanned += result.scanned;
         imported += result.imported;
