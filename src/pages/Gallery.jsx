@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ExternalLink, ImagePlus, Search, Upload, X } from "lucide-react";
+import { ExternalLink, ImagePlus, Search, X } from "lucide-react";
 import { useEntity } from "@/lib/useBusinessData";
 import { useOrders } from "@/lib/useOrders";
 import { formatMoney } from "@/lib/format";
@@ -9,7 +9,7 @@ import PageHeader from "@/components/PageHeader";
 import { useNavigate } from "react-router-dom";
 import { Image } from "@/components/ui/image";
 import MobileMarketplaceSyncCard from "@/components/MobileMarketplaceSyncCard";
-import EtsyConnectionBlock from "@/components/marketplace/EtsyConnectionBlock";
+import EtsyShopLinkCard from "@/components/marketplace/EtsyShopLinkCard";
 import { prepareImageForStorage } from "@/lib/imageUpload";
 
 const marketplaceTabs = ["All sites", "Vinted", "Depop", "Etsy", "eBay", "Poshmark"];
@@ -220,13 +220,11 @@ export default function Gallery() {
   const [marketplaceListings, setMarketplaceListings] = useState([]);
   const [marketplaceLoading, setMarketplaceLoading] = useState(true);
   const [linkedSellSites, setLinkedSellSites] = useState({});
-  const [linkSite, setLinkSite] = useState("Etsy");
+  const [linkSite, setLinkSite] = useState("eBay");
   const [linkUsername, setLinkUsername] = useState("");
   const [linkSaving, setLinkSaving] = useState(false);
   const [linkMessage, setLinkMessage] = useState("");
   const [photoUploadingId, setPhotoUploadingId] = useState("");
-  const [etsyCsvImporting, setEtsyCsvImporting] = useState(false);
-  const [etsyCsvMessage, setEtsyCsvMessage] = useState("");
   const officialRefreshInFlight = useRef(false);
   const lastOfficialRefresh = useRef(0);
   const vintedProfileRefreshAttempted = useRef(false);
