@@ -437,34 +437,6 @@ export default function Gallery() {
     await Promise.all([reload(), reloadOrders(), reloadMarketplaceListings()]);
   };
 
-  const importEtsyCsv = async (file) => {
-    if (!file || etsyCsvImporting) return;
-    setEtsyCsvImporting(true);
-    setEtsyCsvMessage("");
-    try {
-      const text = await file.text();
-      const rows = etsyRowsFromCsv(text);
-      if (!rows.length) throw new Error("That file does not look like an Etsy Listings CSV.");
-      const response = await fetch("/api/mobile-listing-sync", {
-        method: "POST",
-        credentials: "include",
-        cache: "no-store",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "import_etsy_csv", rows }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || data.ok === false) throw new Error(data.error || "Could not import Etsy listings");
-      await reloadMarketplaceListings();
-      setMarketplaceFilter("Etsy");
-      setEtsyCsvMessage(data.message || `Imported ${rows.length} Etsy listings into Gallery.`);
-      window.dispatchEvent(new CustomEvent("artflow:listings-synced", { detail: { platform: "Etsy", saved: data.saved || rows.length } }));
-    } catch (error) {
-      setEtsyCsvMessage(error?.message || "Could not import Etsy listings");
-    } finally {
-      setEtsyCsvImporting(false);
-    }
-  };
-
   const uploadMarketplacePhoto = async (listing, file) => {
     if (!listing?.id || !file || photoUploadingId) return;
     setPhotoUploadingId(listing.id);
@@ -503,7 +475,6 @@ export default function Gallery() {
     try {
       const isUrl = /^https?:\/\//i.test(input);
       const isDirectListing =
-        (linkSite === "Etsy" && /etsy\.(?:com|me)\/.*\/listing\/\d+|etsy\.com\/listing\/\d+/i.test(input)) ||
         (linkSite === "eBay" && /ebay\.[^/]+\/itm\//i.test(input)) ||
         (linkSite === "Poshmark" && /poshmark\.com\/listing\//i.test(input));
 
@@ -536,9 +507,7 @@ export default function Gallery() {
       if (!response.ok) throw new Error(data.error || "Could not link seller profile");
       setLinkedSellSites(data.urls || {});
 
-      if (linkSite === "Etsy") {
-        setLinkMessage("Etsy shop linked. Use Import Etsy CSV below to add all active listings and photos to Gallery at once.");
-      } else if (["eBay", "Poshmark"].includes(linkSite)) {
+      if (["eBay", "Poshmark"].includes(linkSite)) {
         const importResponse = await fetch("/api/mobile-listing-sync", {
           method: "POST",
           credentials: "include",
@@ -647,7 +616,6 @@ export default function Gallery() {
                 onChange={(event) => setLinkSite(event.target.value)}
                 className="h-9 rounded-xl border border-[hsl(var(--border))] bg-background px-2 text-[11px] font-semibold"
               >
-                <option value="Etsy">Etsy</option>
                 <option value="eBay">eBay</option>
                 <option value="Poshmark">Poshmark</option>
               </select>
@@ -714,46 +682,10 @@ export default function Gallery() {
         ))}
       </div>
 
-      <section className="bg-card rounded-3xl p-5 border border-[hsl(var(--border))] space-y-3">
-        <div>
-          <h2 className="font-heading text-lg">Official Etsy Connection</h2>
-          <p className="text-sm text-muted-foreground mt-1">Connect your approved Etsy app to pull active listings, photos, prices and paid orders directly into Art Flow.</p>
-        </div>
-        <EtsyConnectionBlock />
-      </section>
-
-      <section className="bg-card rounded-3xl p-5 border border-[hsl(var(--border))] space-y-3">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-muted flex items-center justify-center shrink-0">
-            <Upload className="w-5 h-5" />
-          </div>
-          <div className="min-w-0">
-            <h2 className="font-heading text-lg">Import All Etsy Listings</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Upload Etsy's Listings CSV to add all active Etsy listings to Gallery at once, including the first photo, title, price, quantity, and SKU.
-            </p>
-          </div>
-        </div>
-        <div className="rounded-2xl bg-muted/60 p-3 text-xs text-muted-foreground">
-          Etsy: Shop Manager → Settings → Options → Download Data → Download CSV. Then upload that file here.
-        </div>
-        <label className={`w-full h-12 rounded-2xl bg-foreground text-background font-semibold flex items-center justify-center gap-2 cursor-pointer ${etsyCsvImporting ? "opacity-60 pointer-events-none" : ""}`}>
-          <Upload className="w-4 h-4" />
-          {etsyCsvImporting ? "Importing Etsy listings…" : "Import Etsy CSV"}
-          <input
-            type="file"
-            accept=".csv,text/csv"
-            className="hidden"
-            disabled={etsyCsvImporting}
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) importEtsyCsv(file);
-              event.target.value = "";
-            }}
-          />
-        </label>
-        {etsyCsvMessage && <p className="text-xs text-muted-foreground rounded-xl bg-muted/50 p-3">{etsyCsvMessage}</p>}
-      </section>
+      <EtsyShopLinkCard
+        onChanged={setLinkedSellSites}
+        onListingsSynced={reloadMarketplaceListings}
+      />
 
       <MobileMarketplaceSyncCard />
 
