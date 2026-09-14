@@ -90,6 +90,7 @@ function extractTotal(text = '') {
     /(?:order\s+total|grand\s+total|payment\s+total|purchase\s+total)\s*[:\-]?\s*USD\s*([\d,]+\.\d{2})/i,
     /(?:^|\n)\s*total\s*[:\-]?\s*(?:USD\s*)?\$\s*([\d,]+\.\d{2})\b/im,
     /(?:^|\n)\s*total\s*[:\-]?\s*USD\s*([\d,]+\.\d{2})\b/im,
+    /(?:^|\n)\s*total\s*[:\-]?\s*([\d,]+\.\d{2})\s*USD\b/im,
     /(?:^|\n)\s*(?:amount|charged|paid)\s*[:\-]?\s*\$\s*([\d,]+\.\d{2})\b/im,
   ];
   for (const pattern of patterns) {
@@ -98,6 +99,11 @@ function extractTotal(text = '') {
     if (amount) return amount;
   }
   return 0;
+}
+
+function isNonExpenseNotice(subject = '') {
+  const value = String(subject || '').toLowerCase();
+  return /\bcredit invoice\b|\brefund(?:ed)?\b|\bpayment (?:failed|declined|unsuccessful)\b/.test(value);
 }
 
 function forwardedHeader(text = '', label = 'From') {
@@ -226,6 +232,17 @@ async function insertExpense(client, business, message, gmailAddress) {
     ? new Date(Number(message.internalDate)).toISOString()
     : headerValue(message, 'Date') || new Date().toISOString();
   const createdBy = business.created_by_id || null;
+
+  if (isNonExpenseNotice(subject)) {
+    await recordImport(client, {
+      businessId: business.base44_id,
+      messageId,
+      status: 'skipped',
+      details: 'Credit, refund, or failed-payment notice was not counted as a positive expense',
+      createdBy,
+    });
+    return { imported: 0, skipped: 1 };
+  }
 
   if (!amount) {
     await recordImport(client, {
