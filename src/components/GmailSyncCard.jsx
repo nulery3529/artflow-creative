@@ -68,14 +68,14 @@ export default function GmailSyncCard() {
     }
   };
 
-  const connectGmail = async () => {
+  const connectGmail = async ({ another = false } = {}) => {
     if (connecting) return;
     setConnecting(true);
     try {
       sessionStorage.setItem(RETURN_KEY, "1");
       const result = await artflowAuthClient.linkSocial(artflowGoogleLinkOptions({
         callbackURL: `${window.location.origin}/account?setup=gmail`,
-        loginHint: user?.email || "",
+        loginHint: another ? "" : (user?.email || ""),
       }));
       if (result?.error) throw new Error(result.error.message || "Could not connect Gmail");
       if (result?.data?.url) {
@@ -113,7 +113,7 @@ export default function GmailSyncCard() {
 
   if (user?.auth_backend !== "neon") return null;
 
-  const accountEmail = status?.accounts?.find((item) => item.approved)?.email || status?.accounts?.[0]?.email || "";
+  const accountEmails = Array.from(new Set((status?.accounts || []).map((item) => item?.email).filter(Boolean)));
   const connected = status?.connected === true;
   const needsReconnect = status?.reconnect_required === true;
 
@@ -137,8 +137,9 @@ export default function GmailSyncCard() {
       ) : connected ? (
         <div className="space-y-3">
           <div className="rounded-2xl bg-muted/60 p-3">
-            <p className="text-sm font-semibold">Gmail connected{accountEmail ? ` · ${accountEmail}` : ""}</p>
-            <p className="text-xs text-muted-foreground mt-1">Sales and recent receipt/invoice emails are checked automatically when you sign in and every five minutes while Art Flow is open. You can still use “artflow expense” for a receipt you want Art Flow to pick up explicitly.</p>
+            <p className="text-sm font-semibold">{accountEmails.length > 1 ? `${accountEmails.length} Gmail inboxes connected` : "Gmail connected"}</p>
+            {accountEmails.length > 0 && <p className="text-xs text-foreground mt-1 break-words">{accountEmails.join(" · ")}</p>}
+            <p className="text-xs text-muted-foreground mt-1">Sales and recent receipt/invoice emails are checked automatically in the background every five minutes, even when Art Flow is closed. You can still use “artflow expense” for a receipt you want Art Flow to pick up explicitly.</p>
           </div>
           <button
             type="button"
@@ -148,6 +149,15 @@ export default function GmailSyncCard() {
           >
             <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
             {syncing ? "Checking Gmail…" : "Check Sales & Expenses Now"}
+          </button>
+          <button
+            type="button"
+            onClick={() => connectGmail({ another: true })}
+            disabled={connecting}
+            className="w-full h-12 rounded-2xl border border-[hsl(var(--border))] bg-background text-foreground font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
+          >
+            <Mail className="w-4 h-4" />
+            {connecting ? "Opening Google…" : "Connect Another Gmail Inbox"}
           </button>
         </div>
       ) : (
