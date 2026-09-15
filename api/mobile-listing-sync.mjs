@@ -3,7 +3,7 @@ import { pooledDatabaseUrl } from './_db.mjs';
 import crypto from 'node:crypto';
 import { auth } from './auth/_auth.mjs';
 import { fromNodeHeaders } from 'better-auth/node';
-import { decrypt } from './_official-sync-shared.mjs';
+import { encrypt, decrypt } from './_official-sync-shared.mjs';
 
 const { Pool } = pg;
 const pool = new Pool({ connectionString: pooledDatabaseUrl(), ssl: { rejectUnauthorized: false }, max: 1 });
@@ -171,7 +171,7 @@ function normalizeEtsyCredentials(keyInput = '', secretInput = '') {
   return { key, secret };
 }
 
-async function etsyPublicApiHeader(client) {
+async function etsyCredentialPair(client) {
   let storedKey = '';
   let storedSecret = '';
   try {
@@ -189,13 +189,17 @@ async function etsyPublicApiHeader(client) {
   }
 
   const saved = normalizeEtsyCredentials(storedKey, storedSecret);
-  if (saved.key && saved.secret) return `${saved.key}:${saved.secret}`;
+  if (saved.key && saved.secret) return saved;
 
-  const env = normalizeEtsyCredentials(
+  return normalizeEtsyCredentials(
     process.env.ETSY_API_KEY || process.env.ETSY_KEYSTRING,
     process.env.ETSY_SHARED_SECRET || process.env.ETSY_CLIENT_SECRET
   );
-  return env.key && env.secret ? `${env.key}:${env.secret}` : '';
+}
+
+async function etsyPublicApiHeader(client) {
+  const creds = await etsyCredentialPair(client);
+  return creds.key && creds.secret ? `${creds.key}:${creds.secret}` : '';
 }
 
 async function etsyPublicGet(client, path) {
