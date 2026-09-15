@@ -29,6 +29,14 @@ async function appOwnerUserId(client){
   return clean(r.rows[0]?.id);
 }
 
+function normalizeEtsyCredentialPair(keyInput='',secretInput=''){
+  let key=clean(keyInput), secret=clean(secretInput);
+  const parts=key.split(':').map(clean).filter(Boolean);
+  if(parts.length===2){ key=parts[0]; secret=parts[1]; }
+  else if(parts.length>2){ key=parts[0]; }
+  return {key,secret};
+}
+
 async function etsyCredentials(client){
   await ensureAppSettingsTable(client);
   const r=await client.query(`SELECT data FROM artflow.app_settings WHERE key='etsy_credentials' LIMIT 1`);
@@ -36,12 +44,15 @@ async function etsyCredentials(client){
   const storedKey=clean(stored.keystring||stored.key);
   let storedSecret='';
   try{ if(stored.shared_secret_enc) storedSecret=clean(decrypt(stored.shared_secret_enc)); }catch{}
-  if(storedKey && storedSecret){
-    return {key:storedKey,secret:storedSecret,source:'encrypted_app_setting',owner_user_id:clean(stored.owner_user_id)};
+  const saved=normalizeEtsyCredentialPair(storedKey,storedSecret);
+  if(saved.key && saved.secret){
+    return {key:saved.key,secret:saved.secret,source:'encrypted_app_setting',owner_user_id:clean(stored.owner_user_id)};
   }
-  const envKey=clean(process.env.ETSY_API_KEY || process.env.ETSY_KEYSTRING);
-  const envSecret=clean(process.env.ETSY_SHARED_SECRET || process.env.ETSY_CLIENT_SECRET);
-  return {key:envKey,secret:envSecret,source:envKey&&envSecret?'environment':'none',owner_user_id:clean(stored.owner_user_id)};
+  const env=normalizeEtsyCredentialPair(
+    process.env.ETSY_API_KEY || process.env.ETSY_KEYSTRING,
+    process.env.ETSY_SHARED_SECRET || process.env.ETSY_CLIENT_SECRET
+  );
+  return {key:env.key,secret:env.secret,source:env.key&&env.secret?'environment':'none',owner_user_id:clean(stored.owner_user_id)};
 }
 const etsyApiHeader = (creds) => `${creds.key}:${creds.secret}`;
 
@@ -152,7 +163,7 @@ async function syncEtsyListings(client,ownerScope,oauth,accessToken,creds){
 
   const urls=[];
   let saved=0, offset=0, pages=0, more=false;
-  while(pages<5){
+  while(pages<100){
     const data=await etsyGet(`/shops/${shopId}/listings?state=active&limit=100&offset=${offset}&includes=Images`,accessToken,creds);
     const results=Array.isArray(data?.results)?data.results:[];
     for(const listing of results){
@@ -184,10 +195,10 @@ async function syncEtsyListings(client,ownerScope,oauth,accessToken,creds){
       saved+=1;
     }
     pages+=1;
-    offset+=100;
+    offset+=results.length;
     const count=Number(data?.count||0);
-    if(results.length<100 || (count && offset>=count)) break;
-    if(pages===5) more=true;
+    if(!results.length || results.length<100 || (count && offset>=count)) break;
+    if(pages===100) more=true;
   }
 
   if(!more){
