@@ -3,6 +3,7 @@ import { pooledDatabaseUrl } from './_db.mjs';
 import crypto from 'node:crypto';
 import { auth } from './auth/_auth.mjs';
 import { fromNodeHeaders } from 'better-auth/node';
+import { decrypt } from './_official-sync-shared.mjs';
 
 const { Pool } = pg;
 const pool = new Pool({ connectionString: pooledDatabaseUrl(), ssl: { rejectUnauthorized: false }, max: 1 });
@@ -157,14 +158,48 @@ function linkedSiteProfileUrl(platform, usernameInput = '') {
   return '';
 }
 
-function etsyPublicApiHeader() {
-  const key = clean(process.env.ETSY_API_KEY || process.env.ETSY_KEYSTRING);
-  const secret = clean(process.env.ETSY_SHARED_SECRET || process.env.ETSY_CLIENT_SECRET);
-  return key && secret ? `${key}:${secret}` : '';
+function normalizeEtsyCredentials(keyInput = '', secretInput = '') {
+  let key = clean(keyInput);
+  let secret = clean(secretInput);
+  const parts = key.split(':').map(clean).filter(Boolean);
+  if (parts.length === 2) {
+    key = parts[0];
+    secret = parts[1];
+  } else if (parts.length > 2) {
+    key = parts[0];
+  }
+  return { key, secret };
 }
 
-async function etsyPublicGet(path) {
-  const apiKey = etsyPublicApiHeader();
+async function etsyPublicApiHeader(client) {
+  let storedKey = '';
+  let storedSecret = '';
+  try {
+    await client.query(`CREATE TABLE IF NOT EXISTS artflow.app_settings (
+      key text PRIMARY KEY,
+      data jsonb NOT NULL DEFAULT '{}'::jsonb,
+      updated_at timestamptz DEFAULT now()
+    )`);
+    const result = await client.query(`SELECT data FROM artflow.app_settings WHERE key='etsy_credentials' LIMIT 1`);
+    const stored = result.rows[0]?.data || {};
+    storedKey = clean(stored.keystring || stored.key);
+    if (stored.shared_secret_enc) storedSecret = clean(decrypt(stored.shared_secret_enc));
+  } catch (error) {
+    console.warn('Could not read saved Etsy credentials for Gallery sync', error?.message || error);
+  }
+
+  const saved = normalizeEtsyCredentials(storedKey, storedSecret);
+  if (saved.key && saved.secret) return `${saved.key}:${saved.secret}`;
+
+  const env = normalizeEtsyCredentials(
+    process.env.ETSY_API_KEY || process.env.ETSY_KEYSTRING,
+    process.env.ETSY_SHARED_SECRET || process.env.ETSY_CLIENT_SECRET
+  );
+  return env.key && env.secret ? `${env.key}:${env.secret}` : '';
+}
+
+async function etsyPublicGet(client, path) {
+  const apiKey = await etsyPublicApiHeader(client);
   if (!apiKey) {
     const error = new Error('Etsy public listing access is not configured yet.');
     error.code = 'ETSY_PUBLIC_API_NOT_CONFIGURED';
