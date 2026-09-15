@@ -225,6 +225,91 @@ async function etsyPublicGet(client, path) {
   return data;
 }
 
+async function etsyToken(params) {
+  const response = await fetch('https://api.etsy.com/v3/public/oauth/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+    body: new URLSearchParams(params),
+  });
+  const text = await response.text();
+  let data = {};
+  try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+  if (!response.ok) {
+    const error = new Error(clean(data?.error_description || data?.error || text || `Etsy token request failed (${response.status})`));
+    error.code = 'ETSY_OAUTH_REFRESH_FAILED';
+    throw error;
+  }
+  return data;
+}
+
+async function validEtsyAccessToken(client, p) {
+  const oauth = p?.data?.etsy_oauth || {};
+  if (!oauth.refresh_token_enc) return '';
+
+  const creds = await etsyCredentialPair(client);
+  if (!creds.key || !creds.secret) {
+    const error = new Error('Etsy app credentials are not configured.');
+    error.code = 'ETSY_PUBLIC_API_NOT_CONFIGURED';
+    throw error;
+  }
+
+  const expiresAt = oauth.expires_at ? new Date(oauth.expires_at).getTime() : 0;
+  if (oauth.access_token_enc && expiresAt > Date.now() + 60_000) {
+    return decrypt(oauth.access_token_enc);
+  }
+
+  let refreshed;
+  try {
+    refreshed = await etsyToken({
+      grant_type: 'refresh_token',
+      client_id: creds.key,
+      refresh_token: decrypt(oauth.refresh_token_enc),
+    });
+  } catch (error) {
+    error.code = 'ETSY_OAUTH_REFRESH_FAILED';
+    throw error;
+  }
+
+  const nextOauth = {
+    ...oauth,
+    access_token_enc: refreshed.access_token ? encrypt(refreshed.access_token) : oauth.access_token_enc,
+    refresh_token_enc: refreshed.refresh_token ? encrypt(refreshed.refresh_token) : oauth.refresh_token_enc,
+    expires_at: new Date(Date.now() + (Number(refreshed.expires_in) || 3600) * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  const nextData = { ...(p.data || {}), etsy_oauth: nextOauth };
+  await client.query(`UPDATE artflow.legacy_users SET data=$2::jsonb,updated_date=now() WHERE base44_id=$1`, [p.base44_id, JSON.stringify(nextData)]);
+  p.data = nextData;
+  return refreshed.access_token || '';
+}
+
+async function etsyAuthorizedGet(client, path, accessToken) {
+  const creds = await etsyCredentialPair(client);
+  if (!creds.key || !creds.secret || !accessToken) {
+    const error = new Error('Etsy is not fully connected for this Art Flow account.');
+    error.code = 'ETSY_OAUTH_REFRESH_FAILED';
+    throw error;
+  }
+  const response = await fetch(`https://openapi.etsy.com/v3/application${path}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'x-api-key': `${creds.key}:${creds.secret}`,
+      accept: 'application/json',
+    },
+  });
+  const text = await response.text();
+  let data = {};
+  try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+  if (!response.ok) {
+    const detail = clean(data?.error || data?.error_description || data?.message || text || `Etsy API returned ${response.status}`);
+    const error = new Error(detail || `Etsy API returned ${response.status}`);
+    error.status = response.status;
+    error.code = response.status === 401 || response.status === 403 ? 'ETSY_OAUTH_REFRESH_FAILED' : 'ETSY_API_ERROR';
+    throw error;
+  }
+  return data;
+}
+
 function etsyMoney(value) {
   if (value && typeof value === 'object') {
     const amount = Number(value.amount || 0);
@@ -235,27 +320,51 @@ function etsyMoney(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
-async function collectEtsyProfileListings(client, usernameInput) {
+async function collectEtsyProfileListings(client, p, usernameInput) {
   const requested = cleanMarketplaceUsername(usernameInput);
   if (!isValidMarketplaceUsername(requested)) throw new Error('Enter a valid Etsy shop username.');
 
-  const shopSearch = await etsyPublicGet(client, `/shops?shop_name=${encodeURIComponent(requested)}&limit=25`);
-  const shops = Array.isArray(shopSearch?.results) ? shopSearch.results : [];
-  const shop = shops.find((entry) => normalize(entry?.shop_name) === normalize(requested)) || shops[0];
-  if (!shop?.shop_id) {
-    const error = new Error(`Etsy shop ${requested} was not found.`);
-    error.code = 'ETSY_SHOP_NOT_FOUND';
-    throw error;
+  const oauth = p?.data?.etsy_oauth || {};
+  const oauthShopId = clean(oauth.shop_id);
+  const oauthShopName = clean(oauth.shop_name);
+  const canUseOfficial = Boolean(
+    oauth.refresh_token_enc && oauthShopId &&
+    (!oauthShopName || normalize(oauthShopName) === normalize(requested))
+  );
+
+  let shopId = '';
+  let username = requested;
+  let accessToken = '';
+  let official = false;
+
+  if (canUseOfficial) {
+    accessToken = await validEtsyAccessToken(client, p);
+    shopId = oauthShopId;
+    username = oauthShopName || requested;
+    official = true;
+  } else {
+    const shopSearch = await etsyPublicGet(client, `/shops?shop_name=${encodeURIComponent(requested)}&limit=25`);
+    const shops = Array.isArray(shopSearch?.results) ? shopSearch.results : [];
+    const shop = shops.find((entry) => normalize(entry?.shop_name) === normalize(requested)) || shops[0];
+    if (!shop?.shop_id) {
+      const error = new Error(`Etsy shop ${requested} was not found.`);
+      error.code = 'ETSY_SHOP_NOT_FOUND';
+      throw error;
+    }
+    shopId = String(shop.shop_id);
+    username = clean(shop.shop_name || requested);
   }
 
-  const username = clean(shop.shop_name || requested);
   const profileUrl = `https://www.etsy.com/shop/${encodeURIComponent(username)}`;
   const active = [];
   let offset = 0;
   let total = null;
   let complete = false;
+
   for (let page = 0; page < 100 && active.length < 10000; page += 1) {
-    const data = await etsyPublicGet(client, `/shops/${shop.shop_id}/listings/active?limit=100&offset=${offset}`);
+    const data = official
+      ? await etsyAuthorizedGet(client, `/shops/${shopId}/listings?state=active&limit=100&offset=${offset}&includes=Images`, accessToken)
+      : await etsyPublicGet(client, `/shops/${shopId}/listings/active?limit=100&offset=${offset}`);
     const results = Array.isArray(data?.results) ? data.results : [];
     active.push(...results);
     const reportedCount = Number(data?.count);
@@ -268,18 +377,31 @@ async function collectEtsyProfileListings(client, usernameInput) {
   }
   if (total !== null && active.length >= total) complete = true;
 
-  if (!active.length) return { username, profileUrl, listings: [], complete: true, total: total || 0 };
+  if (!active.length) {
+    if (official) {
+      const error = new Error(`Etsy returned zero active listings for ${username}, even though this shop is connected. Reconnect Etsy if this continues.`);
+      error.code = 'ETSY_CONNECTED_SHOP_EMPTY';
+      throw error;
+    }
+    return { username, profileUrl, listings: [], complete: true, total: total || 0 };
+  }
 
   const detailedById = new Map();
-  for (let index = 0; index < active.length; index += 100) {
-    const ids = active.slice(index, index + 100).map((item) => item?.listing_id).filter(Boolean);
-    if (!ids.length) continue;
-    try {
-      const batch = await etsyPublicGet(client, `/listings/batch?listing_ids=${encodeURIComponent(ids.join(','))}&includes=Images`);
-      const results = Array.isArray(batch?.results) ? batch.results : [];
-      for (const item of results) detailedById.set(String(item?.listing_id || ''), item);
-    } catch (error) {
-      console.warn('Etsy listing image batch lookup failed', error?.message || error);
+  for (const item of active) {
+    if (Array.isArray(item?.images) && item.images.length) detailedById.set(String(item?.listing_id || ''), item);
+  }
+
+  if (!official) {
+    for (let index = 0; index < active.length; index += 100) {
+      const ids = active.slice(index, index + 100).map((item) => item?.listing_id).filter(Boolean);
+      if (!ids.length) continue;
+      try {
+        const batch = await etsyPublicGet(client, `/listings/batch?listing_ids=${encodeURIComponent(ids.join(','))}&includes=Images`);
+        const results = Array.isArray(batch?.results) ? batch.results : [];
+        for (const item of results) detailedById.set(String(item?.listing_id || ''), item);
+      } catch (error) {
+        console.warn('Etsy listing image batch lookup failed', error?.message || error);
+      }
     }
   }
 
@@ -304,7 +426,7 @@ async function collectEtsyProfileListings(client, usernameInput) {
     };
   }).filter(Boolean);
 
-  return { username, profileUrl, listings, complete, total: total ?? listings.length };
+  return { username, profileUrl, listings, complete, total: total ?? listings.length, official };
 }
 
 function parseSetCookieHeader(raw = '') {
