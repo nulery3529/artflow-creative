@@ -1098,7 +1098,7 @@ export default async function handler(req, res) {
 
     if (isEtsyUsernameRequest) {
       try {
-        const profile = await collectEtsyProfileListings(requestedUsername);
+        const profile = await collectEtsyProfileListings(client, requestedUsername);
         if (!profile.listings.length) {
           return send(422, {
             error: `${profile.username || requestedUsername} does not have any currently active Etsy listings.`,
@@ -1111,6 +1111,7 @@ export default async function handler(req, res) {
           profileUrl: profile.profileUrl,
           username: profile.username,
           urls: profile.listings.map((item) => normalizeUrl(item.url)).filter(Boolean),
+          partial: profile.complete === false,
         });
       } catch (error) {
         console.warn('Etsy username import failed', error?.message || error);
@@ -1378,7 +1379,6 @@ export default async function handler(req, res) {
       if (!item.url || !isListingUrl(item.platform, item.url) || seen.has(key)) continue;
       seen.add(key);
       unique.push(item);
-      if (unique.length >= 500) break;
     }
 
     if (!unique.length) {
@@ -1456,7 +1456,7 @@ export default async function handler(req, res) {
 
     let deactivated = 0;
     for (const snapshot of fullProfileSnapshots) {
-      if (snapshot.partial || !snapshot.urls.length || snapshot.urls.length >= 500) continue;
+      if (snapshot.partial || !snapshot.urls.length) continue;
       const result = await client.query(
         `UPDATE artflow.marketplace_listings
          SET status='Inactive',last_seen_at=now(),sync_source=$4
