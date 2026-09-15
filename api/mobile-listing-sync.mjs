@@ -1224,7 +1224,7 @@ export default async function handler(req, res) {
 
     if (isEtsyUsernameRequest) {
       try {
-        const profile = await collectEtsyProfileListings(client, requestedUsername);
+        const profile = await collectEtsyProfileListings(client, p, requestedUsername);
         if (!profile.listings.length) {
           return send(422, {
             error: `${profile.username || requestedUsername} does not have any currently active Etsy listings.`,
@@ -1251,6 +1251,18 @@ export default async function handler(req, res) {
           return send(503, {
             error: 'Etsy username import is ready, but Etsy has not activated the Art Flow API key yet. Try again after Etsy approves the key.',
             reason: 'etsy_api_not_active',
+          });
+        }
+        if (error?.code === 'ETSY_OAUTH_REFRESH_FAILED') {
+          return send(401, {
+            error: 'Your Etsy connection expired and could not be refreshed. Tap Disconnect Etsy, then Connect Etsy once to renew access.',
+            reason: 'etsy_reconnect_required',
+          });
+        }
+        if (error?.code === 'ETSY_CONNECTED_SHOP_EMPTY') {
+          return send(502, {
+            error: clean(error?.message || 'Etsy returned an empty connected shop unexpectedly.'),
+            reason: 'etsy_connected_shop_empty',
           });
         }
         return send(error?.code === 'ETSY_SHOP_NOT_FOUND' ? 404 : 502, {
