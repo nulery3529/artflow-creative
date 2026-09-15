@@ -231,11 +231,11 @@ function etsyMoney(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
-async function collectEtsyProfileListings(usernameInput) {
+async function collectEtsyProfileListings(client, usernameInput) {
   const requested = cleanMarketplaceUsername(usernameInput);
   if (!isValidMarketplaceUsername(requested)) throw new Error('Enter a valid Etsy shop username.');
 
-  const shopSearch = await etsyPublicGet(`/shops?shop_name=${encodeURIComponent(requested)}&limit=25`);
+  const shopSearch = await etsyPublicGet(client, `/shops?shop_name=${encodeURIComponent(requested)}&limit=25`);
   const shops = Array.isArray(shopSearch?.results) ? shopSearch.results : [];
   const shop = shops.find((entry) => normalize(entry?.shop_name) === normalize(requested)) || shops[0];
   if (!shop?.shop_id) {
@@ -249,23 +249,29 @@ async function collectEtsyProfileListings(usernameInput) {
   const active = [];
   let offset = 0;
   let total = null;
-  for (let page = 0; page < 10 && active.length < 1000; page += 1) {
-    const data = await etsyPublicGet(`/shops/${shop.shop_id}/listings/active?limit=100&offset=${offset}`);
+  let complete = false;
+  for (let page = 0; page < 100 && active.length < 10000; page += 1) {
+    const data = await etsyPublicGet(client, `/shops/${shop.shop_id}/listings/active?limit=100&offset=${offset}`);
     const results = Array.isArray(data?.results) ? data.results : [];
     active.push(...results);
-    if (total === null) total = Number(data?.count || 0) || null;
+    const reportedCount = Number(data?.count);
+    if (Number.isFinite(reportedCount) && reportedCount >= 0) total = reportedCount;
     offset += results.length;
-    if (!results.length || results.length < 100 || (total && offset >= total)) break;
+    if (!results.length || results.length < 100 || (total !== null && offset >= total)) {
+      complete = true;
+      break;
+    }
   }
+  if (total !== null && active.length >= total) complete = true;
 
-  if (!active.length) return { username, profileUrl, listings: [] };
+  if (!active.length) return { username, profileUrl, listings: [], complete: true, total: total || 0 };
 
   const detailedById = new Map();
   for (let index = 0; index < active.length; index += 100) {
     const ids = active.slice(index, index + 100).map((item) => item?.listing_id).filter(Boolean);
     if (!ids.length) continue;
     try {
-      const batch = await etsyPublicGet(`/listings/batch?listing_ids=${encodeURIComponent(ids.join(','))}&includes=Images`);
+      const batch = await etsyPublicGet(client, `/listings/batch?listing_ids=${encodeURIComponent(ids.join(','))}&includes=Images`);
       const results = Array.isArray(batch?.results) ? batch.results : [];
       for (const item of results) detailedById.set(String(item?.listing_id || ''), item);
     } catch (error) {
@@ -294,7 +300,7 @@ async function collectEtsyProfileListings(usernameInput) {
     };
   }).filter(Boolean);
 
-  return { username, profileUrl, listings };
+  return { username, profileUrl, listings, complete, total: total ?? listings.length };
 }
 
 function parseSetCookieHeader(raw = '') {
