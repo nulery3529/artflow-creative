@@ -52,7 +52,7 @@ const AuthenticatedApp = () => {
     return () => window.clearTimeout(timer);
   }, []);
 
-  // Legal pages must be publicly accessible for Google OAuth verification and app users.
+  // Legal pages remain publicly accessible to all app users.
   const publicPath = window.location.pathname.replace(/\/+$/, '') || '/';
   if (publicPath === '/about' || publicPath === '/privacy' || publicPath === '/privacy-policy' || publicPath === '/terms-of-service' || publicPath === '/terms' || publicPath === '/support') {
     return (
