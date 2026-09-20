@@ -1,6 +1,6 @@
 import pg from 'pg';
-import { pooledDatabaseUrl } from './_db.mjs';
 import crypto from 'node:crypto';
+import { pooledDatabaseUrl } from './_db.mjs';
 import { auth } from './auth/_auth.mjs';
 import { fromNodeHeaders } from 'better-auth/node';
 
@@ -20,6 +20,7 @@ function validPlatform(value = '') {
   if (/depop/i.test(value)) return 'Depop';
   if (/etsy/i.test(value)) return 'Etsy';
   if (/ebay/i.test(value)) return 'eBay';
+  if (/poshmark/i.test(value)) return 'Poshmark';
   return '';
 }
 
@@ -32,30 +33,24 @@ function inferSize(value = '') {
   return match ? match[1].replace(/\s+/g, '').replace('×', 'x') : 'Unknown';
 }
 
-function getSpreadsheetId(business) {
-  const d = business?.data || {};
-  return clean(
-    d.spreadsheet_id ||
-    d.spreadsheetId ||
-    d?.data?.spreadsheet_id ||
-    business?.spreadsheet_id ||
-    ''
-  );
-}
-
 async function getLegacyProfile(client, user) {
   const email = normalize(user?.email);
   if (!email) return null;
   const result = await client.query(
     `SELECT * FROM artflow.legacy_users
        WHERE auth_user_id = $1 OR lower(email) = $2
-       ORDER BY CASE WHEN active_business_id IS NOT NULL THEN 0 ELSE 1 END, CASE WHEN auth_user_id = $1 THEN 0 ELSE 1 END, created_date NULLS LAST
+       ORDER BY CASE WHEN active_business_id IS NOT NULL THEN 0 ELSE 1 END,
+                CASE WHEN auth_user_id = $1 THEN 0 ELSE 1 END,
+                created_date NULLS LAST
        LIMIT 1`,
     [user.id, email]
   );
   let profile = result.rows[0] || null;
   if (profile && !profile.auth_user_id) {
-    await client.query(`UPDATE artflow.legacy_users SET auth_user_id=$2 WHERE base44_id=$1`, [profile.base44_id, user.id]);
+    await client.query(
+      `UPDATE artflow.legacy_users SET auth_user_id=$2 WHERE base44_id=$1`,
+      [profile.base44_id, user.id]
+    );
     profile.auth_user_id = user.id;
   }
   return profile;
@@ -84,88 +79,31 @@ async function getBusiness(client, profile, user) {
   });
 
   return accessible.find((row) => row.base44_id === active)
-    || accessible.find((row) => getSpreadsheetId(row))
     || accessible[0]
     || null;
 }
 
-async function getGoogleAccessToken(req) {
-  const headers = fromNodeHeaders(req.headers);
-  const accounts = await auth.api.listUserAccounts({ headers });
-  const google = (accounts || []).find((account) => account.providerId === 'google');
-  if (!google?.id) {
-    const error = new Error('Connect Google Sheets to Art Flow first.');
-    error.code = 'GOOGLE_NOT_LINKED';
-    throw error;
-  }
-
-  const token = await auth.api.getAccessToken({
-    headers,
-    body: { accountId: google.id },
-  });
-  if (!token?.accessToken) {
-    const error = new Error('Reconnect Google so Art Flow can update your spreadsheet.');
-    error.code = 'GOOGLE_RECONNECT';
-    throw error;
-  }
-  return token.accessToken;
-}
-
-async function sheetsRequest(accessToken, url, options = {}) {
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-      ...(options.headers || {}),
-    },
-  });
-  const text = await response.text();
-  let data = {};
-  try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
-  if (!response.ok) {
-    const error = new Error(data?.error?.message || `Google Sheets error ${response.status}`);
-    error.code = response.status === 401 || response.status === 403 ? 'GOOGLE_RECONNECT' : 'SHEETS_ERROR';
-    throw error;
-  }
-  return data;
-}
-
-async function readRange(accessToken, spreadsheetId, range) {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(range)}?valueRenderOption=UNFORMATTED_VALUE`;
-  const data = await sheetsRequest(accessToken, url, { method: 'GET' });
-  return Array.isArray(data?.values) ? data.values : [];
-}
-
-async function appendOrder(accessToken, spreadsheetId, row) {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent('Orders!A1')}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
-  await sheetsRequest(accessToken, url, {
-    method: 'POST',
-    body: JSON.stringify({ values: [row] }),
-  });
-}
-
-function findCosts(rows, size, quantity, saleTotal) {
+async function loadCosts(client, businessId, size, quantity, saleTotal) {
   const normalizedSize = normalize(size).replace(/\s+/g, '');
-  let base = 0;
-  let paper = 0;
-  let packaging = 0;
-
-  for (let i = 1; i < rows.length; i += 1) {
-    const row = rows[i] || [];
-    const rowSize = normalize(row[2]).replace(/\s+/g, '');
-    if (rowSize && rowSize === normalizedSize) {
-      base = Number(row[3] || 0) || 0;
-      paper = Number(row[4] || 0) || 0;
-      packaging = Number(row[5] || 0) || 0;
-      break;
-    }
-  }
+  const result = await client.query(
+    `SELECT base_item_cost, paper_ink_cost, packaging_cost
+       FROM artflow.inventory_costs
+      WHERE business_id = $1
+        AND lower(regexp_replace(coalesce(size,''), '\\s+', '', 'g')) = $2
+      ORDER BY updated_date DESC NULLS LAST
+      LIMIT 1`,
+    [businessId, normalizedSize]
+  );
+  const row = result.rows[0] || {};
+  const base = Number(row.base_item_cost || 0) || 0;
+  const paper = Number(row.paper_ink_cost || 0) || 0;
+  const packaging = Number(row.packaging_cost || 0) || 0;
 
   const baseItemCost = +(base * quantity).toFixed(2);
   const paperInkCost = +(paper * quantity).toFixed(2);
   const packagingCost = +packaging.toFixed(2);
   const totalCost = +(baseItemCost + paperInkCost + packagingCost).toFixed(2);
+
   return {
     base_item_cost: baseItemCost,
     paper_ink_cost: paperInkCost,
@@ -186,21 +124,6 @@ function orderFingerprint(order) {
   ].join('|')).digest('hex');
 }
 
-function sheetHasOrder(rows, order, sourceId) {
-  const targetOrder = clean(order.order_id);
-  const targetProduct = normalize(order.product_name);
-  const targetPlatform = normalize(order.platform);
-  return rows.slice(1).some((row) => {
-    if (clean(row?.[9]) === sourceId) return true;
-    if (targetOrder && clean(row?.[2]) === targetOrder && normalize(row?.[1]) === targetPlatform) return true;
-    return !targetOrder
-      && normalize(row?.[1]) === targetPlatform
-      && normalize(row?.[3]) === targetProduct
-      && clean(row?.[0]) === order.sale_date
-      && Number(row?.[7] || 0).toFixed(2) === Number(order.sale_total).toFixed(2);
-  });
-}
-
 async function neonHasOrder(client, businessId, order, sourceId) {
   const result = await client.query(
     `SELECT base44_id
@@ -219,6 +142,7 @@ async function neonHasOrder(client, businessId, order, sourceId) {
 
 async function insertNeonOrder(client, profile, business, order, sourceId, costs) {
   if (await neonHasOrder(client, business.base44_id, order, sourceId)) return false;
+
   const id = crypto.randomUUID();
   const now = new Date();
   const accessEmails = Array.from(new Set([
@@ -264,7 +188,7 @@ async function insertNeonOrder(client, profile, business, order, sourceId, costs
       costs.packaging_cost,
       costs.total_cost,
       costs.estimated_profit,
-      'google_sheet_master_mobile',
+      'mobile_sale_capture',
       business.base44_id,
       JSON.stringify(data),
     ]
@@ -306,31 +230,18 @@ export default async function handler(req, res) {
   try {
     const profile = await getLegacyProfile(client, session.user);
     const business = await getBusiness(client, profile, session.user);
-    if (!business?.base44_id) return res.status(400).json({ error: 'No Art Flow business workspace was found.' });
+    if (!business?.base44_id) {
+      return res.status(400).json({ error: 'No Art Flow business workspace was found.' });
+    }
 
     const tracked = Array.isArray(business.data?.tracked_marketplaces)
-      ? business.data.tracked_marketplaces.filter((item) => ['Vinted', 'Depop', 'Etsy', 'eBay'].includes(item))
+      ? business.data.tracked_marketplaces.filter((item) => ['Vinted', 'Depop', 'Etsy', 'eBay', 'Poshmark'].includes(item))
       : [];
     if (!tracked.includes(platform)) {
       return res.status(409).json({
         error: `${platform} is not selected in Sites I sell on. Turn it on in Account first.`,
         code: 'MARKETPLACE_NOT_SELECTED',
       });
-    }
-
-    const spreadsheetId = getSpreadsheetId(business);
-    if (!spreadsheetId) {
-      return res.status(409).json({
-        error: 'Connect your ArtFlow Creative Tracker in Account first.',
-        code: 'SPREADSHEET_NOT_CONNECTED',
-      });
-    }
-
-    let accessToken;
-    try {
-      accessToken = await getGoogleAccessToken(req);
-    } catch (error) {
-      return res.status(409).json({ error: error.message, code: error.code || 'GOOGLE_NOT_LINKED' });
     }
 
     const order = {
@@ -345,60 +256,23 @@ export default async function handler(req, res) {
       buyer,
       unit_price: +(saleTotal / quantity).toFixed(2),
     };
-    const fingerprint = orderFingerprint(order);
-    const sourceId = `mobile:${fingerprint}`;
 
-    const [orderRows, inventoryRows] = await Promise.all([
-      readRange(accessToken, spreadsheetId, 'Orders!A:P'),
-      readRange(accessToken, spreadsheetId, 'Inventory Costs!A:J').catch(() => []),
-    ]);
-    const costs = findCosts(inventoryRows, size, quantity, order.sale_total);
-
-    let spreadsheetAdded = false;
-    if (!sheetHasOrder(orderRows, order, sourceId)) {
-      await appendOrder(accessToken, spreadsheetId, [
-        order.sale_date,
-        order.platform,
-        order.order_id,
-        order.product_name,
-        order.quantity,
-        order.size,
-        order.unit_price,
-        order.sale_total,
-        order.buyer,
-        sourceId,
-        costs.base_item_cost,
-        costs.paper_ink_cost,
-        costs.packaging_cost,
-        costs.total_cost,
-        costs.estimated_profit,
-        order.source_url,
-      ]);
-      spreadsheetAdded = true;
-    }
-
-    // Spreadsheet write happens first. Only after that succeeds do we mirror the
-    // exact row into Neon for immediate app statistics and order display.
+    const sourceId = `mobile:${orderFingerprint(order)}`;
+    const costs = await loadCosts(client, business.base44_id, size, quantity, order.sale_total);
     const appAdded = await insertNeonOrder(client, profile, business, order, sourceId, costs);
 
     return res.status(200).json({
       ok: true,
-      spreadsheetAdded,
       appAdded,
       size,
       costs,
-      message: spreadsheetAdded
-        ? 'Sale saved to the tracker and synced into Art Flow.'
-        : appAdded
-          ? 'Sale was already in the tracker and is now synced into Art Flow.'
-          : 'Sale is already synced.',
+      message: appAdded ? 'Sale saved to Art Flow.' : 'Sale is already in Art Flow.',
     });
   } catch (error) {
     console.error('mobile sale error', error?.message || error);
-    const status = error?.code === 'GOOGLE_RECONNECT' ? 409 : 500;
-    return res.status(status).json({
+    return res.status(500).json({
       error: error?.message || 'Could not save the sale.',
-      code: error?.code || 'MOBILE_SALE_ERROR',
+      code: 'MOBILE_SALE_ERROR',
     });
   } finally {
     client.release();
