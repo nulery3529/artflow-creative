@@ -35,10 +35,10 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-xl font-semibold mb-2">Marketplace and third-party integrations</h2>
             <p>
-              Art Flow Creative may let you connect services such as Google (Gmail, Drive, Sheets), Etsy, eBay, Depop, Vinted, and Poshmark. Connections are optional. When you authorize a connection, you permit Art Flow Creative to access your connected account only to provide the functionality you requested. You remain responsible for following each marketplace's own rules and policies, and third-party services are governed by their own terms.
+              Art Flow Creative may let you connect supported marketplaces such as Etsy, eBay, Depop, Vinted, and Poshmark. Connections are optional. You remain responsible for following each marketplace's own rules and policies, and third-party services are governed by their own terms.
             </p>
             <p className="mt-2">
-              Marketplaces do not all support identical capabilities. Where direct API access is unavailable — for example for some Vinted, Depop, or Poshmark features — Art Flow Creative relies on reports, email imports, or manual entry, which may be less complete than direct sync. Order, listing, and inventory synchronization may also be delayed or incomplete due to provider outages, rate limits, or restrictions outside our control.
+              Marketplaces do not all support identical capabilities. Where direct API access is unavailable — for example for some Vinted, Depop, or Poshmark features — Art Flow Creative may rely on marketplace reports or manual entry, which may be less complete than direct sync. Order, listing, and inventory synchronization may also be delayed or incomplete due to provider outages, rate limits, or restrictions outside our control.
             </p>
           </section>
 
