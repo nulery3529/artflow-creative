@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { ArrowLeft, ClipboardPaste, Send, Smartphone, CheckCircle2, Sparkles } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { artflowAuthClient } from "@/lib/artflowAuthClient";
 import { useMarketplacePreferences } from "@/lib/useMarketplacePreferences";
 import { toast } from "sonner";
 
@@ -170,7 +169,6 @@ export default function MobileSaleCapture() {
   const [saleDate, setSaleDate] = useState(initial.saleDate);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [googleNeeded, setGoogleNeeded] = useState(false);
 
   const canSave = useMemo(
     () => sitesConfigured && trackedSites.includes(platform) && !!productName.trim() && Number(saleTotal) > 0 && !saving,
@@ -203,35 +201,11 @@ export default function MobileSaleCapture() {
     }
   };
 
-  const connectGoogleSheets = async () => {
-    try {
-      const result = await artflowAuthClient.linkSocial({
-        provider: "google",
-        callbackURL: `${window.location.origin}/send-sale`,
-        scopes: [
-          "https://www.googleapis.com/auth/spreadsheets",
-          "https://www.googleapis.com/auth/drive.file",
-          "https://www.googleapis.com/auth/gmail.readonly",
-        ],
-        additionalParams: {
-          access_type: "offline",
-          include_granted_scopes: "true",
-          prompt: "select_account",
-        },
-      });
-      if (result?.error) throw new Error(result.error.message || "Could not connect Google");
-      if (result?.data?.url) window.location.assign(result.data.url);
-    } catch (error) {
-      toast.error("Could not connect Google Sheets", { description: error?.message });
-    }
-  };
-
   const save = async (event) => {
     event.preventDefault();
     if (!canSave) return;
     setSaving(true);
     setSaved(false);
-    setGoogleNeeded(false);
     const payload = {
       platform,
       source_url: sourceUrl,
@@ -264,7 +238,6 @@ export default function MobileSaleCapture() {
       setSaved(true);
       toast.success(data.message || "Sale sent to Art Flow");
     } catch (error) {
-      if (["GOOGLE_NOT_LINKED", "GOOGLE_RECONNECT"].includes(error?.code)) setGoogleNeeded(true);
       toast.error("Could not send sale", { description: error?.message });
     } finally {
       setSaving(false);
@@ -366,30 +339,16 @@ export default function MobileSaleCapture() {
           </div>
         </section>
 
-        {googleNeeded && (
-          <section className="rounded-3xl p-4 border border-[hsl(var(--border))] bg-card">
-            <p className="text-sm font-semibold">Google Sheets permission needed</p>
-            <p className="text-xs text-muted-foreground mt-1 mb-3">
-              Connect the Google account that owns your ArtFlow Creative Tracker. Art Flow only requests spreadsheet access for this sync.
-            </p>
-            <button
-              type="button"
-              onClick={connectGoogleSheets}
-              className="w-full h-12 rounded-2xl bg-muted text-foreground font-semibold"
-            >
-              Connect Google Sheets
-            </button>
-          </section>
-        )}
+
 
         <button disabled={!canSave} className="w-full h-14 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold flex items-center justify-center gap-2 disabled:opacity-50">
           {saved ? <CheckCircle2 className="w-5 h-5" /> : <Send className="w-5 h-5" />}
-          {saving ? "Sending to spreadsheet…" : saved ? "Saved to Art Flow" : "Send Sale to Art Flow"}
+          {saving ? "Saving to Art Flow…" : saved ? "Saved to Art Flow" : "Send Sale to Art Flow"}
         </button>
       </form>
 
       <p className="text-xs text-muted-foreground text-center px-4">
-        Art Flow writes the sale to your Orders spreadsheet first, then syncs the spreadsheet into the app.
+        Art Flow saves the sale directly to your private business records.
       </p>
     </div>
   );
