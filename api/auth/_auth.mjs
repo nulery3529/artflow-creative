@@ -32,6 +32,7 @@ function cleanEnvValue(value) {
   return text;
 }
 
+const ARTFLOW_GOOGLE_CLIENT_ID = "280802752102-m7pnv9mdpjrehg3maln9kjk4du8m80nb.apps.googleusercontent.com";
 let googleClientId = cleanEnvValue(process.env.GOOGLE_CLIENT_ID);
 let googleClientSecret = cleanEnvValue(process.env.GOOGLE_CLIENT_SECRET);
 
@@ -42,6 +43,11 @@ let googleClientSecret = cleanEnvValue(process.env.GOOGLE_CLIENT_SECRET);
 const looksLikeGoogleClientId = (value = "") => /\.apps\.googleusercontent\.com$/i.test(String(value || "").trim());
 if (!looksLikeGoogleClientId(googleClientId) && looksLikeGoogleClientId(googleClientSecret)) {
   [googleClientId, googleClientSecret] = [googleClientSecret, googleClientId];
+}
+// Use the currently valid Art Flow OAuth web client in production. The older
+// client ID was deleted and causes Google's unauthorized_client response.
+if (process.env.VERCEL_ENV === "production") {
+  googleClientId = ARTFLOW_GOOGLE_CLIENT_ID;
 }
 
 const vercelProductionURL = process.env.VERCEL_PROJECT_PRODUCTION_URL
