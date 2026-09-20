@@ -5,8 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogIn, Mail, Lock, Loader2, KeyRound } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
-import GoogleIcon from "@/components/GoogleIcon";
-import { artflowAuthClient } from "@/lib/artflowAuthClient";
 import { safeReturnTo } from "@/lib/authReturnTo";
 
 export default function IndependentLogin() {
@@ -14,7 +12,6 @@ export default function IndependentLogin() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [codeLoading, setCodeLoading] = useState(false);
   const [codeSent, setCodeSent] = useState(false);
   const [signInCode, setSignInCode] = useState("");
@@ -31,7 +28,7 @@ export default function IndependentLogin() {
   };
 
   const handleSendCode = async () => {
-    if (loading || googleLoading || codeLoading) return;
+    if (loading || codeLoading) return;
     setError("");
     const targetEmail = loginEmail();
     if (!targetEmail) {
@@ -61,7 +58,7 @@ export default function IndependentLogin() {
   };
 
   const handleCodeSignIn = async () => {
-    if (loading || googleLoading || codeLoading) return;
+    if (loading || codeLoading) return;
     setError("");
     const targetEmail = loginEmail();
     const otp = signInCode.trim();
@@ -94,35 +91,6 @@ export default function IndependentLogin() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    if (loading || googleLoading) return;
-    setError("");
-    setGoogleLoading(true);
-    try {
-      const returnTo = safeReturnTo();
-      const isLocal = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
-      const canonicalOrigin = isLocal ? window.location.origin : "https://artflowcreative.com";
-      if (!isLocal && window.location.origin !== canonicalOrigin) {
-        window.location.assign(`${canonicalOrigin}/login?returnTo=${encodeURIComponent(returnTo)}`);
-        return;
-      }
-      const result = await artflowAuthClient.signIn.social({
-        provider: "google",
-        callbackURL: `${canonicalOrigin}${returnTo}`,
-        errorCallbackURL: `${canonicalOrigin}/login?error=google_sign_in_failed`,
-        disableRedirect: true,
-        requestSignUp: false,
-        additionalParams: { prompt: "select_account" },
-      });
-      if (result?.error) throw new Error(result.error.message || "Could not sign in with Google.");
-      if (!result?.data?.url) throw new Error("Google sign-in did not open. Please try again.");
-      window.location.assign(result.data.url);
-    } catch (err) {
-      setError(err?.message || "Could not sign in with Google.");
-      setGoogleLoading(false);
-    }
-  };
-
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (loading) return;
@@ -150,26 +118,16 @@ export default function IndependentLogin() {
   };
 
   useEffect(() => {
-    // Clear connector-only setup flags before starting a normal Art Flow login.
-    try {
-      sessionStorage.removeItem("artflow_connect_gmail");
-      sessionStorage.removeItem("artflow_create_tracker_after_google");
-    } catch {}
-
     const params = new URLSearchParams(window.location.search);
     const serverError = params.get("error");
-    if (serverError) {
-      setError(serverError === "google_sign_in_failed"
-        ? "Google sign-in did not finish. Please try again."
-        : "Could not sign in. Please try again.");
-    }
+    if (serverError) setError("Could not sign in. Please try again.");
   }, []);
 
   return (
     <AuthLayout
       icon={LogIn}
       title="Welcome back"
-      subtitle="Continue with Google or use your Art Flow Creative email and password"
+      subtitle="Sign in with your Art Flow Creative email and password"
       footer={
         <>
           New to Art Flow?{" "}
@@ -183,27 +141,13 @@ export default function IndependentLogin() {
         </div>
       )}
 
-      <Button
-        type="button"
-        variant="outline"
-        className="w-full h-12 rounded-2xl font-semibold text-base bg-background text-foreground"
-        onClick={handleGoogleSignIn}
-        disabled={loading || googleLoading}
-      >
-        {googleLoading ? (
-          <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Opening Google…</>
-        ) : (
-          <><GoogleIcon className="w-5 h-5 mr-2" />Continue with Google</>
-        )}
-      </Button>
-
       <div className="mt-3 space-y-3">
         <Button
           type="button"
           variant="outline"
           className="w-full h-12 rounded-2xl font-semibold text-base bg-background text-foreground"
           onClick={handleSendCode}
-          disabled={loading || googleLoading || codeLoading}
+          disabled={loading || codeLoading}
         >
           {codeLoading && !codeSent ? (
             <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Sending code…</>
@@ -269,7 +213,7 @@ export default function IndependentLogin() {
             <Input id="independent-password" name="password" type="password" autoComplete="current-password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10 h-12" required />
           </div>
         </div>
-        <Button type="submit" className="w-full h-12 rounded-2xl font-semibold text-base" disabled={loading || googleLoading}>
+        <Button type="submit" className="w-full h-12 rounded-2xl font-semibold text-base" disabled={loading}>
           {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Signing in…</> : "Sign in"}
         </Button>
         <div className="text-center">
@@ -283,7 +227,7 @@ export default function IndependentLogin() {
       </form>
 
       <p className="text-center text-xs text-muted-foreground mt-6 leading-relaxed">
-        Google sign-in opens your existing Art Flow account. New users can create an email-and-password account below.
+        Art Flow uses its own email-based sign-in. New users can create an account below.
       </p>
     </AuthLayout>
   );
