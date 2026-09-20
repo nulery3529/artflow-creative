@@ -460,6 +460,8 @@ export async function syncGmailAccount(client, business, accessToken) {
   return result;
 }
 
+const ARTFLOW_GOOGLE_CLIENT_ID = "280802752102-m7pnv9mdpjrehg3maln9kjk4du8m80nb.apps.googleusercontent.com";
+
 // Refresh (or reuse) the Google access token for a better-auth account row so
 // background jobs can read Gmail without a browser session. Persists the new
 // token so signed-in sessions keep working too.
@@ -475,7 +477,7 @@ export async function googleAccessTokenFor(client, account) {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      client_id: process.env.GOOGLE_CLIENT_ID || '',
+      client_id: ARTFLOW_GOOGLE_CLIENT_ID,
       client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
       grant_type: 'refresh_token',
       refresh_token: account.refreshToken,
