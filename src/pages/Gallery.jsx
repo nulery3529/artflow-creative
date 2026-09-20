@@ -7,7 +7,6 @@ import { PLATFORM_TONE, displayPlatform } from "@/lib/platforms";
 import PullToRefresh from "@/components/PullToRefresh";
 import PageHeader from "@/components/PageHeader";
 import { useNavigate } from "react-router-dom";
-import { Image } from "@/components/ui/image";
 import MobileMarketplaceSyncCard from "@/components/MobileMarketplaceSyncCard";
 import EtsyShopLinkCard from "@/components/marketplace/EtsyShopLinkCard";
 import { prepareImageForStorage } from "@/lib/imageUpload";
@@ -30,6 +29,59 @@ function marketplaceImageSrc(listing) {
   if (listing.image_url) params.set("image", listing.image_url);
   if (listing.listing_url) params.set("listing", listing.listing_url);
   return `/api/listing-image?${params.toString()}`;
+}
+
+
+function MarketplaceListingImage({ listing }) {
+  const sourceKey = `${listing?.image_url || ""}|${listing?.listing_url || ""}`;
+  const sources = useMemo(() => {
+    const next = [];
+    const add = (value) => {
+      const raw = String(value || "").trim();
+      if (raw && !next.includes(raw)) next.push(raw);
+    };
+
+    add(marketplaceImageSrc(listing));
+
+    if (listing?.listing_url) {
+      const params = new URLSearchParams();
+      params.set("listing", listing.listing_url);
+      add(`/api/listing-image?${params.toString()}`);
+    }
+
+    if (/^https:\/\//i.test(String(listing?.image_url || ""))) {
+      add(listing.image_url);
+    }
+
+    return next;
+  }, [sourceKey]);
+
+  const [sourceIndex, setSourceIndex] = useState(0);
+
+  useEffect(() => {
+    setSourceIndex(0);
+  }, [sourceKey]);
+
+  if (!sources.length || sourceIndex >= sources.length) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-muted text-muted-foreground">
+        <ImagePlus className="w-7 h-7" />
+        <span className="text-[10px] font-semibold">Photo unavailable</span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      key={sources[sourceIndex]}
+      src={sources[sourceIndex]}
+      loading="lazy"
+      decoding="async"
+      className="w-full h-full object-cover"
+      alt={listing?.title || `${listing?.platform || "Marketplace"} listing`}
+      onError={() => setSourceIndex((current) => current + 1)}
+    />
+  );
 }
 
 const GENERIC_TITLE_WORDS = new Set([
@@ -158,6 +210,7 @@ export default function Gallery() {
   const lastOfficialRefresh = useRef(0);
   const vintedProfileRefreshAttempted = useRef(false);
   const poshmarkProfileRefreshAttempted = useRef(false);
+  const ebayProfileRefreshAttempted = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -288,6 +341,38 @@ export default function Gallery() {
         if (response.ok) reloadMarketplaceListings();
       })
       .catch((error) => console.warn("Could not refresh saved Poshmark profile", error));
+  }, [linkedSellSites, reloadMarketplaceListings]);
+
+  useEffect(() => {
+    if (ebayProfileRefreshAttempted.current) return;
+    const profileUrl = linkedSellSites?.eBay || linkedSellSites?.ebay || "";
+    if (!profileUrl) return;
+
+    let username = "";
+    try {
+      const parts = new URL(profileUrl).pathname.split("/").filter(Boolean);
+      const sellerIndex = parts.findIndex((part) => ["usr", "str"].includes(part.toLowerCase()));
+      username = sellerIndex >= 0 ? (parts[sellerIndex + 1] || "").replace(/^@+/, "") : "";
+    } catch {}
+    if (!username) return;
+
+    ebayProfileRefreshAttempted.current = true;
+    fetch("/api/mobile-listing-sync", {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ platform: "eBay", username }),
+    })
+      .then(async (response) => ({ response, data: await response.json().catch(() => ({})) }))
+      .then(({ response, data }) => {
+        if (response.ok) {
+          reloadMarketplaceListings();
+        } else {
+          console.warn("Could not refresh saved eBay profile", data?.error || response.status);
+        }
+      })
+      .catch((error) => console.warn("Could not refresh saved eBay profile", error));
   }, [linkedSellSites, reloadMarketplaceListings]);
 
   useEffect(() => {
@@ -644,12 +729,7 @@ export default function Gallery() {
                 >
                   <div className="relative aspect-square bg-muted overflow-hidden">
                     {listing.image_url ? (
-                      <Image
-                        src={marketplaceImageSrc(listing)}
-                        fittingType="fill"
-                        className="w-full h-full object-cover"
-                        alt={listing.title || `${listing.platform || "Marketplace"} listing`}
-                      />
+                      <MarketplaceListingImage listing={listing} />
                     ) : displayPlatform(listing.platform) === "Etsy" ? (
                       <label
                         onClick={(event) => { event.preventDefault(); event.stopPropagation(); }}
@@ -678,12 +758,7 @@ export default function Gallery() {
                         />
                       </label>
                     ) : listing.listing_url ? (
-                      <Image
-                        src={marketplaceImageSrc(listing)}
-                        fittingType="fill"
-                        className="w-full h-full object-cover"
-                        alt={listing.title || `${listing.platform || "Marketplace"} listing`}
-                      />
+                      <MarketplaceListingImage listing={listing} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">No photo</div>
                     )}
