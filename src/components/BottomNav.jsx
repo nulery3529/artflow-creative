@@ -89,15 +89,15 @@ export default function BottomNav() {
                   className="flex flex-col items-center justify-center gap-0.5 flex-1 min-w-0 py-1.5"
                   aria-label={item.label}
                 >
-                  <Icon
-                    className={`w-[22px] h-[22px] transition-colors ${
-                      active ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))]"
-                    }`}
-                    strokeWidth={active ? 2.6 : 2}
-                  />
+                  <span className={`bottom-nav-icon ${active ? "is-active" : ""}`}>
+                    <Icon
+                      className="w-[22px] h-[22px] transition-colors"
+                      strokeWidth={active ? 2.6 : 2}
+                    />
+                  </span>
                   <span
                     className={`text-xs font-medium transition-colors ${
-                      active ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))]"
+                      active ? "text-white" : "text-[hsl(var(--muted-foreground))]"
                     }`}
                   >
                     {item.label}
