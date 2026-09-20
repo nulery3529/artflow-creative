@@ -226,9 +226,7 @@ export default function IndependentLogin() {
         </div>
       </form>
 
-      <p className="text-center text-xs text-muted-foreground mt-6 leading-relaxed">
-        Art Flow uses its own email-based sign-in. New users can create an account below.
-      </p>
+      <p className="text-center text-xs text-muted-foreground mt-6 leading-relaxed">Art Flow uses its own email-based sign-in.</p>
     </AuthLayout>
   );
 }
