@@ -486,3 +486,177 @@ textarea {
 .light .text-card-foreground {
   color: hsl(315 18% 10%) !important;
 }
+
+
+/* Art Flow v57 — exact light fintech reference alignment */
+.light body {
+  background: linear-gradient(180deg, #f8f7fa 0%, #f2f1f5 100%) !important;
+  background-attachment: fixed;
+}
+.light .dashboard-page {
+  max-width: 1180px;
+  margin-inline: auto;
+}
+.light .dashboard-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 1.25rem 1.15rem 1.1rem;
+  border-radius: 1.9rem;
+  color: #fff;
+  background:
+    radial-gradient(circle at 88% 12%, rgba(206, 67, 255, .30), transparent 8rem),
+    radial-gradient(circle at -2% 0%, rgba(255,255,255,.14), transparent 7rem),
+    linear-gradient(145deg, #171719 0%, #070708 76%);
+  box-shadow: 0 18px 44px rgba(17,12,21,.20);
+}
+.light .dashboard-hero::before {
+  content: "";
+  position: absolute;
+  inset: .35rem .35rem auto auto;
+  width: 7.5rem;
+  height: 7.5rem;
+  border: 1.25rem solid rgba(255,255,255,.065);
+  border-left-color: transparent;
+  border-bottom-color: transparent;
+  border-radius: 45% 55% 58% 42%;
+  transform: rotate(18deg);
+  pointer-events: none;
+}
+.light .dashboard-hero-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(120deg, rgba(255,255,255,.04), transparent 38%, transparent 72%, rgba(216,72,255,.08));
+}
+.light .dashboard-hero-kicker {
+  color: rgba(255,255,255,.68);
+  font-size: .72rem;
+  font-weight: 700;
+}
+.light .dashboard-hero-label {
+  margin-top: .55rem;
+  color: rgba(255,255,255,.62);
+  font-size: .72rem;
+}
+.light .dashboard-hero-value {
+  margin-top: .1rem;
+  color: #fff;
+  font-size: clamp(2rem, 6vw, 3rem);
+  line-height: 1;
+  letter-spacing: -.05em;
+  font-weight: 800;
+}
+.light .dashboard-hero-sync {
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.12);
+  color: #fff;
+  background: rgba(255,255,255,.09);
+}
+.light .dashboard-hero-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0,1fr));
+  gap: .55rem;
+}
+.light .dashboard-hero-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  min-width: 0;
+  color: rgba(255,255,255,.72);
+  text-decoration: none;
+}
+.light .dashboard-hero-action > span {
+  display: grid;
+  place-items: center;
+  width: 3.15rem;
+  height: 3.15rem;
+  border-radius: 50%;
+  color: #111;
+  background: #fff;
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow: 0 8px 18px rgba(0,0,0,.14);
+}
+.light .dashboard-hero-action.is-accent > span {
+  color: #fff;
+  background: linear-gradient(145deg, #c53bff, #e948c5);
+  box-shadow: 0 10px 24px rgba(198,59,255,.28);
+}
+.light .dashboard-hero-action small {
+  font-size: .68rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.light .dashboard-hero-summary {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 1px;
+  overflow: hidden;
+  border-radius: 1rem;
+  background: rgba(255,255,255,.10);
+}
+.light .dashboard-hero-summary > div {
+  padding: .75rem .85rem;
+  background: linear-gradient(135deg, #c93cff, #e247c5);
+}
+.light .dashboard-hero-summary span {
+  display: block;
+  color: rgba(255,255,255,.72);
+  font-size: .65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.light .dashboard-hero-summary strong {
+  display: block;
+  margin-top: .2rem;
+  color: #fff !important;
+  font-size: .95rem;
+  font-weight: 800;
+}
+.light .artflow-panel,
+.light .bg-card {
+  background: #fff !important;
+  border-color: #eeeaf1 !important;
+  box-shadow: 0 8px 24px rgba(25,18,32,.045) !important;
+}
+.light .artflow-bottom-nav {
+  border-radius: 1.55rem !important;
+  background: #050506 !important;
+  border-color: #19191b !important;
+  box-shadow: 0 16px 38px rgba(8,7,10,.25) !important;
+}
+.light .bottom-nav-icon {
+  width: 2.55rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: #8d8990;
+}
+.light .bottom-nav-icon.is-active {
+  color: #0b0b0c !important;
+  background: #fff !important;
+  box-shadow: 0 7px 20px rgba(255,255,255,.14) !important;
+}
+.light .artflow-bottom-nav button > span:last-child {
+  color: #9b97a0 !important;
+}
+.light .artflow-bottom-nav button:has(.bottom-nav-icon.is-active) > span:last-child {
+  color: #fff !important;
+}
+.light .text-foreground,
+.light .text-card-foreground {
+  color: #17141b !important;
+}
+@media (max-width: 639px) {
+  .light .dashboard-page { padding-inline: .05rem; }
+  .light .dashboard-hero { border-radius: 1.7rem; }
+  .light .dashboard-hero-action > span { width: 2.9rem; height: 2.9rem; }
+  .light .artflow-bottom-nav { border-radius: 1.45rem !important; }
+}
