@@ -36,10 +36,9 @@ export default function IndependentRegister() {
       });
       if (signUpError) throw new Error(signUpError.message || "Could not create account.");
 
-      // Provision the user's Art Flow workspace immediately after signup so
-      // sales + expense email access exists before Google is connected. This
-      // endpoint is idempotent and creates the business workspace only when it
-      // does not already exist.
+      // Provision the user's Art Flow workspace immediately after signup.
+      // This endpoint is idempotent and creates the business workspace only
+      // when it does not already exist.
       const workspaceResponse = await fetch("/api/neon-data?op=summary", {
         credentials: "include",
         cache: "no-store",
@@ -48,9 +47,7 @@ export default function IndependentRegister() {
         throw new Error("Your account was created, but Art Flow could not finish the business workspace setup. Please sign in and try again.");
       }
 
-      // New accounts go straight to the one-time Google/tracker setup. Existing
-      // users are never routed here by normal login.
-      window.location.replace("/account?setup=tracker&welcome=1");
+      window.location.replace("/?welcome=1");
     } catch (err) {
       setError(err?.message || "Could not create account.");
     } finally {
