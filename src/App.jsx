@@ -162,7 +162,7 @@ function App() {
   // is temporarily unavailable during startup.
   if (isAuthPage || isLegalPage || isShopPage) {
     return (
-      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem storageKey="artflow-theme-v2">
+      <ThemeProvider attribute="class" defaultTheme="light" enableSystem storageKey="artflow-theme-v57">
         <QueryClientProvider client={queryClientInstance}>
           <Router>
             <ScrollToTop />
@@ -193,7 +193,7 @@ function App() {
   }
 
   return (
-    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem storageKey="artflow-theme-v2">
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem storageKey="artflow-theme-v57">
       <AuthProvider>
         <QueryClientProvider client={queryClientInstance}>
           <Router>
