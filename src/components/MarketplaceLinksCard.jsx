@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { ExternalLink, Link2, Loader2, Save } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
-import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 
 const MARKETPLACES = ["Etsy", "eBay", "Depop", "Vinted", "Poshmark"];
@@ -46,23 +45,13 @@ export default function MarketplaceLinksCard() {
       if (!user) return;
       setLoading(true);
       try {
-        let loaded = emptyLinks();
-        if (user.auth_backend === "neon") {
-          const response = await fetch("/api/marketplace-preferences", {
-            credentials: "include",
-            cache: "no-store",
-          });
-          const data = await response.json().catch(() => ({}));
-          if (!response.ok) throw new Error(data.error || "Could not load marketplace links");
-          loaded = normalizeLinks(data.links);
-        } else {
-          const businesses = await base44.entities.Business.list("name", 100);
-          const activeId = user.active_business_id || user.data?.active_business_id || null;
-          const email = String(user.email || "").trim().toLowerCase();
-          const business = businesses.find((item) => item.id === activeId)
-            || businesses.find((item) => (item.member_emails || []).some((member) => String(member).toLowerCase() === email));
-          loaded = normalizeLinks(business?.marketplace_links);
-        }
+        const response = await fetch("/api/marketplace-preferences", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "Could not load marketplace links");
+        const loaded = normalizeLinks(data.links);
         if (!cancelled) {
           setLinks(loaded);
           setSavedLinks(loaded);
@@ -77,7 +66,7 @@ export default function MarketplaceLinksCard() {
 
     load();
     return () => { cancelled = true; };
-  }, [user?.id, user?.auth_backend, user?.active_business_id, user?.email]);
+  }, [user]);
 
   const dirty = useMemo(
     () => MARKETPLACES.some((name) => String(links[name] || "").trim() !== String(savedLinks[name] || "").trim()),
@@ -96,29 +85,17 @@ export default function MarketplaceLinksCard() {
 
     setSaving(true);
     try {
-      if (user.auth_backend === "neon") {
-        const response = await fetch("/api/marketplace-preferences", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ links: normalized }),
-        });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.error || "Could not save marketplace links");
-        const saved = normalizeLinks(data.links);
-        setLinks(saved);
-        setSavedLinks(saved);
-      } else {
-        const businesses = await base44.entities.Business.list("name", 100);
-        const activeId = user.active_business_id || user.data?.active_business_id || null;
-        const email = String(user.email || "").trim().toLowerCase();
-        const business = businesses.find((item) => item.id === activeId)
-          || businesses.find((item) => (item.member_emails || []).some((member) => String(member).toLowerCase() === email));
-        if (!business?.id) throw new Error("Business workspace not found");
-        await base44.entities.Business.update(business.id, { marketplace_links: normalized });
-        setLinks(normalized);
-        setSavedLinks(normalized);
-      }
+      const response = await fetch("/api/marketplace-preferences", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ links: normalized }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Could not save marketplace links");
+      const saved = normalizeLinks(data.links);
+      setLinks(saved);
+      setSavedLinks(saved);
       toast.success("Marketplace links saved");
     } catch (error) {
       toast.error("Could not save marketplace links", { description: error?.message });

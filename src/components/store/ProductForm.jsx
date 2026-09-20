@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { Image } from "@/components/ui/image";
 import { centsToPriceInput, priceInputToCents } from "@/lib/storeClient";
+import { Download } from "lucide-react";
+import { downloadImage } from "@/lib/downloadImage";
 
 // Seller-side product editor: create and update storefront products.
 export default function ProductForm({ product, categories, onSave, onCancel }) {
@@ -89,9 +91,17 @@ export default function ProductForm({ product, categories, onSave, onCancel }) {
         <textarea value={imagesText} onChange={(e) => setImagesText(e.target.value)} rows={3} className="form-textarea mt-1" placeholder="https://…" />
         {previewImages.length > 0 && (
           <div className="flex gap-2 mt-2 overflow-x-auto no-scrollbar">
-            {previewImages.map((url) => (
-              <div key={url} className="w-20 h-20 rounded-2xl overflow-hidden bg-muted shrink-0">
+            {previewImages.map((url, index) => (
+              <div key={url} className="relative w-20 h-20 rounded-2xl overflow-hidden bg-muted shrink-0 group">
                 <Image src={url} alt="Preview" className="w-full h-full" />
+                <button
+                  type="button"
+                  onClick={() => downloadImage(url, `${name || "artwork"}-${index + 1}`)}
+                  className="absolute inset-0 bg-black/55 text-white opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity flex items-center justify-center"
+                  aria-label={`Download preview ${index + 1}`}
+                >
+                  <Download className="w-5 h-5" />
+                </button>
               </div>
             ))}
           </div>

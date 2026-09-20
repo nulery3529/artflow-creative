@@ -119,9 +119,14 @@ function poshmarkRows(subject, text) {
   if (!subjectMatch) return [];
   const title = clean(subjectMatch[1]);
   const buyer = clean(subjectMatch[2]);
-  const orderId = clean(text.match(/Order ID\s*\n\s*([a-z0-9]+)/i)?.[1] || '');
+  const orderId = clean(text.match(/Order ID\s*(?:\n|:)\s*([a-z0-9-]+)/i)?.[1] || '');
   const itemBlock = text.match(/Item\s*\n\s*Price\s*\n([\s\S]*?)(?:Your Earnings|Sales tax|Packaging Reminder)/i)?.[1] || '';
-  const price = Number((itemBlock.match(/\$([\d,.]+)/)?.[1] || '').replace(/,/g, '')) || 0;
+  const priceText =
+    itemBlock.match(/\$([\d,.]+)/)?.[1]
+    || text.match(/(?:Item|Listing|Order)\s*Price\s*(?:\n|:)?\s*\$([\d,.]+)/i)?.[1]
+    || text.match(/Price\s*\n[\s\S]{0,160}?\$([\d,.]+)/i)?.[1]
+    || '';
+  const price = Number(priceText.replace(/,/g, '')) || 0;
   return [{
     platform: 'Poshmark',
     product_name: title,
@@ -266,16 +271,19 @@ export async function googleJson(accessToken, url) {
 }
 
 const GMAIL_QUERIES = [
-  'newer_than:7d from:no-reply@vinted.com subject:"You sold an item on Vinted"',
-  'newer_than:7d from:orders@poshmark.com "just sold to" "on Poshmark"',
-  'newer_than:7d {from:alerts.depop.com from:ohhey.depop.com} subject:"Sale confirmation for"',
+  'from:no-reply@vinted.com subject:"You sold an item on Vinted"',
+  'from:orders@poshmark.com "just sold to" "on Poshmark"',
+  '{from:alerts.depop.com from:ohhey.depop.com} subject:"Sale confirmation for"',
 ];
 
 async function listMessageIds(accessToken) {
   const ids = new Set();
   for (const query of GMAIL_QUERIES) {
     let pageToken = '';
-    for (let page = 0; page < 5; page += 1) {
+    // The first run is a true historical backfill. Later runs skip message IDs
+    // already represented by a complete order, so a five-minute refresh does
+    // not repeatedly download the full mailbox history.
+    for (let page = 0; page < 20; page += 1) {
       const url = new URL('https://gmail.googleapis.com/gmail/v1/users/me/messages');
       url.searchParams.set('q', query);
       url.searchParams.set('maxResults', '100');
@@ -307,22 +315,7 @@ async function insertRows(client, businessId, messageId, receivedAt, rows) {
     const sourceEmailId = rows.length > 1 ? `${messageId}:${index + 1}` : messageId;
     const costs = costsFor(row.product_name, row.quantity);
     const profit = Number((Number(row.sale_total || 0) - Number(costs.total_cost || 0)).toFixed(2));
-    const result = await client.query(`
-      INSERT INTO artflow.orders (
-        base44_id,business_id,sale_date,platform,archived,order_id,source_email_id,created_by_id,created_date,updated_date,data,
-        product_name,quantity,size,unit_price,sale_total,buyer,base_item_cost,paper_ink_cost,packaging_cost,total_cost,estimated_profit,sync_source
-      )
-      SELECT gen_random_uuid()::text,$1,$2,$3,false,$4::text,$5,$6,now(),now(),$7::jsonb,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,'gmail_direct_sales'
-      WHERE NOT EXISTS (
-        SELECT 1 FROM artflow.orders
-        WHERE business_id=$1 AND (
-          source_email_id=$5 OR
-          ($4::text IS NOT NULL AND $4::text<>'' AND order_id=$4::text AND platform=$3) OR
-          (platform=$3 AND lower(product_name)=lower($8) AND sale_date=$2 AND abs(COALESCE(sale_total,0)-$12)<0.01)
-        )
-      )
-      RETURNING base44_id,product_name,platform,sale_total
-    `, [
+    const values = [
       businessId,
       localDate(receivedAt),
       row.platform,
@@ -341,7 +334,61 @@ async function insertRows(client, businessId, messageId, receivedAt, rows) {
       costs.packaging_cost,
       costs.total_cost,
       profit,
-    ]);
+    ];
+
+    // Repair an earlier incomplete import in place. This is especially useful
+    // for old Poshmark rows that were saved before the email price parser was
+    // broadened and therefore never contributed to dashboard totals.
+    const result = await client.query(`
+      WITH repaired AS (
+        UPDATE artflow.orders
+           SET sale_date=$2,
+               platform=$3,
+               order_id=COALESCE(NULLIF($4::text,''),order_id),
+               source_email_id=$5,
+               updated_date=now(),
+               data=COALESCE(data,'{}'::jsonb)||$7::jsonb,
+               product_name=$8,
+               quantity=$9,
+               size=$10,
+               unit_price=$11,
+               sale_total=$12,
+               buyer=$13,
+               base_item_cost=$14,
+               paper_ink_cost=$15,
+               packaging_cost=$16,
+               total_cost=$17,
+               estimated_profit=$18,
+               sync_source='gmail_direct_sales'
+         WHERE business_id=$1
+           AND (
+             source_email_id=$5 OR
+             ($4::text IS NOT NULL AND $4::text<>'' AND order_id=$4::text AND platform=$3) OR
+             (platform=$3 AND lower(product_name)=lower($8) AND sale_date=$2 AND COALESCE(sale_total,0)=0)
+           )
+         RETURNING base44_id,product_name,platform,sale_total
+      ), inserted AS (
+        INSERT INTO artflow.orders (
+          base44_id,business_id,sale_date,platform,archived,order_id,source_email_id,created_by_id,created_date,updated_date,data,
+          product_name,quantity,size,unit_price,sale_total,buyer,base_item_cost,paper_ink_cost,packaging_cost,total_cost,estimated_profit,sync_source
+        )
+        SELECT gen_random_uuid()::text,$1,$2,$3,false,$4::text,$5,$6,now(),now(),$7::jsonb,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,'gmail_direct_sales'
+         WHERE NOT EXISTS (SELECT 1 FROM repaired)
+           AND NOT EXISTS (
+             SELECT 1 FROM artflow.orders
+              WHERE business_id=$1 AND (
+                source_email_id=$5 OR
+                ($4::text IS NOT NULL AND $4::text<>'' AND order_id=$4::text AND platform=$3) OR
+                (platform=$3 AND lower(product_name)=lower($8) AND sale_date=$2 AND abs(COALESCE(sale_total,0)-$12)<0.01)
+              )
+           )
+        RETURNING base44_id,product_name,platform,sale_total
+      )
+      SELECT * FROM repaired
+      UNION ALL
+      SELECT * FROM inserted
+      LIMIT 1
+    `, values);
     if (result.rows[0]) inserted.push(result.rows[0]);
   }
   return inserted;
@@ -378,21 +425,37 @@ export async function syncGmailAccount(client, business, accessToken) {
   result.matched = 1;
 
   const messageIds = await listMessageIds(accessToken);
-  result.scanned = messageIds.length;
-  for (const messageId of messageIds) {
-    const message = await readMessage(accessToken, messageId);
-    const from = headerValue(message, 'From');
-    if (!isAllowedMarketplaceSender(from)) continue;
-    const subject = headerValue(message, 'Subject');
-    const text = bodyTextFromPayload(message?.payload || {});
-    const rows = parseSaleEmail(from, subject, text);
-    if (!rows.length) continue;
-    result.parsed += rows.length;
-    const receivedAt = Number(message?.internalDate)
-      ? new Date(Number(message.internalDate)).toISOString()
-      : headerValue(message, 'Date') || new Date().toISOString();
-    const saved = await insertRows(client, business.base44_id, messageId, receivedAt, rows);
-    result.imported += saved.length;
+  const completed = await client.query(`
+    SELECT split_part(source_email_id, ':', 1) AS message_id
+      FROM artflow.orders
+     WHERE business_id=$1
+       AND sync_source='gmail_direct_sales'
+       AND COALESCE(source_email_id,'')<>''
+     GROUP BY 1
+    HAVING bool_and(COALESCE(sale_total,0)>0)
+  `, [business.base44_id]);
+  const completedIds = new Set(completed.rows.map((row) => clean(row.message_id)).filter(Boolean));
+  const pendingMessageIds = messageIds.filter((messageId) => !completedIds.has(messageId));
+  result.scanned = pendingMessageIds.length;
+  for (let index = 0; index < pendingMessageIds.length; index += 10) {
+    const batchIds = pendingMessageIds.slice(index, index + 10);
+    const messages = await Promise.all(batchIds.map((messageId) => readMessage(accessToken, messageId)));
+    for (let offset = 0; offset < messages.length; offset += 1) {
+      const messageId = batchIds[offset];
+      const message = messages[offset];
+      const from = headerValue(message, 'From');
+      if (!isAllowedMarketplaceSender(from)) continue;
+      const subject = headerValue(message, 'Subject');
+      const text = bodyTextFromPayload(message?.payload || {});
+      const rows = parseSaleEmail(from, subject, text);
+      if (!rows.length) continue;
+      result.parsed += rows.length;
+      const receivedAt = Number(message?.internalDate)
+        ? new Date(Number(message.internalDate)).toISOString()
+        : headerValue(message, 'Date') || new Date().toISOString();
+      const saved = await insertRows(client, business.base44_id, messageId, receivedAt, rows);
+      result.imported += saved.length;
+    }
   }
   return result;
 }

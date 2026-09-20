@@ -149,7 +149,7 @@ export default function Expenses() {
       <section className="bg-card rounded-2xl p-4 border border-[hsl(var(--border))] space-y-3">
         <div>
           <p className="font-medium">Expense records</p>
-          <p className="text-xs text-muted-foreground mt-1">Your saved business expenses are stored in Art Flow's Neon database. Use Refresh to reload the latest records without relying on the retired Base44 integration.</p>
+          <p className="text-xs text-muted-foreground mt-1">Your saved business expenses are stored securely with Art Flow. Use Refresh to load the latest records.</p>
         </div>
         <button
           onClick={importForwardedExpenses}

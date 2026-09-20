@@ -4,13 +4,13 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#12132E",
-  "theme_color": "#12132E",
+  "background_color": "#140f15",
+  "theme_color": "#140f15",
   "icons": [
     {
-      "src": "https://media.base44.com/images/public/6a91be5ced6058323eb21f7d/767c033d8_3E798DE5-95A7-49F9-879D-C8303E1BB25C.png",
-      "sizes": "512x512",
-      "type": "image/png",
+      "src": "/artflow-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
       "purpose": "any"
     }
   ]

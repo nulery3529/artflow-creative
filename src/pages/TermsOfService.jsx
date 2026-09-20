@@ -120,7 +120,7 @@ export default function TermsOfService() {
             <h2 className="text-xl font-semibold mb-2">Contact</h2>
             <p>
               Questions about these Terms of Service may be directed to{" "}
-              <a href="mailto:nulery3529@gmail.com" className="text-primary hover:underline">nulery3529@gmail.com</a>.
+              <a href="mailto:help@artflowcreative.com" className="text-primary hover:underline">help@artflowcreative.com</a>.
             </p>
           </section>
         </div>

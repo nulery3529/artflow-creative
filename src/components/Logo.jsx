@@ -1,9 +1,8 @@
 import React from "react";
 
-// Brand mark: the user's enso logo image, shown in full and centered on a
-// white square with white framing it (no cropping or shifting).
-const LOGO_URL =
-  "https://media.base44.com/images/public/6a91be5ced6058323eb21f7d/767c033d8_3E798DE5-95A7-49F9-879D-C8303E1BB25C.png";
+// Brand mark is served by Art Flow itself so the app has no external logo
+// dependency and continues to work as an installed PWA when offline.
+const LOGO_URL = "/artflow-icon.svg";
 
 export default function Logo({ size = 36, className = "" }) {
   return (

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Art Flow Creative">
+  <rect width="256" height="256" rx="58" fill="#f2e8f2"/>
+  <circle cx="124" cy="128" r="70" fill="none" stroke="#4f2451" stroke-width="30" stroke-linecap="round" stroke-dasharray="382 70" transform="rotate(-24 124 128)"/>
+  <path d="M190 78c4 18 14 28 32 32-18 4-28 14-32 32-4-18-14-28-32-32 18-4 28-14 32-32Z" fill="#a64f93"/>
+  <circle cx="190" cy="110" r="8" fill="#d978b9"/>
+</svg>

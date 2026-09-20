@@ -18,31 +18,26 @@ import { toast } from "sonner";
 export default function Orders() {
   const { records: orders, reload: reloadOrders } = useOrders();
   const { selected: trackedSites, configured: sitesConfigured, loading: sitesLoading } = useMarketplacePreferences();
-  const activeOrders = useMemo(() => {
-    // Never hide real synced orders just because an older workspace has an empty
-    // marketplace-preference array. If marketplaces are selected, honor that
-    // filter; otherwise show the synced business orders that already exist.
-    if (sitesConfigured && trackedSites.length > 0) {
-      return orders.filter((o) => trackedSites.includes(displayPlatform(o.platform)));
-    }
-    return orders;
-  }, [orders, trackedSites, sitesConfigured]);
+  // Connection preferences decide which marketplaces sync; they do not remove
+  // historical sales that are already part of the business ledger.
+  const activeOrders = orders;
   const { records: inventoryCosts } = useEntity("InventoryCost", "size");
   const refresh = async () => { await reloadOrders(); };
-  const { pathname } = useLocation();
+  const { pathname, search: locationSearch } = useLocation();
   const navigate = useNavigate();
   const [platformFilter, setPlatformFilter] = useState("All");
   const [monthFilter, setMonthFilter] = useState("All");
+  const [search, setSearch] = useState("");
   // This tab stays mounted between visits. Reset it to the newest month whenever
   // the user opens Orders so an older selection such as January cannot persist.
   useEffect(() => {
     if (pathname === "/orders") {
       setMonthFilter("All");
       setPlatformFilter("All");
+      setSearch(new URLSearchParams(locationSearch).get("search") || "");
       reloadOrders();
     }
-  }, [pathname, reloadOrders]);
-  const [search, setSearch] = useState("");
+  }, [pathname, locationSearch, reloadOrders]);
   const { isOpen: formOpen, open: openForm, close: closeForm } = useModalRoute();
   const [importingEmail, setImportingEmail] = useState(false);
 

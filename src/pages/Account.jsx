@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
-import { Trash2, AlertTriangle, LifeBuoy } from "lucide-react";
+import { Trash2, AlertTriangle, LifeBuoy, Mail } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { motion, AnimatePresence } from "framer-motion";
 import { artflowAuthClient } from "@/lib/artflowAuthClient";
@@ -79,12 +79,13 @@ export default function Account() {
         <p className="text-sm text-muted-foreground mb-4">
           Get help with sales, expenses, inventory, reports, or your account.
         </p>
-        <button
-          onClick={() => navigate("/support")}
-          className="w-full h-12 rounded-2xl bg-muted text-foreground font-semibold active:scale-[0.98] transition-transform"
+        <a
+          href="mailto:help@artflowcreative.com"
+          className="w-full min-h-12 px-4 rounded-2xl bg-muted text-foreground font-semibold active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
         >
-          Open Support
-        </button>
+          <Mail className="w-4 h-4" />
+          help@artflowcreative.com
+        </a>
       </section>
 
       <section className="bg-card rounded-3xl p-5 border border-[hsl(var(--border))]">

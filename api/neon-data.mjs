@@ -588,7 +588,7 @@ async function writeBusiness(client, session, req) {
   const id = String(body.id || '').trim();
   if (!id || !ids.includes(id)) throw new Error('Business workspace not found');
   const current = businesses.find((item) => item.base44_id === id);
-  const dataFields = ['member_emails','sales_emails','expense_emails','tracked_marketplaces','spreadsheet_id'];
+  const dataFields = ['member_emails','sales_emails','expense_emails','tracked_marketplaces','spreadsheet_id','business_plan'];
   const patch = { ...(current?.data || {}) };
   for (const key of dataFields) if (Object.prototype.hasOwnProperty.call(body,key)) patch[key] = body[key];
   const result = await client.query(`UPDATE artflow.businesses SET name=COALESCE($2,name),primary_email=COALESCE($3,primary_email),data=$4::jsonb,updated_date=now() WHERE base44_id=$1 RETURNING base44_id AS id,name,primary_email,data`, [id, body.name || null, body.primary_email || null, JSON.stringify(patch)]);

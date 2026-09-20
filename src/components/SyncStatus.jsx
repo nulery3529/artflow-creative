@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { CheckCircle2, RefreshCw } from "lucide-react";
+import { AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
 
 const KEY = "artflow_last_sync";
 
@@ -11,7 +11,7 @@ function readState() {
   }
 }
 
-export default function SyncStatus({ totalOrders = 0 }) {
+export default function SyncStatus({ totalOrders = null }) {
   const [state, setState] = useState(readState);
 
   useEffect(() => {
@@ -21,6 +21,7 @@ export default function SyncStatus({ totalOrders = 0 }) {
   }, []);
 
   const syncing = state?.status === "syncing";
+  const failed = state?.status === "error";
   const when = state?.at
     ? new Date(state.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
     : null;
@@ -30,14 +31,24 @@ export default function SyncStatus({ totalOrders = 0 }) {
       <div className="flex items-center gap-2 min-w-0">
         {syncing ? (
           <RefreshCw className="w-4 h-4 animate-spin text-[hsl(var(--primary))] shrink-0" />
+        ) : failed ? (
+          <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
         ) : (
           <CheckCircle2 className="w-4 h-4 text-[hsl(var(--primary))] shrink-0" />
         )}
         <span className="text-muted-foreground truncate">
-          {syncing ? "Syncing business data…" : when ? `Synced ${when}` : "Sales sync every 5 minutes"}
+          {syncing
+            ? "Syncing business data…"
+            : failed
+              ? state?.message || "Sync needs attention"
+              : when
+                ? `Synced ${when}`
+                : "Sales sync every 5 minutes"}
         </span>
       </div>
-      <span className="font-medium text-foreground shrink-0">{totalOrders} orders</span>
+      {totalOrders != null && (
+        <span className="font-medium text-foreground shrink-0">{totalOrders} orders</span>
+      )}
     </div>
   );
 }

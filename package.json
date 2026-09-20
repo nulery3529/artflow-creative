@@ -1,5 +1,5 @@
 {
-  "name": "base44-app",
+  "name": "artflow-creative",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -7,13 +7,12 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint . --quiet",
+    "test": "node --test tests/*.test.mjs",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@base44/sdk": "^0.8.48",
-    "@base44/vite-plugin": "^1.0.40",
     "@hello-pangea/dnd": "^17.0.0",
     "@hookform/resolvers": "^4.1.2",
     "@radix-ui/react-accordion": "^1.2.3",

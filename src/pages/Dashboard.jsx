@@ -12,7 +12,7 @@ import {
   Images,
   BarChart3,
   Activity,
-  CalendarDays,
+  Target,
 } from "lucide-react";
 
 import PullToRefresh from "@/components/PullToRefresh";
@@ -25,8 +25,8 @@ import {
 } from "@/lib/format";
 import { displayPlatform } from "@/lib/platforms";
 import ProfitScoreBadge from "@/components/ProfitScoreBadge";
-import { useMarketplacePreferences } from "@/lib/useMarketplacePreferences";
 import { useAuth } from "@/lib/AuthContext";
+import { toast } from "sonner";
 
 const numberValue = (value) => {
   const parsed = Number(value);
@@ -79,7 +79,7 @@ const expenseDate = (expense) =>
 function Card({ children, className = "" }) {
   return (
     <div
-      className={`rounded-[22px] border border-white/70 bg-white/72 dark:bg-slate-950/65 backdrop-blur-xl shadow-[0_12px_40px_rgba(102,73,156,0.10)] ${className}`}
+      className={`artflow-panel rounded-[22px] border ${className}`}
     >
       {children}
     </div>
@@ -93,8 +93,9 @@ function MetricCard({
   subtitle,
   accent,
   loading,
+  to,
 }) {
-  return (
+  const content = (
     <Card className="p-4 lg:p-5 min-h-[128px]">
       <div className="flex items-start justify-between gap-3">
         <div
@@ -118,6 +119,18 @@ function MetricCard({
         {loading ? "Updating..." : subtitle}
       </p>
     </Card>
+  );
+
+  if (!to) return content;
+
+  return (
+    <Link
+      to={to}
+      aria-label={`Open ${title}`}
+      className="block rounded-[22px] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+    >
+      {content}
+    </Link>
   );
 }
 
@@ -175,7 +188,7 @@ function DonutChart({ rows, total }) {
             : "conic-gradient(#eadff7 0 100%)",
       }}
     >
-      <div className="absolute inset-[18px] rounded-full bg-white/95 dark:bg-slate-950 flex flex-col items-center justify-center">
+      <div className="absolute inset-[18px] rounded-full bg-card flex flex-col items-center justify-center">
         <span className="text-[10px] text-muted-foreground">
           Total
         </span>
@@ -337,14 +350,10 @@ export default function Dashboard() {
   } = useEntity("Expense", "-created_date", 10000);
   const expenses = allExpenses.filter(isApprovedExpense);
 
-  const {
-    selected: trackedSites = [],
-    configured: sitesConfigured,
-  } = useMarketplacePreferences();
-
   const { user } = useAuth();
   const [serverMetrics, setServerMetrics] = useState(null);
   const [metricsLoading, setMetricsLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
 
   const loadServerMetrics = React.useCallback(async () => {
     try {
@@ -370,24 +379,12 @@ export default function Dashboard() {
     return () => window.removeEventListener("artflow:data-synced", onSynced);
   }, [loadServerMetrics]);
 
-  const loading = (ordersLoading || expensesLoading) && metricsLoading;
+  const loading = ordersLoading || expensesLoading || metricsLoading;
   const currentMonth = currentMonthKey();
 
-  const activeOrders = useMemo(() => {
-    if (!sitesConfigured || !trackedSites.length) {
-      return orders;
-    }
-
-    return orders.filter((order) =>
-      trackedSites.includes(
-        displayPlatform(order?.platform)
-      )
-    );
-  }, [
-    orders,
-    trackedSites,
-    sitesConfigured,
-  ]);
+  // Marketplace preferences control which connections Art Flow syncs. They
+  // must never hide a real sale that is already in the business ledger.
+  const activeOrders = orders;
 
   const dashboard = useMemo(() => {
     const uniqueOrderIds = new Set(
@@ -648,13 +645,74 @@ export default function Dashboard() {
   ]);
 
   const refresh = async () => {
-    await Promise.all([
-      reloadOrders?.({
-        syncTracker: true,
-      }),
-      reloadExpenses?.(),
-      loadServerMetrics(),
-    ]);
+    if (syncing) return;
+    setSyncing(true);
+
+    const publishSyncState = (state) => {
+      try {
+        localStorage.setItem("artflow_last_sync", JSON.stringify(state));
+      } catch {}
+      window.dispatchEvent(new CustomEvent("artflow:sync-state", { detail: state }));
+    };
+
+    publishSyncState({ status: "syncing", at: new Date().toISOString() });
+
+    try {
+      const runSync = async (url) => {
+        const response = await fetch(url, {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+        });
+        return { response, data: await response.json().catch(() => ({})) };
+      };
+
+      const results = await Promise.all([
+        runSync("/api/gmail-sales-sync"),
+        runSync("/api/gmail-expense-sync"),
+        runSync("/api/tracker-sync"),
+      ]);
+
+      const hardFailure = results.find(
+        ({ response }) => !response.ok && response.status !== 409
+      );
+      const connectorMessage = results
+        .filter(({ response }) => response.status === 409)
+        .map(({ data }) => data?.error)
+        .find(Boolean);
+
+      await Promise.all([
+        reloadOrders?.(),
+        reloadExpenses?.(),
+        loadServerMetrics(),
+      ]);
+
+      const state = {
+        status: hardFailure ? "error" : "ok",
+        at: new Date().toISOString(),
+        message: hardFailure?.data?.error || connectorMessage,
+      };
+      publishSyncState(state);
+      window.dispatchEvent(new CustomEvent("artflow:data-synced", { detail: state }));
+
+      if (hardFailure) {
+        toast.error("Sync needs attention", { description: state.message });
+      } else if (results.some(({ response }) => response.ok)) {
+        toast.success("Sales and expenses are up to date");
+      } else {
+        toast.info("Saved data refreshed", { description: connectorMessage });
+      }
+    } catch (error) {
+      const state = {
+        status: "error",
+        at: new Date().toISOString(),
+        message: error?.message || "Sync failed",
+      };
+      publishSyncState(state);
+      toast.error("Could not sync business data", { description: state.message });
+    } finally {
+      setSyncing(false);
+    }
   };
 
   const kpis = serverMetrics || {
@@ -705,7 +763,7 @@ export default function Dashboard() {
       {/* HEADER */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl lg:text-[28px] font-semibold tracking-tight text-[#392b4d] dark:text-white">
+          <h1 className="text-2xl lg:text-[28px] font-semibold tracking-tight text-foreground">
             {greeting}, {firstName}!
           </h1>
 
@@ -718,10 +776,11 @@ export default function Dashboard() {
         <button
           type="button"
           onClick={refresh}
-          className="hidden sm:flex items-center gap-2 rounded-2xl border border-white/70 bg-white/70 dark:bg-white/5 px-4 py-2.5 text-xs font-medium shadow-sm"
+          disabled={syncing}
+          className="artflow-glass flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-xs font-medium disabled:opacity-60"
         >
-          <RefreshCw className="w-4 h-4" />
-          Sync now
+          <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
+          {syncing ? "Syncing…" : "Sync now"}
         </button>
       </div>
 
@@ -738,6 +797,7 @@ export default function Dashboard() {
           )} this month`}
           loading={loading}
           accent="bg-purple-100 text-purple-600 dark:bg-purple-500/15"
+          to="/orders"
         />
 
         <MetricCard
@@ -749,6 +809,7 @@ export default function Dashboard() {
           subtitle={`${kpis.totalItems} items sold`}
           loading={loading}
           accent="bg-pink-100 text-pink-600 dark:bg-pink-500/15"
+          to="/orders"
         />
 
         <MetricCard
@@ -760,6 +821,7 @@ export default function Dashboard() {
           subtitle="Across all marketplaces"
           loading={loading}
           accent="bg-cyan-100 text-cyan-600 dark:bg-cyan-500/15"
+          to="/orders"
         />
 
         <MetricCard
@@ -773,6 +835,7 @@ export default function Dashboard() {
           )} this month`}
           loading={loading}
           accent="bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15"
+          to="/reports"
         />
 
         <div className="col-span-2 md:col-span-1">
@@ -785,6 +848,7 @@ export default function Dashboard() {
             subtitle="Average order value"
             loading={loading}
             accent="bg-amber-100 text-amber-600 dark:bg-amber-500/15"
+            to="/reports"
           />
         </div>
       </section>
@@ -838,7 +902,7 @@ export default function Dashboard() {
                     "bg-cyan-400",
                     "bg-amber-400",
                     "bg-emerald-400",
-                    "bg-indigo-400",
+                    "bg-fuchsia-400",
                   ];
 
                   return (
@@ -999,7 +1063,7 @@ export default function Dashboard() {
                       "bg-cyan-400",
                       "bg-amber-400",
                       "bg-emerald-400",
-                      "bg-indigo-400",
+                      "bg-fuchsia-400",
                     ];
 
                     return (
@@ -1235,28 +1299,24 @@ export default function Dashboard() {
             </Link>
           </div>
 
-          <div className="mt-4 rounded-2xl border border-purple-100/70 dark:border-white/5 bg-white/45 dark:bg-white/5 p-4 flex items-center gap-3">
-            <CalendarDays className="w-5 h-5 text-purple-500" />
+          <Link
+            to="/planning"
+            className="mt-4 rounded-2xl border border-purple-100/70 dark:border-white/5 bg-white/45 dark:bg-white/5 p-4 flex items-center gap-3 hover:-translate-y-0.5 transition"
+          >
+            <Target className="w-5 h-5 text-purple-500" />
 
             <div>
               <p className="text-[11px] font-semibold">
-                {monthLabel(
-                  currentMonth
-                )}
+                {monthLabel(currentMonth)} business plan
               </p>
 
               <p className="text-[9px] text-muted-foreground mt-1">
-                {formatMoney(
-                  kpis.monthSales
-                )}{" "}
-                sales ·{" "}
-                {formatMoney(
-                  kpis.monthNet
-                )}{" "}
-                net
+                {formatMoney(kpis.monthSales)} sales · {formatMoney(kpis.monthNet)} net
               </p>
             </div>
-          </div>
+
+            <ArrowUpRight className="w-4 h-4 ml-auto text-muted-foreground" />
+          </Link>
         </Card>
       </section>
     </div>

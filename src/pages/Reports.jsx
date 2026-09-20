@@ -45,11 +45,8 @@ function inPeriod(dateStr, key) {
 export default function Reports() {
   const navigate = useNavigate();
   const { records: orders, reload: reloadOrders } = useOrders();
-  const { selected: trackedSites, configured: sitesConfigured } = useMarketplacePreferences();
-  const activeOrders = useMemo(
-    () => sitesConfigured ? orders.filter((o) => trackedSites.includes(displayPlatform(o.platform))) : [],
-    [orders, trackedSites, sitesConfigured]
-  );
+  const { selected: trackedSites } = useMarketplacePreferences();
+  const activeOrders = orders;
   const { records: allExpenses, reload: reloadExpenses } = useEntity("Expense", "-created_date");
   const expenses = allExpenses.filter(isApprovedExpense);
   const [period, setPeriod] = useState("thisMonth");
@@ -83,10 +80,14 @@ export default function Reports() {
       .map(([category, amount]) => ({ category, amount }))
       .sort((a, b) => b.amount - a.amount);
 
-    const platformSales = trackedSites.map((p) => ({
+    const platformNames = Array.from(new Set([
+      ...trackedSites,
+      ...po.map((order) => displayPlatform(order.platform)),
+    ].filter(Boolean)));
+    const platformSales = platformNames.map((p) => ({
       platform: p,
       sales: po
-        .filter((o) => o.platform === p)
+        .filter((o) => displayPlatform(o.platform) === p)
         .reduce((s, o) => s + (o.sale_total || 0), 0),
     }));
 

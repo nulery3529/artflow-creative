@@ -96,7 +96,7 @@ export default function PrivacyPolicy() {
             <h2 className="text-xl font-semibold mb-2">Contact</h2>
             <p>
               For privacy questions or data requests, contact us at{" "}
-              <a href="mailto:nulery3529@gmail.com" className="text-primary hover:underline">nulery3529@gmail.com</a>.
+              <a href="mailto:help@artflowcreative.com" className="text-primary hover:underline">help@artflowcreative.com</a>.
             </p>
           </section>
         </div>

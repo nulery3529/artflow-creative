@@ -13,11 +13,10 @@ import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
 import IndependentLogin from '@/pages/IndependentLogin';
 import IndependentRegister from '@/pages/IndependentRegister';
-import IndependentAuthTest from '@/pages/IndependentAuthTest';
-import NeonDataTest from '@/pages/NeonDataTest';
 import Layout from '@/components/Layout';
 import Taxes from '@/pages/Taxes';
 import Reports from '@/pages/Reports';
+import BusinessPlan from '@/pages/BusinessPlan';
 import { Navigate } from 'react-router-dom';
 import { ThemeProvider } from "next-themes";
 import Account from '@/pages/Account';
@@ -70,17 +69,13 @@ const AuthenticatedApp = () => {
   }
 
   // Login and recovery pages must render even while authentication is broken or unresolved.
-  if (publicPath === '/login' || publicPath === '/register' || publicPath === '/forgot-password' || publicPath === '/reset-password' || publicPath === '/new-login' || publicPath === '/new-register' || publicPath === '/new-auth-test' || publicPath === '/new-data-test') {
+  if (publicPath === '/login' || publicPath === '/register' || publicPath === '/forgot-password' || publicPath === '/reset-password') {
     return (
       <Routes>
         <Route path="/login" element={<IndependentLogin />} />
         <Route path="/register" element={<IndependentRegister />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/new-login" element={<IndependentLogin />} />
-        <Route path="/new-register" element={<IndependentRegister />} />
-        <Route path="/new-auth-test" element={<IndependentAuthTest />} />
-        <Route path="/new-data-test" element={<NeonDataTest />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     );
@@ -121,9 +116,6 @@ const AuthenticatedApp = () => {
       <Route path="/register" element={<IndependentRegister />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/new-login" element={<IndependentLogin />} />
-      <Route path="/new-register" element={<IndependentRegister />} />
-      <Route path="/new-auth-test" element={<IndependentAuthTest />} />
       <Route path="/about" element={<AboutArtFlow />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
@@ -143,6 +135,7 @@ const AuthenticatedApp = () => {
           <Route path="/expenses" element={<TabShell />} />
           <Route path="/taxes" element={<Taxes />} />
           <Route path="/reports" element={<Reports />} />
+          <Route path="/planning" element={<BusinessPlan />} />
           <Route path="/account" element={<Account />} />
           <Route path="/send-sale" element={<MobileSaleCapture />} />
           <Route path="/calendar" element={<Calendar />} />
@@ -160,16 +153,16 @@ const AuthenticatedApp = () => {
 
 function App() {
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
-  const isAuthPage = path === '/login' || path === '/register' || path === '/forgot-password' || path === '/reset-password' || path === '/new-login' || path === '/new-register' || path === '/new-auth-test' || path === '/new-data-test';
+  const isAuthPage = path === '/login' || path === '/register' || path === '/forgot-password' || path === '/reset-password';
   const isLegalPage = path === '/about' || path === '/privacy' || path === '/privacy-policy' || path === '/terms-of-service' || path === '/terms' || path === '/support';
   const isShopPage = path === '/shop' || path.startsWith('/shop/');
 
   // Render public/auth recovery pages without mounting AuthProvider at all.
-  // This guarantees they still render even if the external Google/Base44 auth
-  // configuration is broken or throws before auth state can initialize.
+  // This guarantees they still render even if the application auth service
+  // is temporarily unavailable during startup.
   if (isAuthPage || isLegalPage || isShopPage) {
     return (
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem storageKey="artflow-theme-v2">
         <QueryClientProvider client={queryClientInstance}>
           <Router>
             <ScrollToTop />
@@ -178,10 +171,6 @@ function App() {
               <Route path="/register" element={<IndependentRegister />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/new-login" element={<IndependentLogin />} />
-              <Route path="/new-register" element={<IndependentRegister />} />
-              <Route path="/new-auth-test" element={<IndependentAuthTest />} />
-        <Route path="/new-data-test" element={<NeonDataTest />} />
             <Route path="/shop" element={<Shop />} />
             <Route path="/shop/product/:id" element={<ShopProduct />} />
             <Route path="/shop/cart" element={<ShopCart />} />
@@ -204,7 +193,7 @@ function App() {
   }
 
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem storageKey="artflow-theme-v2">
       <AuthProvider>
         <QueryClientProvider client={queryClientInstance}>
           <Router>

@@ -3,26 +3,6 @@ import ReactDOM from 'react-dom/client'
 import App from '@/App.jsx'
 import '@/index.css'
 
-// Keep authentication on one working canonical host. The custom domain is
-// currently serving static assets correctly but its serverless auth route is
-// failing, while the stable Vercel production hostname serves the same app and
-// auth API successfully. Redirect all alternate Art Flow hosts there before
-// React or any auth request runs so the Better Auth cookie stays on one host.
-const currentHost = window.location.hostname.toLowerCase()
-const canonicalHost = 'art-flow-creative.vercel.app'
-const isArtFlowVercelHost = currentHost.endsWith('.vercel.app') && currentHost.startsWith('art-flow-creative')
-const shouldUseCanonicalHost =
-  currentHost === 'artflowcreative.com' ||
-  currentHost === 'www.artflowcreative.com' ||
-  (isArtFlowVercelHost && currentHost !== canonicalHost)
-if (shouldUseCanonicalHost) {
-  const canonicalURL = new URL(window.location.href)
-  canonicalURL.protocol = 'https:'
-  canonicalURL.hostname = canonicalHost
-  canonicalURL.port = ''
-  window.location.replace(canonicalURL.toString())
-}
-
 const root = ReactDOM.createRoot(document.getElementById('root'))
 
 const Recovery = ({ message = 'Loading Art Flow Creative…' }) => (
@@ -33,9 +13,7 @@ const Recovery = ({ message = 'Loading Art Flow Creative…' }) => (
       <button
         onClick={() => {
           try {
-            localStorage.removeItem('base44_access_token')
             localStorage.removeItem('token')
-            localStorage.removeItem('base44_clear_access_token')
           } catch {}
           window.location.href = '/login?recovery=' + Date.now()
         }}

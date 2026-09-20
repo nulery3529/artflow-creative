@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
 import {
@@ -10,14 +10,15 @@ import {
   BarChart3,
   CalendarDays,
   Settings,
-  RefreshCw,
-  CheckCircle2,
   LogOut,
   Sun,
   Moon,
   Search,
   Bell,
   Palette,
+  Percent,
+  Car,
+  Target,
 } from "lucide-react";
 
 import BottomNav from "@/components/BottomNav";
@@ -28,6 +29,7 @@ import Inventory from "@/pages/Inventory";
 import Expenses from "@/pages/Expenses";
 import Logo from "@/components/Logo";
 import { useAuth } from "@/lib/AuthContext";
+import SyncStatus from "@/components/SyncStatus";
 
 const tabs = [
   { path: "/", Comp: Dashboard },
@@ -45,6 +47,9 @@ const navItems = [
   { label: "Expenses", to: "/expenses", icon: Receipt },
   { label: "Inventory", to: "/inventory", icon: Package },
   { label: "Reports", to: "/reports", icon: BarChart3 },
+  { label: "Business Plan", to: "/planning", icon: Target },
+  { label: "Taxes", to: "/taxes", icon: Percent },
+  { label: "Mileage", to: "/mileage", icon: Car },
   { label: "Calendar", to: "/calendar", icon: CalendarDays },
   { label: "Products", to: "/store-products", icon: Palette },
   { label: "Settings", to: "/account", icon: Settings },
@@ -55,6 +60,7 @@ export default function Layout() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { theme, setTheme } = useTheme();
+  const [searchQuery, setSearchQuery] = useState("");
 
   const firstName =
     String(user?.full_name || user?.name || "Artist")
@@ -66,11 +72,17 @@ export default function Layout() {
     return pathname === to || pathname.startsWith(`${to}/`);
   };
 
+  const submitSearch = (event) => {
+    event.preventDefault();
+    const query = searchQuery.trim();
+    navigate(query ? `/orders?search=${encodeURIComponent(query)}` : "/orders");
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <VintedAutoSync />
       <aside className="hidden lg:flex fixed inset-y-0 left-0 z-50 w-[260px] p-3">
-        <div className="w-full h-full rounded-[26px] border border-white/60 bg-white/75 dark:bg-slate-950/75 backdrop-blur-2xl shadow-xl flex flex-col">
+        <div className="artflow-glass w-full h-full rounded-[26px] border flex flex-col overflow-y-auto no-scrollbar">
 
           <button
             type="button"
@@ -80,11 +92,11 @@ export default function Layout() {
             <Logo size={42} />
 
             <div>
-              <div className="text-xl font-semibold text-[#594187]">
+              <div className="text-xl font-semibold artflow-gradient-text">
                 ART FLOW
               </div>
 
-              <div className="text-[10px] tracking-[0.3em] text-[#806d9e]">
+              <div className="text-[10px] tracking-[0.3em] text-muted-foreground">
                 CREATIVE
               </div>
             </div>
@@ -99,10 +111,10 @@ export default function Layout() {
                   key={label}
                   type="button"
                   onClick={() => navigate(to)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium transition ${
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-medium transition ${
                     active
-                      ? "bg-gradient-to-r from-[#d9c2ff] to-[#eadcff] text-[#51317f]"
-                      : "text-[#403451] hover:bg-white/60 dark:text-slate-300 dark:hover:bg-white/5"
+                      ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] shadow-[0_10px_24px_rgba(110,55,105,0.24)]"
+                      : "text-foreground/75 hover:bg-white/60 hover:text-foreground dark:hover:bg-white/5"
                   }`}
                 >
                   <Icon className="w-5 h-5" strokeWidth={1.8} />
@@ -112,30 +124,11 @@ export default function Layout() {
             })}
           </nav>          <div className="flex-1" />
 
-          <div className="mx-3 mb-3 rounded-[20px] border border-purple-100 bg-white/70 dark:bg-white/5 p-4">
-            <div className="flex items-center gap-2">
-              <RefreshCw className="w-4 h-4 text-[#7550b7]" />
-              <span className="text-xs font-semibold">
-                Sync Status
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between mt-3 text-[11px]">
-              <span className="text-muted-foreground">
-                Last synced
-              </span>
-              <span className="font-semibold">
-                2 min ago
-              </span>
-            </div>
-
-            <div className="mt-3 flex items-center gap-2 text-[11px] text-emerald-600 font-medium">
-              <CheckCircle2 className="w-4 h-4" />
-              All Connected
-            </div>
+          <div className="mx-3 mb-3">
+            <SyncStatus />
           </div>
 
-          <div className="mx-3 mb-3 rounded-[20px] border border-purple-100 bg-white/70 dark:bg-white/5 p-3">
+          <div className="mx-3 mb-3 rounded-[20px] border border-[hsl(var(--border))] bg-white/65 dark:bg-white/5 p-3">
             <p className="text-xs font-semibold">
               {firstName}
             </p>
@@ -145,7 +138,7 @@ export default function Layout() {
             </p>
           </div>
 
-          <div className="mx-3 mb-3 rounded-[20px] border border-purple-100 bg-white/70 dark:bg-white/5 p-3 flex items-center">
+          <div className="mx-3 mb-3 rounded-[20px] border border-[hsl(var(--border))] bg-white/65 dark:bg-white/5 p-3 flex items-center">
             <span className="text-[11px] font-medium">
               Theme
             </span>
@@ -168,7 +161,7 @@ export default function Layout() {
                 onClick={() => setTheme("dark")}
                 className={`w-8 h-8 rounded-lg flex items-center justify-center ${
                   theme === "dark"
-                    ? "bg-purple-600 text-white"
+                    ? "bg-[hsl(var(--primary))] text-white"
                     : "text-muted-foreground"
                 }`}
               >
@@ -187,28 +180,34 @@ export default function Layout() {
           </button>
         </div>
       </aside>
-            <div className="lg:ml-[260px] min-h-screen">
+      <div className="lg:ml-[260px] min-h-screen">
         <header className="hidden lg:flex sticky top-0 z-30 items-center px-7 xl:px-10 pt-5 pb-3">
           <div className="ml-auto flex items-center gap-3">
-            <div className="w-[380px] h-11 rounded-full border border-white/70 bg-white/75 dark:bg-slate-950/65 backdrop-blur-xl shadow-sm flex items-center px-4">
+            <form
+              onSubmit={submitSearch}
+              className="artflow-glass w-[380px] h-11 rounded-full border flex items-center px-4"
+              role="search"
+            >
               <Search className="w-4 h-4 text-muted-foreground" />
 
               <input
                 type="search"
-                placeholder="Search orders, listings, expenses..."
-                className="flex-1 bg-transparent border-0 outline-none px-3 text-xs"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search orders by product or order ID..."
+                aria-label="Search orders"
+                className="flex-1 bg-transparent border-0 outline-none px-3 text-xs text-foreground placeholder:text-muted-foreground"
               />
-            </div>
+            </form>
 
             <button
               type="button"
-              className="relative w-11 h-11 rounded-2xl border border-white/70 bg-white/75 dark:bg-slate-950/65 backdrop-blur-xl shadow-sm flex items-center justify-center"
+              onClick={() => navigate("/orders")}
+              aria-label="View recent orders"
+              title="View recent orders"
+              className="artflow-glass relative w-11 h-11 rounded-2xl border flex items-center justify-center"
             >
-              <Bell className="w-5 h-5 text-[#5f477f]" />
-
-              <span className="absolute -top-1 -right-1 min-w-5 h-5 rounded-full bg-pink-500 text-white text-[10px] flex items-center justify-center">
-                3
-              </span>
+              <Bell className="w-5 h-5 text-[hsl(var(--primary))]" />
             </button>
           </div>
         </header>

@@ -15,7 +15,10 @@ export default function Support() {
           <section>
             <h2 className="text-xl font-semibold mb-2">Getting help</h2>
             <p>
-              If you have trouble signing in, syncing marketplace sales, importing business expenses, managing inventory, or viewing reports, use the support contact listed for Art Flow Creative in the App Store or contact the app owner through your account support channel.
+              If you have trouble signing in, syncing marketplace sales, importing business expenses, managing inventory, or viewing reports, email{" "}
+              <a href="mailto:help@artflowcreative.com" className="text-primary font-semibold hover:underline">
+                help@artflowcreative.com
+              </a>.
             </p>
           </section>
 
@@ -49,6 +52,7 @@ export default function Support() {
         </div>
 
         <div className="mt-10 border-t border-border pt-6 flex flex-wrap gap-4 text-sm">
+          <a href="mailto:help@artflowcreative.com" className="text-primary hover:underline">Email Support</a>
           <Link to="/privacy-policy" className="text-primary hover:underline">Privacy Policy</Link>
           <Link to="/terms-of-service" className="text-primary hover:underline">Terms of Service</Link>
           <Link to="/login" className="text-primary hover:underline">Return to login</Link>

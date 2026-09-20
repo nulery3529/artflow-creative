@@ -12,6 +12,8 @@ import {
   Car,
   UserRound,
   Palette,
+  BarChart3,
+  Target,
 } from "lucide-react";
 import {
   Drawer,
@@ -31,6 +33,8 @@ const primary = [
 const more = [
   { label: "Products", to: "/store-products", icon: Palette },
   { label: "Gallery", to: "/gallery", icon: ImageIcon },
+  { label: "Reports", to: "/reports", icon: BarChart3 },
+  { label: "Business Plan", to: "/planning", icon: Target },
   { label: "Calendar", to: "/calendar", icon: CalendarIcon },
   { label: "Mileage", to: "/mileage", icon: Car },
   { label: "Taxes", to: "/taxes", icon: Percent },
@@ -71,7 +75,7 @@ export default function BottomNav() {
     <>
       <nav className="fixed bottom-0 inset-x-0 z-40 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 pointer-events-none">
         <div className="max-w-md mx-auto pointer-events-auto">
-          <div className="bg-background/90 backdrop-blur-xl border border-[hsl(var(--border))] rounded-[1.75rem] shadow-[0_8px_30px_rgba(80,60,120,0.12)] px-2 py-2 flex items-center justify-between">
+          <div className="artflow-bottom-nav backdrop-blur-xl border rounded-[1.75rem] px-2 py-2 flex items-center justify-between">
             {tabs.map((item) => {
               const isMore = item.to === "__more";
               const active = isMore ? moreActive || moreOpen : isActive(item.to);
@@ -79,6 +83,7 @@ export default function BottomNav() {
               const onClick = isMore ? () => setMoreOpen(true) : () => handleTab(item.to);
               return (
                 <button
+                  type="button"
                   key={item.label}
                   onClick={onClick}
                   className="flex flex-col items-center justify-center gap-0.5 flex-1 min-w-0 py-1.5"
@@ -116,6 +121,7 @@ export default function BottomNav() {
               const active = isActive(m.to);
               return (
                 <button
+                  type="button"
                   key={m.to}
                   onClick={() => go(m.to)}
                   className={`flex flex-col items-center justify-center gap-2 h-24 rounded-3xl border transition-colors ${

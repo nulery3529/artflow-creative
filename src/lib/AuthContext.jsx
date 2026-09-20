@@ -28,9 +28,8 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const checkAppState = async () => {
-    // Keep the app shell loadable even if Base44's external Google OAuth
-    // configuration is temporarily invalid. The local login page can still
-    // render and the SDK auth check can recover once the configuration is fixed.
+    // Keep the app shell loadable even if an optional Google connector is
+    // temporarily unavailable. The local login page must still render.
     setIsLoadingPublicSettings(false);
     setAuthError(null);
 
@@ -96,11 +95,9 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (!isAuthenticated) return undefined;
 
-    // Automatic syncing belongs to the Art Flow session, not the legacy auth
-    // provider. Run once after login and then every five minutes while the app
-    // is open, regardless of whether the user signed in through Neon/Better Auth
-    // or an older Base44 session. Individual providers remain isolated so an
-    // unavailable connector never blocks the rest of the app.
+    // Run once after login and every five minutes while the app is open.
+    // Individual connectors remain isolated so one unavailable service never
+    // blocks the rest of the app.
     triggerLoginSync();
     const syncId = window.setInterval(() => triggerLoginSync(), 5 * 60 * 1000);
     const syncWhenActive = () => {
@@ -121,7 +118,6 @@ export const AuthProvider = ({ children }) => {
     setIsLoadingAuth(true);
     setAuthError(null);
 
-    // Art Flow authentication is independent from Google and Base44.
     // Better Auth on Vercel, backed by Neon, is the only login session.
     // Ask both Better Auth and the protected Neon summary endpoint. The latter
     // can restore the signed-in app even if the client helper fails to expose

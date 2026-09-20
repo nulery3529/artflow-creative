@@ -43,7 +43,7 @@ export default function ShopCheckout() {
     }
   }, [customer]);
 
-  const useSavedAddress = (id) => {
+  const selectSavedAddress = (id) => {
     setSelectedAddressId(id);
     const saved = (addresses || []).find((a) => a.id === id);
     if (saved) {
@@ -163,7 +163,7 @@ export default function ShopCheckout() {
                 <div className="space-y-2">
                   {addresses.map((saved) => (
                     <label key={saved.id} className="flex items-center gap-3 p-3 rounded-2xl bg-muted cursor-pointer text-sm">
-                      <input type="radio" name="saved-address" checked={selectedAddressId === saved.id} onChange={() => useSavedAddress(saved.id)} />
+                      <input type="radio" name="saved-address" checked={selectedAddressId === saved.id} onChange={() => selectSavedAddress(saved.id)} />
                       <span className="flex-1">
                         <span className="font-semibold">{saved.recipient_name || saved.label}</span>
                         <span className="text-muted-foreground"> · {saved.line1}, {saved.city} {saved.postal_code}</span>
@@ -171,7 +171,7 @@ export default function ShopCheckout() {
                     </label>
                   ))}
                   <label className="flex items-center gap-3 p-3 rounded-2xl bg-muted cursor-pointer text-sm">
-                    <input type="radio" name="saved-address" checked={selectedAddressId === ""} onChange={() => useSavedAddress("")} />
+                    <input type="radio" name="saved-address" checked={selectedAddressId === ""} onChange={() => selectSavedAddress("")} />
                     <span>Use a new address</span>
                   </label>
                 </div>
