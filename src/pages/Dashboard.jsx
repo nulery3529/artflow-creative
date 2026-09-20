@@ -659,29 +659,6 @@ export default function Dashboard() {
     publishSyncState({ status: "syncing", at: new Date().toISOString() });
 
     try {
-      const runSync = async (url) => {
-        const response = await fetch(url, {
-          method: "POST",
-          credentials: "include",
-          cache: "no-store",
-        });
-        return { response, data: await response.json().catch(() => ({})) };
-      };
-
-      const results = await Promise.all([
-        runSync("/api/gmail-sales-sync"),
-        runSync("/api/gmail-expense-sync"),
-        runSync("/api/tracker-sync"),
-      ]);
-
-      const hardFailure = results.find(
-        ({ response }) => !response.ok && response.status !== 409
-      );
-      const connectorMessage = results
-        .filter(({ response }) => response.status === 409)
-        .map(({ data }) => data?.error)
-        .find(Boolean);
-
       await Promise.all([
         reloadOrders?.(),
         reloadExpenses?.(),
@@ -689,73 +666,25 @@ export default function Dashboard() {
       ]);
 
       const state = {
-        status: hardFailure ? "error" : "ok",
+        status: "ok",
         at: new Date().toISOString(),
-        message: hardFailure?.data?.error || connectorMessage,
+        message: "Art Flow data refreshed.",
       };
       publishSyncState(state);
       window.dispatchEvent(new CustomEvent("artflow:data-synced", { detail: state }));
-
-      if (hardFailure) {
-        toast.error("Sync needs attention", { description: state.message });
-      } else if (results.some(({ response }) => response.ok)) {
-        toast.success("Sales and expenses are up to date");
-      } else {
-        toast.info("Saved data refreshed", { description: connectorMessage });
-      }
+      toast.success("Art Flow data refreshed");
     } catch (error) {
       const state = {
         status: "error",
         at: new Date().toISOString(),
-        message: error?.message || "Sync failed",
+        message: error?.message || "Could not refresh Art Flow data.",
       };
       publishSyncState(state);
-      toast.error("Could not sync business data", { description: state.message });
+      toast.error("Refresh failed", { description: state.message });
     } finally {
       setSyncing(false);
     }
   };
-
-  const kpis = serverMetrics || {
-    totalSales: dashboard.totalSales,
-    totalOrders: dashboard.totalOrders,
-    totalItems: dashboard.totalItems,
-    netProfit: dashboard.netProfit,
-    monthSales: dashboard.monthSales,
-    monthNet: dashboard.monthNet,
-    averageOrder: dashboard.averageOrder,
-  };
-
-  const firstName =
-    String(
-      user?.full_name ||
-        user?.name ||
-        "Artist"
-    )
-      .trim()
-      .split(/\s+/)[0] || "Artist";
-
-  const hour = new Date().getHours();
-
-  const greeting =
-    hour < 12
-      ? "Good morning"
-      : hour < 17
-      ? "Good afternoon"
-      : "Good evening";
-
-  const maxPlatform = Math.max(
-    ...dashboard.platforms.map(
-      (row) => row.value
-    ),
-    1
-  );
-
-  const expenseTotal =
-    dashboard.expenseCategories.reduce(
-      (sum, row) => sum + row.value,
-      0
-    );
 
   return (
     <div className="dashboard-page space-y-5 lg:space-y-6 pt-4 lg:pt-0">
