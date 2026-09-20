@@ -10,6 +10,7 @@ import BusinessManager from "@/components/BusinessManager";
 import ThemeSettings from "@/components/ThemeSettings";
 import MarketplaceTrackingCard from "@/components/MarketplaceTrackingCard";
 import MarketplaceLinksCard from "@/components/MarketplaceLinksCard";
+import GmailSyncCard from "@/components/GmailSyncCard";
 
 export default function Account() {
   const navigate = useNavigate();
@@ -65,6 +66,7 @@ export default function Account() {
 
       <BusinessManager />
 
+      <GmailSyncCard />
 
       <MarketplaceTrackingCard />
 
