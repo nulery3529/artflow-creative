@@ -20,19 +20,14 @@ export const AuthProvider = ({ children }) => {
   const [authChecked, setAuthChecked] = useState(false);
   const [appPublicSettings, setAppPublicSettings] = useState(null); // Contains only { id, public_settings }
   const [authBackend, setAuthBackend] = useState(null);
-  const syncInFlight = useRef(false);
-  const lastAutoSyncAt = useRef(0);
 
   useEffect(() => {
     checkAppState();
   }, []);
 
   const checkAppState = async () => {
-    // Keep the app shell loadable even if an optional Google connector is
-    // temporarily unavailable. The local login page must still render.
     setIsLoadingPublicSettings(false);
     setAuthError(null);
-
     await checkUserAuth();
   };
 
@@ -42,77 +37,6 @@ export const AuthProvider = ({ children }) => {
       window.dispatchEvent(new CustomEvent('artflow:sync-state', { detail: state }));
     } catch {}
   }, []);
-
-  const triggerLoginSync = useCallback(async () => {
-    const now = Date.now();
-    if (syncInFlight.current || now - lastAutoSyncAt.current < 30 * 1000) return;
-    syncInFlight.current = true;
-    publishSyncState({ status: 'syncing', at: new Date().toISOString() });
-    try {
-      // Launch-critical syncing runs entirely on the Vercel/Neon stack. Gmail
-      // sales sync is independent from the optional tracker so one connector can
-      // recover current orders even when the other needs to be reconnected.
-      const runSync = async (url) => {
-        const response = await fetch(url, {
-          method: 'POST',
-          credentials: 'include',
-          cache: 'no-store',
-        });
-        return { response, data: await response.json().catch(() => ({})) };
-      };
-      const [gmail, expenses, tracker] = await Promise.all([
-        runSync('/api/gmail-sales-sync'),
-        runSync('/api/gmail-expense-sync'),
-        runSync('/api/tracker-sync'),
-      ]);
-      const results = [gmail, expenses, tracker];
-      const hardFailure = results.find(({ response }) => !response.ok && response.status !== 409);
-      const connectorMessage = results
-        .filter(({ response }) => response.status === 409)
-        .map(({ data }) => data?.error)
-        .filter(Boolean)[0];
-      const state = {
-        status: hardFailure ? 'error' : 'ok',
-        at: new Date().toISOString(),
-        gmail: gmail.response.ok ? gmail.data : null,
-        expenses: expenses.response.ok ? expenses.data : null,
-        tracker: tracker.response.ok ? tracker.data : null,
-        message: hardFailure?.data?.error || connectorMessage,
-      };
-      publishSyncState(state);
-      window.dispatchEvent(new CustomEvent('artflow:data-synced', { detail: state }));
-    } catch (e) {
-      // Existing Neon data remains usable even if Google is temporarily unavailable.
-      const state = { status: 'ok', at: new Date().toISOString(), message: e?.message || 'Tracker refresh unavailable' };
-      publishSyncState(state);
-      window.dispatchEvent(new CustomEvent('artflow:data-synced', { detail: state }));
-    } finally {
-      lastAutoSyncAt.current = Date.now();
-      syncInFlight.current = false;
-    }
-  }, [publishSyncState]);
-
-  useEffect(() => {
-    if (!isAuthenticated) return undefined;
-
-    // Run once after login and every five minutes while the app is open.
-    // Individual connectors remain isolated so one unavailable service never
-    // blocks the rest of the app.
-    triggerLoginSync();
-    const syncId = window.setInterval(() => triggerLoginSync(), 5 * 60 * 1000);
-    const syncWhenActive = () => {
-      if (document.visibilityState === 'visible') triggerLoginSync();
-    };
-    window.addEventListener('focus', syncWhenActive);
-    window.addEventListener('online', syncWhenActive);
-    document.addEventListener('visibilitychange', syncWhenActive);
-    return () => {
-      window.clearInterval(syncId);
-      window.removeEventListener('focus', syncWhenActive);
-      window.removeEventListener('online', syncWhenActive);
-      document.removeEventListener('visibilitychange', syncWhenActive);
-    };
-  }, [isAuthenticated, authBackend, triggerLoginSync]);
 
   const checkUserAuth = async () => {
     setIsLoadingAuth(true);
