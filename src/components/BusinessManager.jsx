@@ -66,7 +66,7 @@ export default function BusinessManager() {
       });
       setNewEmail("");
       await reload();
-      toast.success("Google sign-in linked to this workspace");
+      toast.success("Email linked to this workspace");
     } catch (e) {
       toast.error("Could not link that email");
     } finally {
@@ -224,7 +224,7 @@ export default function BusinessManager() {
           ))}
         </div>
         <p className="text-xs text-muted-foreground mt-2">
-          Marketplace sales from connected Gmail, Outlook, or Yahoo inboxes use this same business workspace.
+          Marketplace sales imported into Art Flow use this same business workspace.
         </p>
       </div>
 
