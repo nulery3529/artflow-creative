@@ -24,26 +24,6 @@ function getAuthPool() {
   return globalThis[authPoolKey];
 }
 
-function cleanEnvValue(value) {
-  const text = String(value || "").trim();
-  if (text.length >= 2 && ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'")))) {
-    return text.slice(1, -1).trim();
-  }
-  return text;
-}
-
-let googleClientId = cleanEnvValue(process.env.GOOGLE_CLIENT_ID);
-let googleClientSecret = cleanEnvValue(process.env.GOOGLE_CLIENT_SECRET);
-
-// If the OAuth client ID and client secret were entered into Vercel in the
-// opposite fields, correct the order before configuring Better Auth. Detect
-// the client ID by its Google-issued suffix rather than assuming a particular
-// client-secret prefix, because older/newer Google secrets can use different formats.
-const looksLikeGoogleClientId = (value = "") => /\.apps\.googleusercontent\.com$/i.test(String(value || "").trim());
-if (!looksLikeGoogleClientId(googleClientId) && looksLikeGoogleClientId(googleClientSecret)) {
-  [googleClientId, googleClientSecret] = [googleClientSecret, googleClientId];
-}
-
 const vercelProductionURL = process.env.VERCEL_PROJECT_PRODUCTION_URL
   ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
   : "";
@@ -51,8 +31,7 @@ const vercelDeploymentURL = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
   : "";
 const canonicalProductionURL = "https://artflowcreative.com";
-// The custom domain is the canonical production origin so sign-in cookies,
-// password-reset links, and Google callback URLs all stay on Art Flow's domain.
+// The custom domain is the canonical production origin so sign-in cookies and password-reset links stay on Art Flow's domain.
 const baseURL = process.env.VERCEL_ENV === "production"
   ? canonicalProductionURL
   : process.env.BETTER_AUTH_URL || vercelDeploymentURL || vercelProductionURL || canonicalProductionURL;
@@ -172,35 +151,10 @@ export const auth = betterAuth({
   account: {
     accountLinking: {
       enabled: true,
-      trustedProviders: ["email-password", "google"],
-      // Google is used as a linked inbox/tracker connection, not as the primary
-      // Art Flow login. Allow a user to attach more than one Gmail address.
-      allowDifferentEmails: true,
+      trustedProviders: ["email-password"],
+      allowDifferentEmails: false,
     },
   },
-  socialProviders: googleClientId && googleClientSecret ? {
-    google: {
-      clientId: googleClientId,
-      clientSecret: googleClientSecret,
-      // Google is a sign-in option only for accounts that are already linked.
-      // New users register with Art Flow email/password first, which prevents
-      // an accidental Google account choice from creating a blank workspace.
-      disableSignUp: true,
-      accessType: "offline",
-      // Every explicit Google connection in ArtFlow must be capable of both
-      // tracker access and Gmail sales syncing. Keeping the complete required
-      // scope set at the provider level protects future UI entry points from
-      // accidentally creating a partially-authorized Google account.
-      scope: [
-        "https://www.googleapis.com/auth/drive.file",
-        "https://www.googleapis.com/auth/gmail.readonly",
-      ],
-      // Google may omit a refresh token on repeat authorizations unless consent
-      // is requested again. ArtFlow depends on a refresh token for background
-      // syncing when the user's browser is closed.
-      prompt: "select_account consent",
-    },
-  } : {},
   trustedOrigins: [
     baseURL,
     vercelProductionURL,
