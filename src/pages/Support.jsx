@@ -46,7 +46,7 @@ export default function Support() {
           <section>
             <h2 className="text-xl font-semibold mb-2">Privacy</h2>
             <p>
-              For information about account data, Gmail-based importing, retention, and deletion, review the Privacy Policy below.
+              For information about account data, retention, and deletion, review the Privacy Policy below.
             </p>
           </section>
         </div>
