@@ -803,65 +803,14 @@ export default function Dashboard() {
 
           <div className="dashboard-hero-summary mt-4">
             <div>
-              <span>This month</span>
-              <strong>{loading ? "—" : formatMoney(kpis.monthSales)}</strong>
+              <span>Items sold</span>
+              <strong>{loading ? "—" : String(kpis.totalItems)}</strong>
             </div>
             <div>
-              <span>Net profit</span>
-              <strong>{loading ? "—" : formatMoney(kpis.netProfit)}</strong>
+              <span>Orders</span>
+              <strong>{loading ? "—" : String(kpis.totalOrders)}</strong>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* KPI ROW */}
-      <section className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
-        <MetricCard
-          icon={DollarSign}
-          title="Total Sales"
-          value={formatMoney(kpis.totalSales)}
-          subtitle={`${formatMoney(kpis.monthSales)} this month`}
-          loading={loading}
-          accent="bg-purple-100 text-purple-600 dark:bg-purple-500/15"
-          to="/orders"
-        />
-        <MetricCard
-          icon={ShoppingBag}
-          title="Orders"
-          value={String(kpis.totalOrders)}
-          subtitle={`${kpis.totalItems} items sold`}
-          loading={loading}
-          accent="bg-pink-100 text-pink-600 dark:bg-pink-500/15"
-          to="/orders"
-        />
-        <MetricCard
-          icon={Package}
-          title="Items Sold"
-          value={String(kpis.totalItems)}
-          subtitle="Across all marketplaces"
-          loading={loading}
-          accent="bg-cyan-100 text-cyan-600 dark:bg-cyan-500/15"
-          to="/orders"
-        />
-        <MetricCard
-          icon={TrendingUp}
-          title="Net Profit"
-          value={formatMoney(kpis.netProfit)}
-          subtitle={`${formatMoney(kpis.monthNet)} this month`}
-          loading={loading}
-          accent="bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15"
-          to="/reports"
-        />
-        <div className="col-span-2 md:col-span-1">
-          <MetricCard
-            icon={Receipt}
-            title="Avg. Order"
-            value={formatMoney(kpis.averageOrder)}
-            subtitle="Average order value"
-            loading={loading}
-            accent="bg-amber-100 text-amber-600 dark:bg-amber-500/15"
-            to="/reports"
-          />
         </div>
       </section>
 
