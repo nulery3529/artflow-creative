@@ -44,7 +44,7 @@ const looksLikeGoogleClientId = (value = "") => /\.apps\.googleusercontent\.com$
 if (!looksLikeGoogleClientId(googleClientId) && looksLikeGoogleClientId(googleClientSecret)) {
   [googleClientId, googleClientSecret] = [googleClientSecret, googleClientId];
 }
-// Use the currently valid Art Flow OAuth web client in production. The older
+// Use the current Art Flow OAuth web client in production. The older
 // client ID was deleted and causes Google's unauthorized_client response.
 if (process.env.VERCEL_ENV === "production") {
   googleClientId = ARTFLOW_GOOGLE_CLIENT_ID;
