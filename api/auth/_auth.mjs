@@ -132,6 +132,10 @@ export const auth = betterAuth({
     google: {
       clientId: googleClientId,
       clientSecret: googleClientSecret,
+      // Google is a sign-in option only for accounts that are already linked.
+      // New users register with Art Flow email/password first, which prevents
+      // an accidental Google account choice from creating a blank workspace.
+      disableSignUp: true,
       accessType: "offline",
       // Every explicit Google connection in ArtFlow must be capable of both
       // tracker access and Gmail sales syncing. Keeping the complete required
