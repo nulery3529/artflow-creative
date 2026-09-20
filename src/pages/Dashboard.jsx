@@ -13,6 +13,7 @@ import {
   BarChart3,
   Activity,
   Target,
+  MoreHorizontal,
 } from "lucide-react";
 
 import PullToRefresh from "@/components/PullToRefresh";
@@ -757,94 +758,105 @@ export default function Dashboard() {
     );
 
   return (
-    <div className="space-y-5 lg:space-y-6 pt-4 lg:pt-0">
+    <div className="dashboard-page space-y-5 lg:space-y-6 pt-4 lg:pt-0">
       <PullToRefresh onRefresh={refresh} />
 
-      {/* HEADER */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl lg:text-[28px] font-semibold tracking-tight text-foreground">
-            {greeting}, {firstName}!
-          </h1>
+      {/* V57 FINTECH HERO */}
+      <section className="dashboard-hero">
+        <div className="dashboard-hero-glow" aria-hidden="true" />
+        <div className="relative z-10">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="dashboard-hero-kicker">{greeting}, {firstName}</p>
+              <p className="dashboard-hero-label">Total business sales</p>
+              <h1 className="dashboard-hero-value">{loading ? "—" : formatMoney(kpis.totalSales)}</h1>
+            </div>
+            <button
+              type="button"
+              onClick={refresh}
+              disabled={syncing}
+              className="dashboard-hero-sync"
+              aria-label="Sync business data"
+            >
+              <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
+            </button>
+          </div>
 
-          <p className="text-xs lg:text-sm text-muted-foreground mt-1">
-            Here’s what’s happening with your
-            art business today.
-          </p>
+          <div className="dashboard-hero-actions mt-6" aria-label="Quick business actions">
+            <Link to="/orders" className="dashboard-hero-action">
+              <span><ShoppingBag className="w-5 h-5" /></span>
+              <small>Orders</small>
+            </Link>
+            <Link to="/expenses" className="dashboard-hero-action">
+              <span><Receipt className="w-5 h-5" /></span>
+              <small>Expenses</small>
+            </Link>
+            <Link to="/inventory" className="dashboard-hero-action">
+              <span><Package className="w-5 h-5" /></span>
+              <small>Inventory</small>
+            </Link>
+            <Link to="/reports" className="dashboard-hero-action is-accent">
+              <span><MoreHorizontal className="w-5 h-5" /></span>
+              <small>More</small>
+            </Link>
+          </div>
+
+          <div className="dashboard-hero-summary mt-4">
+            <div>
+              <span>This month</span>
+              <strong>{loading ? "—" : formatMoney(kpis.monthSales)}</strong>
+            </div>
+            <div>
+              <span>Net profit</span>
+              <strong>{loading ? "—" : formatMoney(kpis.netProfit)}</strong>
+            </div>
+          </div>
         </div>
-
-        <button
-          type="button"
-          onClick={refresh}
-          disabled={syncing}
-          className="artflow-glass flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-xs font-medium disabled:opacity-60"
-        >
-          <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
-          {syncing ? "Syncing…" : "Sync now"}
-        </button>
-      </div>
+      </section>
 
       {/* KPI ROW */}
       <section className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
         <MetricCard
           icon={DollarSign}
           title="Total Sales"
-          value={formatMoney(
-            kpis.totalSales
-          )}
-          subtitle={`${formatMoney(
-            kpis.monthSales
-          )} this month`}
+          value={formatMoney(kpis.totalSales)}
+          subtitle={`${formatMoney(kpis.monthSales)} this month`}
           loading={loading}
           accent="bg-purple-100 text-purple-600 dark:bg-purple-500/15"
           to="/orders"
         />
-
         <MetricCard
           icon={ShoppingBag}
           title="Orders"
-          value={String(
-            kpis.totalOrders
-          )}
+          value={String(kpis.totalOrders)}
           subtitle={`${kpis.totalItems} items sold`}
           loading={loading}
           accent="bg-pink-100 text-pink-600 dark:bg-pink-500/15"
           to="/orders"
         />
-
         <MetricCard
           icon={Package}
           title="Items Sold"
-          value={String(
-            kpis.totalItems
-          )}
+          value={String(kpis.totalItems)}
           subtitle="Across all marketplaces"
           loading={loading}
           accent="bg-cyan-100 text-cyan-600 dark:bg-cyan-500/15"
           to="/orders"
         />
-
         <MetricCard
           icon={TrendingUp}
           title="Net Profit"
-          value={formatMoney(
-            kpis.netProfit
-          )}
-          subtitle={`${formatMoney(
-            kpis.monthNet
-          )} this month`}
+          value={formatMoney(kpis.netProfit)}
+          subtitle={`${formatMoney(kpis.monthNet)} this month`}
           loading={loading}
           accent="bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15"
           to="/reports"
         />
-
         <div className="col-span-2 md:col-span-1">
           <MetricCard
             icon={Receipt}
             title="Avg. Order"
-            value={formatMoney(
-              kpis.averageOrder
-            )}
+            value={formatMoney(kpis.averageOrder)}
             subtitle="Average order value"
             loading={loading}
             accent="bg-amber-100 text-amber-600 dark:bg-amber-500/15"
