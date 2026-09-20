@@ -5,7 +5,7 @@ export default function AboutArtFlow() {
   useEffect(() => {
     document.title = "Art Flow Creative | Business Management for Independent Sellers";
     const meta = document.querySelector('meta[name="description"]');
-    if (meta) meta.setAttribute("content", "Art Flow Creative helps independent artists and online sellers organize sales, expenses, inventory, reports, and authorized marketplace and Google integrations.");
+    if (meta) meta.setAttribute("content", "Art Flow Creative helps independent artists and online sellers organize sales, expenses, inventory, reports, and marketplace activity.");
   }, []);
 
   return (
@@ -20,19 +20,16 @@ export default function AboutArtFlow() {
         </header>
 
         <section className="mt-10 space-y-4">
-          <h2 className="text-2xl font-semibold">How Google connections are used</h2>
+          <h2 className="text-2xl font-semibold">Your business records stay in Art Flow</h2>
           <p className="text-sm leading-7">
-            Google connections are optional and are started only by the user. When authorized, Art Flow Creative can create or work with the user's ArtFlow tracker in Google Drive and read marketplace sale emails from Gmail so supported orders can be imported into the user's private business workspace.
-          </p>
-          <p className="text-sm leading-7">
-            Art Flow Creative does not use Google user data for advertising and does not sell Google user data. Users can revoke Google access from their Google Account or reconnect the integration from Art Flow Creative when needed.
+            Art Flow Creative uses its own account system and database. Marketplace records, expenses, inventory, reports, and manual sale entries are stored in the Art Flow workspace associated with your account.
           </p>
         </section>
 
         <section className="mt-10 space-y-4">
-          <h2 className="text-2xl font-semibold">Your account stays separate from Google</h2>
+          <h2 className="text-2xl font-semibold">Marketplace tools</h2>
           <p className="text-sm leading-7">
-            Art Flow Creative uses its own email-and-password account system. Connecting Google is optional and is used only for the Google-powered features a user chooses to enable.
+            Supported marketplace features can import or organize data from services such as Etsy, eBay, Depop, Vinted, and Poshmark. Availability depends on each marketplace and may change over time.
           </p>
         </section>
 
