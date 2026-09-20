@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogIn, Mail, Lock, Loader2, KeyRound } from "lucide-react";
+import GoogleIcon from "@/components/GoogleIcon";
+import { artflowAuthClient } from "@/lib/artflowAuthClient";
 import AuthLayout from "@/components/AuthLayout";
 import { safeReturnTo } from "@/lib/authReturnTo";
 
@@ -12,6 +14,7 @@ export default function IndependentLogin() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [codeLoading, setCodeLoading] = useState(false);
   const [codeSent, setCodeSent] = useState(false);
   const [signInCode, setSignInCode] = useState("");
@@ -91,6 +94,22 @@ export default function IndependentLogin() {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    if (loading || googleLoading || codeLoading) return;
+    setError("");
+    setGoogleLoading(true);
+    try {
+      await artflowAuthClient.signIn.social({
+        provider: "google",
+        callbackURL: safeReturnTo(),
+        errorCallbackURL: "/login?error=google_sign_in_failed",
+      });
+    } catch (err) {
+      setGoogleLoading(false);
+      setError(err?.message || "Google sign-in could not start.");
+    }
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (loading) return;
@@ -127,7 +146,7 @@ export default function IndependentLogin() {
     <AuthLayout
       icon={LogIn}
       title="Welcome back"
-      subtitle="Sign in with your Art Flow Creative email and password"
+      subtitle="Continue with Google or use your Art Flow Creative email and password"
       footer={
         <>
           New to Art Flow?{" "}
@@ -140,6 +159,20 @@ export default function IndependentLogin() {
           {error}
         </div>
       )}
+
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full h-12 rounded-2xl font-semibold text-base bg-background text-foreground"
+        onClick={handleGoogleSignIn}
+        disabled={loading || googleLoading || codeLoading}
+      >
+        {googleLoading ? (
+          <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Connecting to Google…</>
+        ) : (
+          <><GoogleIcon className="w-5 h-5 mr-2" />Continue with Google</>
+        )}
+      </Button>
 
       <div className="mt-3 space-y-3">
         <Button
