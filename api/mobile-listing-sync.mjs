@@ -873,6 +873,73 @@ async function collectDepopProfileListings(profileUrl) {
   return out;
 }
 
+
+async function collectEbayProfileListings(usernameInput) {
+  const username = cleanMarketplaceUsername(usernameInput);
+  if (!isValidMarketplaceUsername(username)) throw new Error('Enter a valid eBay username or shop name.');
+
+  const profileUrl = linkedSiteProfileUrl('eBay', username);
+  const listings = [];
+  const seen = new Set();
+  let complete = true;
+
+  for (let page = 1; page <= 6 && listings.length < 1200; page += 1) {
+    const candidatePages = [
+      `https://www.ebay.com/sch/i.html?_ssn=${encodeURIComponent(username)}&_ipg=240&_pgn=${page}&LH_Sold=0&LH_Complete=0`,
+      `https://www.ebay.com/sch/${encodeURIComponent(username)}/m.html?_ipg=240&_pgn=${page}`,
+    ];
+
+    let found = [];
+    let lastError = null;
+
+    for (const candidate of candidatePages) {
+      try {
+        const { html, finalUrl } = await fetchHtml(candidate, 12000);
+        found = extractListingLinks('eBay', html, finalUrl || candidate);
+        if (found.length) break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (!found.length && page === 1 && profileUrl) {
+      try {
+        const { html, finalUrl } = await fetchHtml(profileUrl, 12000);
+        found = extractListingLinks('eBay', html, finalUrl || profileUrl);
+      } catch (error) {
+        lastError = lastError || error;
+      }
+    }
+
+    if (!found.length) {
+      if (page === 1 && lastError) throw lastError;
+      break;
+    }
+
+    let added = 0;
+    for (const raw of found) {
+      const url = normalizeUrl(raw);
+      if (!url || !isListingUrl('eBay', url) || seen.has(url)) continue;
+      seen.add(url);
+      listings.push({ platform: 'eBay', url });
+      added += 1;
+      if (listings.length >= 1200) break;
+    }
+
+    if (!added) break;
+    if (found.length < 40) break;
+    if (page === 6) complete = false;
+  }
+
+  return {
+    username,
+    profileUrl,
+    listings,
+    total: listings.length,
+    complete,
+  };
+}
+
 async function session(req) {
   return auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
 }
@@ -1204,9 +1271,10 @@ export default async function handler(req, res) {
     const isVintedUsernameRequest = requestedPlatform === 'Vinted' && Boolean(requestedUsername);
     const isPoshmarkUsernameRequest = requestedPlatform === 'Poshmark' && Boolean(requestedUsername);
     const isEtsyUsernameRequest = requestedPlatform === 'Etsy' && Boolean(requestedUsername);
-    const isPublicShopUsernameRequest = ['Depop', 'eBay'].includes(requestedPlatform) && Boolean(requestedUsername);
+    const isEbayUsernameRequest = requestedPlatform === 'eBay' && Boolean(requestedUsername);
+    const isPublicShopUsernameRequest = requestedPlatform === 'Depop' && Boolean(requestedUsername);
     const submitted = splitUrls(body.urls || body.url || '');
-    if (!submitted.length && !isVintedUsernameRequest && !isPoshmarkUsernameRequest && !isEtsyUsernameRequest && !isPublicShopUsernameRequest) {
+    if (!submitted.length && !isVintedUsernameRequest && !isPoshmarkUsernameRequest && !isEtsyUsernameRequest && !isEbayUsernameRequest && !isPublicShopUsernameRequest) {
       return send(400, { error: 'Enter a marketplace username or paste a supported marketplace link.' });
     }
 
@@ -1268,6 +1336,32 @@ export default async function handler(req, res) {
         return send(error?.code === 'ETSY_SHOP_NOT_FOUND' ? 404 : 502, {
           error: clean(error?.message || 'Could not load that Etsy shop by username.'),
           reason: 'etsy_username_import_failed',
+        });
+      }
+    }
+
+    if (isEbayUsernameRequest) {
+      try {
+        const profile = await collectEbayProfileListings(requestedUsername);
+        if (!profile.listings.length) {
+          return send(422, {
+            error: `eBay seller ${profile.username || requestedUsername} does not have any readable active listings right now.`,
+            reason: 'ebay_profile_empty',
+          });
+        }
+        directListings.push(...profile.listings);
+        fullProfileSnapshots.push({
+          platform: 'eBay',
+          profileUrl: profile.profileUrl,
+          username: profile.username,
+          urls: profile.listings.map((item) => normalizeUrl(item.url)).filter(Boolean),
+          partial: profile.complete === false,
+        });
+      } catch (error) {
+        console.warn('eBay full-profile import failed', error?.message || error);
+        return send(502, {
+          error: clean(error?.message || 'eBay full-profile import failed.'),
+          reason: 'ebay_profile_import_failed',
         });
       }
     }
