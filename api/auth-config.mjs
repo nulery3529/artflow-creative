@@ -1,3 +1,5 @@
+const ARTFLOW_GOOGLE_CLIENT_ID = "280802752102-m7pnv9mdpjrehg3maln9kjk4du8m80nb.apps.googleusercontent.com";
+
 function cleanEnvValue(value) {
   const text = String(value || "").trim();
   if (text.length >= 2 && ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'")))) {
@@ -13,6 +15,7 @@ export function GET() {
   if (!looksLikeGoogleClientId(googleClientId) && looksLikeGoogleClientId(googleClientSecret)) {
     [googleClientId, googleClientSecret] = [googleClientSecret, googleClientId];
   }
+  if (process.env.VERCEL_ENV === "production") googleClientId = ARTFLOW_GOOGLE_CLIENT_ID;
 
   return Response.json({
     emailPassword: true,
