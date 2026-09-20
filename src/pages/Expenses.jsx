@@ -21,17 +21,12 @@ export default function Expenses() {
   const pending = useMemo(() => records.filter((e) => e?.status === "pending"), [records]);
   const approved = useMemo(() => records.filter(isApprovedExpense), [records]);
   const refresh = async () => {
-    await fetch("/api/gmail-expense-sync", {
-      method: "POST",
-      credentials: "include",
-      cache: "no-store",
-    }).catch(() => null);
     await reloadExpenses();
   };
   const [filter, setFilter] = useState("All");
   const { isOpen: formOpen, open: openForm, close: closeForm } = useModalRoute();
   const [editRecord, setEditRecord] = useState(null);
-  const [importingEmail, setImportingEmail] = useState(false);
+  const [refreshingExpenses, setRefreshingExpenses] = useState(false);
   const recurringChecked = useRef(false);
 
   useEffect(() => {
@@ -53,25 +48,16 @@ export default function Expenses() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [records, expensesLoading]);
 
-  const importForwardedExpenses = async () => {
-    setImportingEmail(true);
+  const refreshExpenseRecords = async () => {
+    if (refreshingExpenses) return;
+    setRefreshingExpenses(true);
     try {
-      const response = await fetch("/api/gmail-expense-sync", {
-        method: "POST",
-        credentials: "include",
-        cache: "no-store",
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok && response.status !== 409) {
-        throw new Error(data?.error || "Expense sync failed");
-      }
       await reloadExpenses();
-      if (response.ok) toast.success(data?.message || "Expenses are up to date");
-      else toast.info(data?.error || "Reconnect Gmail to resume expense syncing");
+      toast.success("Expenses refreshed");
     } catch (e) {
       toast.error("Expense refresh failed", { description: e?.message });
     } finally {
-      setImportingEmail(false);
+      setRefreshingExpenses(false);
     }
   };
 
@@ -152,12 +138,12 @@ export default function Expenses() {
           <p className="text-xs text-muted-foreground mt-1">Your saved business expenses are stored securely with Art Flow. Use Refresh to load the latest records.</p>
         </div>
         <button
-          onClick={importForwardedExpenses}
-          disabled={importingEmail}
+          onClick={refreshExpenseRecords}
+          disabled={refreshingExpenses}
           className="w-full h-11 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] flex items-center justify-center gap-2 text-sm font-semibold disabled:opacity-60"
         >
-          <RefreshCw className={`w-4 h-4 ${importingEmail ? "animate-spin" : ""}`} />
-          {importingEmail ? "Refreshing expenses…" : "Refresh Expenses"}
+          <RefreshCw className={`w-4 h-4 ${refreshingExpenses ? "animate-spin" : ""}`} />
+          {refreshingExpenses ? "Refreshing expenses…" : "Refresh Expenses"}
         </button>
       </section>
 
