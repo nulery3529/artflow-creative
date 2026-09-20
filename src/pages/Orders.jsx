@@ -39,33 +39,18 @@ export default function Orders() {
     }
   }, [pathname, locationSearch, reloadOrders]);
   const { isOpen: formOpen, open: openForm, close: closeForm } = useModalRoute();
-  const [importingEmail, setImportingEmail] = useState(false);
+  const [refreshingOrders, setRefreshingOrders] = useState(false);
 
-  const importEmailSales = async () => {
-    setImportingEmail(true);
+  const refreshOrders = async () => {
+    if (refreshingOrders) return;
+    setRefreshingOrders(true);
     try {
-      const runSync = async (url) => {
-        const response = await fetch(url, {
-          method: "POST",
-          credentials: "include",
-          cache: "no-store",
-        });
-        return { response, data: await response.json().catch(() => ({})) };
-      };
-      const [gmail, tracker] = await Promise.all([
-        runSync("/api/gmail-sales-sync"),
-        runSync("/api/tracker-sync"),
-      ]);
-      const usable = [gmail, tracker].filter(({ response }) => response.ok || response.status === 409);
-      if (!usable.length) throw new Error(gmail.data?.error || tracker.data?.error || "Sales sync failed");
       await reloadOrders();
-      const success = [gmail, tracker].find(({ response }) => response.ok);
-      if (success) toast.success(success.data?.message || "Sales are up to date");
-      else toast.info(gmail.data?.error || tracker.data?.error || "Reconnect Google to resume automatic sales sync");
+      toast.success("Orders refreshed");
     } catch (e) {
-      toast.error("Sales sync failed", { description: e?.message });
+      toast.error("Could not refresh orders", { description: e?.message });
     } finally {
-      setImportingEmail(false);
+      setRefreshingOrders(false);
     }
   };
 
@@ -167,12 +152,12 @@ export default function Orders() {
         </button>
 
         <button
-          onClick={importEmailSales}
-          disabled={importingEmail}
+          onClick={refreshOrders}
+          disabled={refreshingOrders}
           className="w-full h-12 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] flex items-center justify-center gap-2 text-sm font-semibold disabled:opacity-60"
         >
-          <RefreshCw className={`w-4 h-4 ${importingEmail ? "animate-spin" : ""}`} />
-          {importingEmail ? "Syncing all sales…" : "Sync All Sales Now"}
+          <RefreshCw className={`w-4 h-4 ${refreshingOrders ? "animate-spin" : ""}`} />
+          {refreshingOrders ? "Refreshing orders…" : "Refresh Orders"}
         </button>
       </div>
 
