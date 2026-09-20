@@ -59,9 +59,7 @@ export default function Terms() {
           <section className="space-y-3">
             <h2 className="text-xl font-semibold">5. Third-party services</h2>
             <p className="text-muted-foreground leading-7">
-              Art Flow Creative may connect with Gmail and other platforms you choose to authorize. Those services are
-              governed by their own terms and privacy practices. You may disconnect supported
-              integrations when the app provides that option.
+              Art Flow Creative may connect with supported marketplaces and service providers you choose to use. Those services are governed by their own terms and privacy practices.
             </p>
           </section>
 
