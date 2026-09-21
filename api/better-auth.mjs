@@ -72,11 +72,9 @@ async function directEmailSignup(req, res) {
 
 async function directEmailSignIn(req, res) {
   try {
-    const result = await auth.api.signInEmail({
+    const result = await signInEmailWithFallback({
       body: requestBody(req),
       headers: fromNodeHeaders(req.headers),
-      returnHeaders: true,
-      returnStatus: true,
     });
     applyHeaders(res, result?.headers);
     return res.status(result?.status || 200).json(result?.response ?? {});
@@ -96,23 +94,48 @@ function safeReturnPath(value = "/") {
   return text;
 }
 
-function loginEmailAlias(value = "") {
-  return String(value || "").trim().toLowerCase();
+function loginEmailCandidates(value = "") {
+  const email = String(value || "").trim().toLowerCase();
+  if (!email) return [];
+  const aliases = {
+    "natashaulery@gmail.com": "nulery3529@gmail.com",
+  };
+  return Array.from(new Set([email, aliases[email]].filter(Boolean)));
+}
+
+async function signInEmailWithFallback({ body, headers }) {
+  const candidates = loginEmailCandidates(body?.email);
+  let lastError = null;
+  for (const email of candidates) {
+    try {
+      return await auth.api.signInEmail({
+        body: {
+          ...body,
+          email,
+        },
+        headers,
+        returnHeaders: true,
+        returnStatus: true,
+      });
+    } catch (error) {
+      lastError = error;
+      if (errorStatus(error) >= 500) throw error;
+    }
+  }
+  throw lastError || new Error("Invalid email or password");
 }
 
 async function directEmailFormSignIn(req, res) {
   const body = requestBody(req);
   const returnTo = safeReturnPath(body.returnTo || "/");
   try {
-    const result = await auth.api.signInEmail({
+    const result = await signInEmailWithFallback({
       body: {
-        email: loginEmailAlias(body.email),
+        email: String(body.email || ""),
         password: String(body.password || ""),
         rememberMe: true,
       },
       headers: fromNodeHeaders(req.headers),
-      returnHeaders: true,
-      returnStatus: true,
     });
     applyHeaders(res, result?.headers);
     res.statusCode = 303;
