@@ -4,6 +4,12 @@ import { auth } from "./auth/_auth.mjs";
 const nodeHandler = toNodeHandler(auth);
 
 function requestBody(req) {
+  if (Buffer.isBuffer(req.body)) {
+    const text = req.body.toString("utf8");
+    try { return JSON.parse(text); } catch {}
+    try { return Object.fromEntries(new URLSearchParams(text)); } catch {}
+    return {};
+  }
   if (req.body && typeof req.body === "object") return req.body;
   if (typeof req.body === "string") {
     try { return JSON.parse(req.body); } catch {}
@@ -91,8 +97,7 @@ function safeReturnPath(value = "/") {
 }
 
 function loginEmailAlias(value = "") {
-  const email = String(value || "").trim().toLowerCase();
-  return email === "natashaulery@gmail.com" ? "nulery3529@gmail.com" : email;
+  return String(value || "").trim().toLowerCase();
 }
 
 async function directEmailFormSignIn(req, res) {
@@ -114,9 +119,14 @@ async function directEmailFormSignIn(req, res) {
     res.setHeader("Location", returnTo);
     return res.end();
   } catch (error) {
-    if (errorStatus(error) >= 500) {
-      console.error("Art Flow form sign-in failed", error?.stack || error?.message || error);
-    }
+    console.warn("Art Flow form sign-in failed", {
+      status: errorStatus(error),
+      message: error?.message || error?.body?.message || "Sign-in failed",
+      hasEmail: Boolean(body.email),
+      hasPassword: Boolean(body.password),
+      contentType: req.headers?.["content-type"] || null,
+      bodyType: Buffer.isBuffer(req.body) ? "buffer" : typeof req.body,
+    });
     res.statusCode = 303;
     res.setHeader("Location", "/login?error=invalid_credentials");
     return res.end();
