@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogIn, Mail, Lock, Loader2 } from "lucide-react";
+import { LogIn, Mail, Lock } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
 import { artflowAuthClient } from "@/lib/artflowAuthClient";
@@ -130,18 +130,11 @@ export default function IndependentLogin() {
         </div>
       )}
 
-      <Button
-        type="button"
-        variant="outline"
-        className="w-full h-12 rounded-2xl font-semibold text-base bg-background text-foreground"
-        onClick={handleGoogleSignIn}
-        disabled={loading || googleLoading}
-      >
-        {googleLoading ? (
-          <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Opening Google…</>
-        ) : (
-          <><GoogleIcon className="w-5 h-5 mr-2" />Continue with Google</>
-        )}
+      <Button asChild variant="outline" className="w-full h-12 rounded-2xl font-semibold text-base bg-background text-foreground">
+        <a href={`/api/auth/google-login?returnTo=${encodeURIComponent(safeReturnTo())}`}>
+          <GoogleIcon className="w-5 h-5 mr-2" />
+          Continue with Google
+        </a>
       </Button>
 
       <div className="flex items-center gap-3 my-5" aria-hidden="true">
@@ -150,7 +143,8 @@ export default function IndependentLogin() {
         <span className="h-px flex-1 bg-border" />
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form action="/api/auth/login-form" method="POST" className="space-y-4">
+        <input type="hidden" name="returnTo" value={safeReturnTo()} />
         <div className="space-y-2">
           <Label htmlFor="independent-email">Email</Label>
           <div className="relative">
@@ -165,8 +159,8 @@ export default function IndependentLogin() {
             <Input id="independent-password" name="password" type="password" autoComplete="current-password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10 h-12" required />
           </div>
         </div>
-        <Button type="submit" className="w-full h-12 rounded-2xl font-semibold text-base" disabled={loading || googleLoading}>
-          {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Signing in…</> : "Sign in"}
+        <Button type="submit" className="w-full h-12 rounded-2xl font-semibold text-base">
+          Sign in
         </Button>
         <div className="text-center">
           <Link
