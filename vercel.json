@@ -43,6 +43,10 @@
       "dest": "/api/better-auth?__path=$1"
     },
     {
+      "src": "/login",
+      "dest": "/api/login-page"
+    },
+    {
       "src": "/api/mobile-listing-sync",
       "dest": "/api/mobile-listing-proxy"
     },
