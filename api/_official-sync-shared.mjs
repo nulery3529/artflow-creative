@@ -126,7 +126,7 @@ export async function insertOrders(client,businessId,rows,syncSource){
     `SELECT created_by_id FROM artflow.orders WHERE business_id=$1 AND created_by_id IS NOT NULL ORDER BY created_date DESC LIMIT 1`,
     [businessId]
   )).rows[0]?.created_by_id||null;
-  const prepared=rows.map(row=>{
+  const preparedRows=rows.map(row=>{
     const costs=costsFor(row.product_name,row.quantity);
     return {
       platform:String(row.platform||''),
@@ -145,6 +145,15 @@ export async function insertOrders(client,businessId,rows,syncSource){
       estimated_profit:Number((Number(row.sale_total||0)-Number(costs.total_cost||0)).toFixed(2)),
     };
   });
+  // A marketplace page can repeat an order at a pagination boundary. Remove
+  // duplicates inside the incoming batch before PostgreSQL checks existing
+  // rows; NOT EXISTS alone cannot see sibling rows from the same INSERT.
+  const prepared=[...new Map(preparedRows.map((row)=>{
+    const identity=row.order_id
+      ? `${row.platform}|order:${row.order_id}`
+      : `${row.platform}|${row.sale_date}|${row.product_name.toLowerCase()}|${row.quantity}|${row.sale_total.toFixed(2)}`;
+    return [identity,row];
+  })).values()];
   const result=await client.query(`
     WITH incoming AS (
       SELECT * FROM jsonb_to_recordset($1::jsonb) AS x(
