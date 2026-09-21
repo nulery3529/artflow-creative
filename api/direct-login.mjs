@@ -48,10 +48,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).send('Method not allowed');
 
   const body = bodyObject(req);
-  const enteredEmail = String(body.email || '').trim().toLowerCase();
-  const email = enteredEmail === 'natashaulery@gmail.com'
-    ? 'nulery3529@gmail.com'
-    : enteredEmail;
+  const email = String(body.email || '').trim().toLowerCase();
   const password = String(body.password || '');
   const returnTo = safeReturnTo(body.returnTo || '/');
 
