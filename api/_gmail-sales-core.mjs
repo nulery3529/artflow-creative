@@ -340,7 +340,11 @@ async function insertRows(client, businessId, messageId, receivedAt, rows) {
       row.order_id,
       sourceEmailId,
       createdBy,
-      JSON.stringify({ source: 'gmail_direct_sales', gmail_message_id: messageId }),
+      JSON.stringify({
+        source: 'gmail_direct_sales',
+        gmail_message_id: messageId,
+        ...(row.platform === 'Poshmark' ? { poshmark_parser_version: 2 } : {}),
+      }),
       row.product_name,
       row.quantity,
       row.size,
@@ -450,7 +454,13 @@ export async function syncGmailAccount(client, business, accessToken) {
        AND sync_source='gmail_direct_sales'
        AND COALESCE(source_email_id,'')<>''
      GROUP BY 1
-    HAVING bool_and(COALESCE(sale_total,0)>0)
+    HAVING bool_and(
+      COALESCE(sale_total,0)>0
+      AND (
+        platform <> 'Poshmark'
+        OR COALESCE(data->>'poshmark_parser_version','') = '2'
+      )
+    )
   `, [business.base44_id]);
   const completedIds = new Set(completed.rows.map((row) => clean(row.message_id)).filter(Boolean));
   // Bound each run so a historical backfill cannot exhaust Gmail's per-user
