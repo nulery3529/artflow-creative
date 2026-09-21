@@ -920,9 +920,12 @@ async function ebayApplicationToken() {
   try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
   if (!response.ok || !data?.access_token) {
     const detail = clean(data?.error_description || data?.error || text || `eBay token request failed (${response.status})`);
-    const error = new Error(detail || 'eBay application token could not be created.');
+    const authFailed = response.status === 401 || response.status === 403 || /client authentication failed/i.test(detail);
+    const error = new Error(authFailed
+      ? 'Art Flow’s eBay server connection needs administrator repair. You do not need to enter an API key or change your eBay account.'
+      : (detail || 'eBay application token could not be created.'));
     error.status = response.status;
-    error.code = response.status === 401 || response.status === 403 ? 'EBAY_API_AUTH_FAILED' : 'EBAY_API_ERROR';
+    error.code = authFailed ? 'EBAY_API_AUTH_FAILED' : 'EBAY_API_ERROR';
     throw error;
   }
   return data.access_token;
