@@ -231,9 +231,10 @@ export default function Gallery() {
 
     officialRefreshInFlight.current = true;
     try {
-      const [depopStatusResult, vintedStatusResult] = await Promise.allSettled([
+      const [depopStatusResult, vintedStatusResult, ebayStatusResult] = await Promise.allSettled([
         fetch("/api/depop-official", { credentials: "include", cache: "no-store" }).then(async (response) => ({ response, data: await response.json().catch(() => ({})) })),
         fetch("/api/vinted-official", { credentials: "include", cache: "no-store" }).then(async (response) => ({ response, data: await response.json().catch(() => ({})) })),
+        fetch("/api/ebay-official", { credentials: "include", cache: "no-store" }).then(async (response) => ({ response, data: await response.json().catch(() => ({})) })),
       ]);
 
       const jobs = [];
@@ -253,6 +254,15 @@ export default function Gallery() {
           cache: "no-store",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "sync_imported" }),
+        }));
+      }
+      if (ebayStatusResult.status === "fulfilled" && ebayStatusResult.value.response.ok && ebayStatusResult.value.data?.connected) {
+        jobs.push(fetch("/api/ebay-official", {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "sync" }),
         }));
       }
 
