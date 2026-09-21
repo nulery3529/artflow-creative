@@ -60,7 +60,7 @@ export default async function handler(req, res) {
           }
           connectedAccounts.push({ email: gmailAddress, approved: true });
         } catch (error) {
-          if (error?.status === 401 || error?.status === 403 || error?.code === 'GMAIL_RECONNECT') reconnectRequired = true;
+          if (error?.code === 'GMAIL_RECONNECT' || error?.status === 401) reconnectRequired = true;
         }
       }
       return res.status(200).json({
@@ -102,7 +102,7 @@ export default async function handler(req, res) {
         parsed += result.parsed;
         imported += result.imported;
       } catch (error) {
-        if (error?.status === 401 || error?.status === 403 || error?.code === 'GMAIL_RECONNECT') {
+        if (error?.code === 'GMAIL_RECONNECT' || error?.status === 401) {
           permissionErrors += 1;
           continue;
         }
@@ -112,9 +112,12 @@ export default async function handler(req, res) {
     }
 
     if (!matchedAccounts && hardError) {
+      const rateLimited = hardError?.code === 'GMAIL_RATE_LIMIT';
       return res.status(500).json({
-        error: hardError?.message || 'Gmail sales import failed.',
-        code: 'GMAIL_IMPORT_ERROR',
+        error: rateLimited
+          ? 'Google temporarily limited Gmail syncing. Art Flow will retry automatically.'
+          : hardError?.message || 'Gmail sales import failed.',
+        code: rateLimited ? 'GMAIL_RATE_LIMIT' : 'GMAIL_IMPORT_ERROR',
       });
     }
     if (!matchedAccounts && permissionErrors) {
