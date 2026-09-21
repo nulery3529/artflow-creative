@@ -948,13 +948,15 @@ async function collectEbayProfileListings(usernameInput) {
   let total = null;
   let complete = false;
 
-  // eBay's Browse API supports filtering search results to a seller account.
-  // category_ids=0 provides an all-category seller inventory query and the
-  // buyingOptions filter keeps auction-only listings from being omitted.
+  // Art Flow owns the eBay app credentials on the server. Users only link
+  // their seller account/profile; they never enter API credentials.
+  // Keep seller filtering independent of buyingOptions so an all-category
+  // seller import does not accidentally exclude valid active listings.
   for (let page = 0; page < 50 && offset < 10000; page += 1) {
     const url = new URL('https://api.ebay.com/buy/browse/v1/item_summary/search');
     url.searchParams.set('category_ids', '0');
-    url.searchParams.set('filter', `buyingOptions:{AUCTION|FIXED_PRICE|BEST_OFFER},sellers:{${username}}`);
+    url.searchParams.set('filter', `sellers:{${username}}`);
+    url.searchParams.set('fieldgroups', 'EXTENDED');
     url.searchParams.set('limit', '200');
     url.searchParams.set('offset', String(offset));
 
