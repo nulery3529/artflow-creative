@@ -13,6 +13,12 @@ const pool = new Pool({
 
 const normalize = (v = '') => String(v || '').trim().toLowerCase();
 
+async function runSequential(tasks) {
+  const results = [];
+  for (const task of tasks) results.push(await task());
+  return results;
+}
+
 async function getSession(req) {
   return auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
 }
@@ -697,8 +703,8 @@ async function advisorSnapshot(client, session) {
     )
   )`;
 
-  const [totals, platforms, sizes, products, expenseCategories, inventory, monthTrend, dataQuality] = await Promise.all([
-    client.query(
+  const [totals, platforms, sizes, products, expenseCategories, inventory, monthTrend, dataQuality] = await runSequential([
+    () => client.query(
       `SELECT
          COALESCE(sum(sale_total),0)::numeric AS total_sales,
          count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(source_email_id,''), base44_id))::int AS total_orders,
@@ -714,7 +720,7 @@ async function advisorSnapshot(client, session) {
        WHERE archived IS NOT TRUE AND ${accessSql}`,
       [ids, email]
     ),
-    client.query(
+    () => client.query(
       `SELECT COALESCE(NULLIF(platform,''),'Unknown') AS name,
               COALESCE(sum(sale_total),0)::numeric AS sales,
               count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(source_email_id,''), base44_id))::int AS orders,
@@ -725,7 +731,7 @@ async function advisorSnapshot(client, session) {
         GROUP BY 1 ORDER BY sales DESC, orders DESC LIMIT 10`,
       [ids, email]
     ),
-    client.query(
+    () => client.query(
       `SELECT COALESCE(NULLIF(size,''),'Unknown') AS name,
               COALESCE(sum(sale_total),0)::numeric AS sales,
               COALESCE(sum(COALESCE(quantity,1)),0)::numeric AS items,
@@ -735,7 +741,7 @@ async function advisorSnapshot(client, session) {
         GROUP BY 1 ORDER BY items DESC, sales DESC LIMIT 12`,
       [ids, email]
     ),
-    client.query(
+    () => client.query(
       `SELECT COALESCE(NULLIF(product_name,''),'Unknown item') AS name,
               COALESCE(sum(sale_total),0)::numeric AS sales,
               COALESCE(sum(COALESCE(quantity,1)),0)::numeric AS items,
@@ -746,7 +752,7 @@ async function advisorSnapshot(client, session) {
         GROUP BY 1 ORDER BY items DESC, sales DESC LIMIT 12`,
       [ids, email]
     ),
-    client.query(
+    () => client.query(
       `SELECT COALESCE(NULLIF(category,''),'Uncategorized') AS name,
               COALESCE(sum(amount),0)::numeric AS amount,
               count(*)::int AS count
@@ -757,7 +763,7 @@ async function advisorSnapshot(client, session) {
         GROUP BY 1 ORDER BY amount DESC LIMIT 12`,
       [ids, email]
     ),
-    client.query(
+    () => client.query(
       `SELECT
          count(*)::int AS item_types,
          COALESCE(sum(quantity_on_hand),0)::numeric AS units_on_hand,
@@ -773,7 +779,7 @@ async function advisorSnapshot(client, session) {
        WHERE business_id = ANY($1::text[])`,
       [ids]
     ),
-    client.query(
+    () => client.query(
       `SELECT
          COALESCE(sum(sale_total) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM')),0)::numeric AS current_sales,
          COALESCE(sum(sale_total) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE - interval '1 month','YYYY-MM')),0)::numeric AS previous_sales,
@@ -783,7 +789,7 @@ async function advisorSnapshot(client, session) {
        WHERE archived IS NOT TRUE AND ${accessSql}`,
       [ids, email]
     ),
-    client.query(
+    () => client.query(
       `SELECT
          (count(*) FILTER (WHERE COALESCE(total_cost,0)=0))::int AS orders_missing_cost,
          (count(*) FILTER (WHERE COALESCE(NULLIF(platform,''),'')=''))::int AS orders_missing_platform,
@@ -873,12 +879,12 @@ async function advisorSnapshot(client, session) {
 async function summary(client, session) {
   const { profile, businesses, ids } = await ensureWorkspace(client, session.user);
   const email = normalize(session.user.email);
-  const [orders, expenses, emailImports, syncStates, orderMetrics, expenseMetrics] = await Promise.all([
-    countBusinessRows(client, 'orders', ids, email, true),
-    countBusinessRows(client, 'expenses', ids, email, true),
-    countBusinessRows(client, 'email_import_messages', ids, email, false),
-    countBusinessRows(client, 'sync_states', ids, email, false),
-    client.query(
+  const [orders, expenses, emailImports, syncStates, orderMetrics, expenseMetrics] = await runSequential([
+    () => countBusinessRows(client, 'orders', ids, email, true),
+    () => countBusinessRows(client, 'expenses', ids, email, true),
+    () => countBusinessRows(client, 'email_import_messages', ids, email, false),
+    () => countBusinessRows(client, 'sync_states', ids, email, false),
+    () => client.query(
       `WITH scoped_orders AS (
          SELECT o.*,
            regexp_replace(COALESCE(o.sale_date,''),'T.*$','') AS dedupe_day,
@@ -946,7 +952,7 @@ async function summary(client, session) {
        FROM visible_orders`,
       [ids, email]
     ),
-    client.query(
+    () => client.query(
       `SELECT
          COALESCE(sum(
            COALESCE(
