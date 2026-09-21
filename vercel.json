@@ -4,7 +4,7 @@
   "buildCommand": "npm run build",
   "crons": [
     { "path": "/api/gmail-sales-cron", "schedule": "0 6 * * *" },
-    { "path": "/api/gmail-expense-cron", "schedule": "*/5 * * * *" }
+    { "path": "/api/gmail-expense-cron", "schedule": "*/15 * * * *" }
   ],
   "outputDirectory": "dist",
   "alias": [
