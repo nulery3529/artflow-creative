@@ -6,7 +6,8 @@ const nodeHandler = toNodeHandler(auth);
 function requestBody(req) {
   if (req.body && typeof req.body === "object") return req.body;
   if (typeof req.body === "string") {
-    try { return JSON.parse(req.body); } catch { return {}; }
+    try { return JSON.parse(req.body); } catch {}
+    try { return Object.fromEntries(new URLSearchParams(req.body)); } catch {}
   }
   return {};
 }
