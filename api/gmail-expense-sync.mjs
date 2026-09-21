@@ -182,7 +182,7 @@ async function listMessageIds(accessToken) {
   const ids = new Set();
   for (const query of EXPENSE_QUERIES) {
     let pageToken = '';
-    for (let page = 0; page < 10; page += 1) {
+    for (let page = 0; page < 3; page += 1) {
       const url = new URL('https://gmail.googleapis.com/gmail/v1/users/me/messages');
       url.searchParams.set('q', query);
       url.searchParams.set('maxResults', '100');
@@ -327,6 +327,7 @@ export async function syncExpenseAccount(client, business, accessToken) {
   const messageIds = await listMessageIds(accessToken);
   let imported = 0;
   let skipped = 0;
+  let processed = 0;
   for (const messageId of messageIds) {
     const alreadyProcessed = await client.query(`
       SELECT 1 FROM artflow.email_import_messages
@@ -334,12 +335,14 @@ export async function syncExpenseAccount(client, business, accessToken) {
       LIMIT 1
     `,[business.base44_id,messageId]);
     if (alreadyProcessed.rowCount) continue;
+    if (processed >= 50) break;
     const message = await readMessage(accessToken, messageId);
+    processed += 1;
     const result = await insertExpense(client, business, message, gmailAddress);
     imported += result.imported;
     skipped += result.skipped;
   }
-  return { matched: 1, scanned: messageIds.length, imported, skipped, gmailAddress };
+  return { matched: 1, scanned: processed, imported, skipped, gmailAddress };
 }
 
 export default async function handler(req, res) {
@@ -388,7 +391,7 @@ export default async function handler(req, res) {
         imported += result.imported;
         skipped += result.skipped;
       } catch (error) {
-        if (error?.status === 401 || error?.status === 403 || error?.code === 'GMAIL_RECONNECT') {
+        if (error?.code === 'GMAIL_RECONNECT' || error?.status === 401) {
           permissionErrors += 1;
           continue;
         }
@@ -398,7 +401,11 @@ export default async function handler(req, res) {
     }
 
     if (!matchedAccounts && hardError) {
-      return res.status(500).json({ error: hardError?.message || 'Gmail expense import failed.', code: 'GMAIL_EXPENSE_IMPORT_ERROR' });
+      const rateLimited = hardError?.code === 'GMAIL_RATE_LIMIT';
+      return res.status(500).json({
+        error: rateLimited ? 'Google temporarily limited Gmail syncing. Art Flow will retry automatically.' : hardError?.message || 'Gmail expense import failed.',
+        code: rateLimited ? 'GMAIL_RATE_LIMIT' : 'GMAIL_EXPENSE_IMPORT_ERROR',
+      });
     }
     if (!matchedAccounts && permissionErrors) {
       return res.status(409).json({ error: 'Reconnect Google in Account so Art Flow can read expense emails.', code: 'GMAIL_RECONNECT' });
