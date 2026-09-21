@@ -153,7 +153,7 @@ function linkedSiteProfileUrl(platform, usernameInput = '') {
   const encoded = encodeURIComponent(username);
   if (platform === 'Depop') return `https://www.depop.com/${encoded}/`;
   if (platform === 'Etsy') return `https://www.etsy.com/shop/${encoded}`;
-  if (platform === 'eBay') return `https://www.ebay.com/usr/${encoded}`;
+  if (platform === 'eBay') return `https://www.ebay.com/sch/i.html?_ssn=${encoded}&_sop=10`;
   if (platform === 'Poshmark') return `https://poshmark.com/closet/${encoded}`;
   return '';
 }
@@ -893,68 +893,124 @@ async function collectDepopProfileListings(profileUrl) {
 }
 
 
+async function ebayApplicationToken() {
+  const clientId = clean(process.env.EBAY_CLIENT_ID);
+  const clientSecret = clean(process.env.EBAY_CLIENT_SECRET);
+  if (!clientId || !clientSecret) {
+    const error = new Error('eBay API credentials are not configured on Art Flow yet.');
+    error.code = 'EBAY_API_NOT_CONFIGURED';
+    throw error;
+  }
+
+  const basic = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+  const response = await fetch('https://api.ebay.com/identity/v1/oauth2/token', {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${basic}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Accept: 'application/json',
+    },
+    body: new URLSearchParams({
+      grant_type: 'client_credentials',
+      scope: 'https://api.ebay.com/oauth/api_scope',
+    }),
+  });
+  const text = await response.text();
+  let data = {};
+  try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+  if (!response.ok || !data?.access_token) {
+    const detail = clean(data?.error_description || data?.error || text || `eBay token request failed (${response.status})`);
+    const error = new Error(detail || 'eBay application token could not be created.');
+    error.status = response.status;
+    error.code = response.status === 401 || response.status === 403 ? 'EBAY_API_AUTH_FAILED' : 'EBAY_API_ERROR';
+    throw error;
+  }
+  return data.access_token;
+}
+
+function ebayLegacyItemId(item = {}) {
+  const direct = clean(item?.legacyItemId);
+  if (direct) return direct;
+  const restful = clean(item?.itemId);
+  const match = restful.match(/^v1\|([^|]+)\|/i);
+  return clean(match?.[1] || '');
+}
+
 async function collectEbayProfileListings(usernameInput) {
   const username = cleanMarketplaceUsername(usernameInput);
   if (!isValidMarketplaceUsername(username)) throw new Error('Enter a valid eBay username or shop name.');
 
   const profileUrl = linkedSiteProfileUrl('eBay', username);
+  const accessToken = await ebayApplicationToken();
   const listings = [];
   const seen = new Set();
-  let complete = true;
+  let offset = 0;
+  let total = null;
+  let complete = false;
 
-  for (let page = 1; page <= 6 && listings.length < 1200; page += 1) {
-    const candidatePages = [
-      `https://www.ebay.com/sch/i.html?_ssn=${encodeURIComponent(username)}&_ipg=240&_pgn=${page}&LH_Sold=0&LH_Complete=0`,
-      `https://www.ebay.com/sch/${encodeURIComponent(username)}/m.html?_ipg=240&_pgn=${page}`,
-    ];
+  // eBay's Browse API supports filtering search results to a seller account.
+  // category_ids=0 provides an all-category seller inventory query and the
+  // buyingOptions filter keeps auction-only listings from being omitted.
+  for (let page = 0; page < 50 && offset < 10000; page += 1) {
+    const url = new URL('https://api.ebay.com/buy/browse/v1/item_summary/search');
+    url.searchParams.set('category_ids', '0');
+    url.searchParams.set('filter', `buyingOptions:{AUCTION|FIXED_PRICE|BEST_OFFER},sellers:{${username}}`);
+    url.searchParams.set('limit', '200');
+    url.searchParams.set('offset', String(offset));
 
-    let found = [];
-    let lastError = null;
-
-    for (const candidate of candidatePages) {
-      try {
-        const { html, finalUrl } = await fetchHtml(candidate, 12000);
-        found = extractListingLinks('eBay', html, finalUrl || candidate);
-        if (found.length) break;
-      } catch (error) {
-        lastError = error;
-      }
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
+        Accept: 'application/json',
+      },
+    });
+    const text = await response.text();
+    let data = {};
+    try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+    if (!response.ok) {
+      const detail = clean(data?.errors?.[0]?.message || data?.errors?.[0]?.longMessage || data?.error_description || data?.error || text || `eBay Browse API returned ${response.status}`);
+      const error = new Error(detail || `eBay Browse API returned ${response.status}`);
+      error.status = response.status;
+      error.code = response.status === 401 || response.status === 403 ? 'EBAY_API_AUTH_FAILED' : 'EBAY_BROWSE_ERROR';
+      throw error;
     }
 
-    if (!found.length && page === 1 && profileUrl) {
-      try {
-        const { html, finalUrl } = await fetchHtml(profileUrl, 12000);
-        found = extractListingLinks('eBay', html, finalUrl || profileUrl);
-      } catch (error) {
-        lastError = lastError || error;
-      }
+    const items = Array.isArray(data?.itemSummaries) ? data.itemSummaries : [];
+    const reportedTotal = Number(data?.total);
+    if (Number.isFinite(reportedTotal) && reportedTotal >= 0) total = reportedTotal;
+
+    for (const item of items) {
+      const listingId = ebayLegacyItemId(item);
+      const listingUrl = normalizeUrl(item?.itemWebUrl || (listingId ? `https://www.ebay.com/itm/${listingId}` : ''));
+      if (!listingId || !listingUrl || seen.has(listingUrl)) continue;
+      seen.add(listingUrl);
+      listings.push({
+        platform: 'eBay',
+        url: listingUrl,
+        meta: {
+          finalUrl: listingUrl,
+          title: clean(item?.title || `eBay listing ${listingId}`).slice(0, 300),
+          description: clean(item?.shortDescription || '').slice(0, 800),
+          imageUrl: clean(item?.image?.imageUrl || item?.thumbnailImages?.[0]?.imageUrl || ''),
+          price: Number(item?.price?.value || 0) || 0,
+          currency: clean(item?.price?.currency || 'USD').toUpperCase() || 'USD',
+        },
+      });
     }
 
-    if (!found.length) {
-      if (page === 1 && lastError) throw lastError;
+    offset += items.length;
+    if (!items.length || items.length < 200 || (total !== null && offset >= total)) {
+      complete = true;
       break;
     }
-
-    let added = 0;
-    for (const raw of found) {
-      const url = normalizeUrl(raw);
-      if (!url || !isListingUrl('eBay', url) || seen.has(url)) continue;
-      seen.add(url);
-      listings.push({ platform: 'eBay', url });
-      added += 1;
-      if (listings.length >= 1200) break;
-    }
-
-    if (!added) break;
-    if (found.length < 40) break;
-    if (page === 6) complete = false;
   }
 
   return {
     username,
     profileUrl,
     listings,
-    total: listings.length,
+    total: total ?? listings.length,
     complete,
   };
 }
