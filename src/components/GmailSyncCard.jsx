@@ -44,10 +44,8 @@ export default function GmailSyncCard() {
         });
         return { response, data: await response.json().catch(() => ({})) };
       };
-      const [sales, expenses] = await Promise.all([
-        runSync("/api/gmail-sales-sync"),
-        runSync("/api/gmail-expense-sync"),
-      ]);
+      const sales = await runSync("/api/gmail-sales-sync");
+      const expenses = await runSync("/api/gmail-expense-sync");
       const hardFailure = [sales, expenses].find(({ response }) => !response.ok && response.status !== 409);
       if (hardFailure) {
         const error = new Error(hardFailure.data?.error || "Gmail sync failed");
@@ -139,7 +137,7 @@ export default function GmailSyncCard() {
           <div className="rounded-2xl bg-muted/60 p-3">
             <p className="text-sm font-semibold">{accountEmails.length > 1 ? `${accountEmails.length} Gmail inboxes connected` : "Gmail connected"}</p>
             {accountEmails.length > 0 && <p className="text-xs text-foreground mt-1 break-words">{accountEmails.join(" · ")}</p>}
-            <p className="text-xs text-muted-foreground mt-1">Sales and recent receipt/invoice emails are checked automatically in the background every five minutes, even when Art Flow is closed. You can still use “artflow expense” for a receipt you want Art Flow to pick up explicitly.</p>
+            <p className="text-xs text-muted-foreground mt-1">Sales and recent receipt/invoice emails are checked automatically in the background every fifteen minutes, even when Art Flow is closed. You can still use “artflow expense” for a receipt you want Art Flow to pick up explicitly.</p>
           </div>
           <button
             type="button"
