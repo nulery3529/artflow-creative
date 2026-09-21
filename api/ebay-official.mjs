@@ -94,6 +94,10 @@ function xmlBlocks(xml,tag){
   const escaped=tag.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
   return [...String(xml||'').matchAll(new RegExp(`<${escaped}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${escaped}>`,'gi'))].map(m=>m[1]);
 }
+function httpsUrl(value=''){
+  const url=clean(value);
+  return url.replace(/^http:\/\//i,'https://');
+}
 async function ensureListingsTable(client){
   await client.query(`CREATE TABLE IF NOT EXISTS artflow.marketplace_listings (
     id text PRIMARY KEY,business_id text NOT NULL,platform text NOT NULL,listing_id text,title text NOT NULL,
@@ -122,7 +126,7 @@ async function ebayActivePage(accessToken,pageNumber=1){
     const listingId=xmlTag(item,'ItemID');
     const title=xmlTag(item,'Title')||`eBay listing ${listingId}`;
     const listingUrl=xmlTag(item,'ViewItemURL')||xmlTag(item,'ViewItemURLForNaturalSearch')||`https://www.ebay.com/itm/${listingId}`;
-    const imageUrl=xmlTag(item,'GalleryURL')||xmlTag(item,'PictureURL');
+    const imageUrl=httpsUrl(xmlTag(item,'GalleryURL')||xmlTag(item,'PictureURL'));
     const price=Number(xmlTag(item,'CurrentPrice')||xmlTag(item,'BuyItNowPrice')||0)||0;
     const currency=(item.match(/<CurrentPrice[^>]*currencyID="([^"]+)"/i)?.[1]||'USD').toUpperCase();
     const quantity=Math.max(0,Number(xmlTag(item,'QuantityAvailable')||xmlTag(item,'Quantity')||0)||0);
@@ -251,7 +255,7 @@ export default async function handler(req,res){
       let more=false;
       for(const status of ['COMPLETED','IN_PROGRESS']){
         let pages=0, continuation='';
-        while(pages<3){
+        while(pages<20){
           const url=continuation
             ? `https://api.ebay.com${continuation}`
             : `${ORDERS_URL}?filter=orderfulfillmentstatus:${encodeURIComponent(`{${status}}`)}&limit=50`;
@@ -282,7 +286,7 @@ export default async function handler(req,res){
           pages+=1;
           continuation=clean(data?.next||'');
           if(!continuation) break;
-          if(pages===3) more=true;
+          if(pages===20) more=true;
         }
       }
       const saved=await insertOrders(client,business.base44_id,rows,'ebay_official_oauth');

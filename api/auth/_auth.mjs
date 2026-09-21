@@ -64,7 +64,7 @@ const baseURL = process.env.VERCEL_ENV === "production"
 
 async function sendPasswordResetEmail({ user, url }) {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.PASSWORD_RESET_FROM || "Art Flow Creative <onboarding@resend.dev>";
+  const from = process.env.PASSWORD_RESET_FROM || "Art Flow Creative <help@artflowcreative.com>";
 
   if (!apiKey) {
     throw new Error("RESEND_API_KEY is not configured");
