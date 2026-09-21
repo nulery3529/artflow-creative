@@ -178,7 +178,7 @@ export default async function handler(req,res){
       const s=await client.query(`DELETE FROM artflow.marketplace_oauth_states WHERE state=$1 AND platform='eBay' AND expires_at>now() RETURNING *`,[state]);
       const saved=s.rows[0];
       if(!saved) return redirect(res,'error','eBay connection expired. Try Connect again.');
-      if(!configured()) return redirect(res,'error','eBay credentials are not configured in Art Flow.');
+      if(!configured()) return redirect(res,'error','eBay connection is temporarily unavailable. Please try again later.');
       const basic=Buffer.from(`${ebayClientId()}:${ebayClientSecret()}`).toString('base64');
       const token=await ebayToken({
         grant_type:'authorization_code',
@@ -225,7 +225,7 @@ export default async function handler(req,res){
     const body=parseBody(req), action=clean(body.action);
 
     if(action==='start'){
-      if(!configured()) return res.status(503).json({error:'eBay credentials are not configured yet. Add EBAY_CLIENT_ID, EBAY_CLIENT_SECRET and EBAY_RUNAME to the server environment.'});
+      if(!configured()) return res.status(503).json({error:'eBay connection is temporarily unavailable. Please try again later.'});
       const state=crypto.randomBytes(32).toString('base64url');
       await client.query(`DELETE FROM artflow.marketplace_oauth_states WHERE expires_at<=now()`);
       await client.query(`INSERT INTO artflow.marketplace_oauth_states (state,business_id,platform,code_verifier,expires_at) VALUES ($1,$2,'eBay','',now()+interval '15 minutes')`,[state,business.base44_id]);
@@ -247,7 +247,7 @@ export default async function handler(req,res){
     }
 
     if(action==='sync'){
-      if(!configured()) return res.status(503).json({error:'eBay credentials are not configured.'});
+      if(!configured()) return res.status(503).json({error:'eBay connection is temporarily unavailable. Please try again later.'});
       const token=await validAccessToken(client,business);
       const listingSync=await syncEbayListings(client,business,token);
       const rows=[];
