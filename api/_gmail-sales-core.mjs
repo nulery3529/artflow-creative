@@ -275,10 +275,10 @@ export async function googleJson(accessToken, url) {
   return response.json();
 }
 
-const GMAIL_QUERIES = [
-  'newer_than:180d from:no-reply@vinted.com subject:"You sold an item on Vinted"',
-  'newer_than:180d from:orders@poshmark.com "just sold to" "on Poshmark"',
-  'newer_than:180d {from:alerts.depop.com from:ohhey.depop.com} subject:"Sale confirmation for"',
+export const GMAIL_QUERIES = [
+  'from:no-reply@vinted.com subject:"You sold an item on Vinted"',
+  'from:orders@poshmark.com "just sold to" "on Poshmark"',
+  '{from:alerts.depop.com from:ohhey.depop.com} subject:"Sale confirmation for"',
 ];
 
 async function listMessageIds(accessToken) {
@@ -288,7 +288,7 @@ async function listMessageIds(accessToken) {
     // The first run is a true historical backfill. Later runs skip message IDs
     // already represented by a complete order, so a five-minute refresh does
     // not repeatedly download the full mailbox history.
-    for (let page = 0; page < 5; page += 1) {
+    for (let page = 0; page < 20; page += 1) {
       const url = new URL('https://gmail.googleapis.com/gmail/v1/users/me/messages');
       url.searchParams.set('q', query);
       url.searchParams.set('maxResults', '100');
