@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogIn, Mail, Lock, Loader2, KeyRound } from "lucide-react";
+import { LogIn, Mail, Lock, Loader2 } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
 import { artflowAuthClient } from "@/lib/artflowAuthClient";
@@ -15,9 +15,6 @@ export default function IndependentLogin() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [codeLoading, setCodeLoading] = useState(false);
-  const [codeSent, setCodeSent] = useState(false);
-  const [signInCode, setSignInCode] = useState("");
 
   const finish = () => {
     window.location.replace(safeReturnTo());
@@ -28,70 +25,6 @@ export default function IndependentLogin() {
     return enteredEmail === "natashaulery@gmail.com"
       ? "nulery3529@gmail.com"
       : enteredEmail;
-  };
-
-  const handleSendCode = async () => {
-    if (loading || googleLoading || codeLoading) return;
-    setError("");
-    const targetEmail = loginEmail();
-    if (!targetEmail) {
-      setError("Enter your email address first.");
-      return;
-    }
-    setCodeLoading(true);
-    try {
-      const response = await fetch("/api/auth/email-otp/send-verification-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        cache: "no-store",
-        body: JSON.stringify({ email: targetEmail, type: "sign-in" }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || data?.error) {
-        throw new Error(data?.message || data?.error?.message || "Could not send the sign-in code.");
-      }
-      setCodeSent(true);
-      setSignInCode("");
-    } catch (err) {
-      setError(err?.message || "Could not send the sign-in code.");
-    } finally {
-      setCodeLoading(false);
-    }
-  };
-
-  const handleCodeSignIn = async () => {
-    if (loading || googleLoading || codeLoading) return;
-    setError("");
-    const targetEmail = loginEmail();
-    const otp = signInCode.trim();
-    if (!targetEmail) {
-      setError("Enter your email address first.");
-      return;
-    }
-    if (otp.length < 6) {
-      setError("Enter the 6-digit code from your email.");
-      return;
-    }
-    setCodeLoading(true);
-    try {
-      const response = await fetch("/api/auth/sign-in/email-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        cache: "no-store",
-        body: JSON.stringify({ email: targetEmail, otp }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || data?.error) {
-        throw new Error(data?.message || data?.error?.message || "That sign-in code is invalid or expired.");
-      }
-      finish();
-    } catch (err) {
-      setError(err?.message || "Could not sign in with that code.");
-    } finally {
-      setCodeLoading(false);
-    }
   };
 
   const handleGoogleSignIn = async () => {
@@ -196,57 +129,6 @@ export default function IndependentLogin() {
           <><GoogleIcon className="w-5 h-5 mr-2" />Continue with Google</>
         )}
       </Button>
-
-      <div className="mt-3 space-y-3">
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full h-12 rounded-2xl font-semibold text-base bg-background text-foreground"
-          onClick={handleSendCode}
-          disabled={loading || googleLoading || codeLoading}
-        >
-          {codeLoading && !codeSent ? (
-            <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Sending code…</>
-          ) : (
-            <><Mail className="w-4 h-4 mr-2" />Email me a sign-in code</>
-          )}
-        </Button>
-
-        {codeSent && (
-          <div className="rounded-2xl border border-border bg-muted/30 p-4 space-y-3">
-            <div className="text-sm font-medium text-foreground">Enter the 6-digit code from your email</div>
-            <div className="relative">
-              <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                placeholder="123456"
-                value={signInCode}
-                onChange={(e) => setSignInCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                className="pl-10 h-12 tracking-[0.35em] font-semibold"
-                aria-label="Sign-in code"
-              />
-            </div>
-            <Button
-              type="button"
-              className="w-full h-12 rounded-2xl font-semibold"
-              onClick={handleCodeSignIn}
-              disabled={codeLoading || signInCode.length < 6}
-            >
-              {codeLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Signing in…</> : "Sign in with code"}
-            </Button>
-            <button
-              type="button"
-              className="w-full text-xs text-muted-foreground hover:text-foreground"
-              onClick={handleSendCode}
-              disabled={codeLoading}
-            >
-              Send another code
-            </button>
-          </div>
-        )}
-      </div>
 
       <div className="flex items-center gap-3 my-5" aria-hidden="true">
         <span className="h-px flex-1 bg-border" />
