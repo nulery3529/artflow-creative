@@ -67,6 +67,7 @@ export default function EbayConnectionBlock() {
       }
       toast.success("eBay synced", { description: data.message || `${saved} sales imported.` });
       window.dispatchEvent(new CustomEvent("artflow:data-synced"));
+      window.dispatchEvent(new CustomEvent("artflow:listings-synced", { detail: { platform: "eBay", saved: data.listings_saved || 0 } }));
       await load();
     } catch (error) {
       toast.error("eBay sync failed", { description: error?.message });
