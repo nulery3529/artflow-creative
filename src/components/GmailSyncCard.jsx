@@ -167,7 +167,7 @@ export default function GmailSyncCard() {
           </div>
           <button
             type="button"
-            onClick={connectGmail}
+            onClick={() => connectGmail()}
             disabled={connecting}
             className="w-full h-12 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
           >
