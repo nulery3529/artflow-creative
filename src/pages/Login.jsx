@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogIn, Mail, Lock, Loader2 } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
+import GoogleIcon from "@/components/GoogleIcon";
 import { artflowAuthClient } from "@/lib/artflowAuthClient";
 import { safeReturnTo } from "@/lib/authReturnTo";
 
@@ -14,6 +15,21 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const handleGoogle = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      const result = await artflowAuthClient.signIn.social({
+        provider: "google",
+        callbackURL: returnTo,
+      });
+      if (result?.error) throw new Error(result.error.message || "Could not start Google sign-in.");
+    } catch (err) {
+      setError(err?.message || "Could not start Google sign-in.");
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -49,6 +65,23 @@ export default function Login() {
           {error}
         </div>
       )}
+
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full h-12 font-medium mb-4"
+        onClick={handleGoogle}
+        disabled={loading}
+      >
+        <GoogleIcon className="w-5 h-5 mr-2" />
+        Continue with Google
+      </Button>
+
+      <div className="flex items-center gap-3 mb-4" aria-hidden="true">
+        <div className="h-px flex-1 bg-border" />
+        <span className="text-xs text-muted-foreground">or use your password</span>
+        <div className="h-px flex-1 bg-border" />
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
