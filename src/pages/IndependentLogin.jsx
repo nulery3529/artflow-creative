@@ -20,13 +20,6 @@ export default function IndependentLogin() {
     window.location.replace(safeReturnTo());
   };
 
-  const loginEmail = () => {
-    const enteredEmail = email.trim().toLowerCase();
-    return enteredEmail === "natashaulery@gmail.com"
-      ? "nulery3529@gmail.com"
-      : enteredEmail;
-  };
-
   const handleGoogleSignIn = async () => {
     if (loading || googleLoading) return;
     setError("");
@@ -62,13 +55,12 @@ export default function IndependentLogin() {
     setError("");
     setLoading(true);
     try {
-      const targetEmail = loginEmail();
       const response = await fetch("/api/auth/sign-in/email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         cache: "no-store",
-        body: JSON.stringify({ email: targetEmail, password, rememberMe: true }),
+        body: JSON.stringify({ email: email.trim(), password, rememberMe: true }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || data?.error) {
