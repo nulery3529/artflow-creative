@@ -100,7 +100,8 @@ export default async function handler(req, res) {
     // Leave the URL unchanged; Better Auth will return a normal error response.
   }
 
-  // Vercel's Node request adapter can fail before returning a response on the
+  // Keep password authentication on Better Auth's direct API so Vercel's
+  // Node request adapter cannot fail before returning a response on the
   // email signup route. Keep every other Better Auth route on the proven Node
   // handler, but use Better Auth's direct API for registration so password
   // hashing, transactions, account creation, and session cookies remain native.
