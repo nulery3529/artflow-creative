@@ -80,7 +80,7 @@ export default function EbayConnectionBlock() {
       toast.success("eBay listings imported", { description: data.message || "Gallery has been refreshed." });
       window.dispatchEvent(new CustomEvent("artflow:listings-synced", { detail: { platform: "eBay", saved: data.saved || 0 } }));
     } catch (error) {
-      toast.error("eBay listing import failed", { description: error?.message });
+      toast.error("eBay listing import is temporarily unavailable", { description: error?.message || "Art Flow is repairing the server connection. No API key is needed from you." });
     } finally {
       setBusy("");
     }
@@ -95,7 +95,7 @@ export default function EbayConnectionBlock() {
       if (!data.authorization_url) throw new Error("eBay authorization link was not returned");
       window.location.assign(data.authorization_url);
     } catch (error) {
-      toast.error("Could not connect eBay", { description: error?.message });
+      toast.error("Could not connect eBay", { description: error?.message || "Art Flow is repairing the eBay server connection. No API key is needed from you." });
       setBusy("");
     }
   };
