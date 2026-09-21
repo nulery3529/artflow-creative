@@ -9,6 +9,7 @@ import PageHeader from "@/components/PageHeader";
 import { useNavigate } from "react-router-dom";
 import MobileMarketplaceSyncCard from "@/components/MobileMarketplaceSyncCard";
 import EtsyShopLinkCard from "@/components/marketplace/EtsyShopLinkCard";
+import EbayConnectionBlock from "@/components/marketplace/EbayConnectionBlock";
 import { prepareImageForStorage } from "@/lib/imageUpload";
 
 const marketplaceTabs = ["All sites", "Vinted", "Depop", "Etsy", "eBay", "Poshmark"];
@@ -210,7 +211,6 @@ export default function Gallery() {
   const lastOfficialRefresh = useRef(0);
   const vintedProfileRefreshAttempted = useRef(false);
   const poshmarkProfileRefreshAttempted = useRef(false);
-  const ebayProfileRefreshAttempted = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -351,38 +351,6 @@ export default function Gallery() {
         if (response.ok) reloadMarketplaceListings();
       })
       .catch((error) => console.warn("Could not refresh saved Poshmark profile", error));
-  }, [linkedSellSites, reloadMarketplaceListings]);
-
-  useEffect(() => {
-    if (ebayProfileRefreshAttempted.current) return;
-    const profileUrl = linkedSellSites?.eBay || linkedSellSites?.ebay || "";
-    if (!profileUrl) return;
-
-    let username = "";
-    try {
-      const parts = new URL(profileUrl).pathname.split("/").filter(Boolean);
-      const sellerIndex = parts.findIndex((part) => ["usr", "str"].includes(part.toLowerCase()));
-      username = sellerIndex >= 0 ? (parts[sellerIndex + 1] || "").replace(/^@+/, "") : "";
-    } catch {}
-    if (!username) return;
-
-    ebayProfileRefreshAttempted.current = true;
-    fetch("/api/mobile-listing-sync", {
-      method: "POST",
-      credentials: "include",
-      cache: "no-store",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ platform: "eBay", username }),
-    })
-      .then(async (response) => ({ response, data: await response.json().catch(() => ({})) }))
-      .then(({ response, data }) => {
-        if (response.ok) {
-          reloadMarketplaceListings();
-        } else {
-          console.warn("Could not refresh saved eBay profile", data?.error || response.status);
-        }
-      })
-      .catch((error) => console.warn("Could not refresh saved eBay profile", error));
   }, [linkedSellSites, reloadMarketplaceListings]);
 
   useEffect(() => {
@@ -531,7 +499,7 @@ export default function Gallery() {
       if (!response.ok) throw new Error(data.error || "Could not link seller profile");
       setLinkedSellSites(data.urls || {});
 
-      if (["eBay", "Poshmark"].includes(linkSite)) {
+      if (linkSite === "Poshmark") {
         const importResponse = await fetch("/api/mobile-listing-sync", {
           method: "POST",
           credentials: "include",
@@ -545,6 +513,8 @@ export default function Gallery() {
         }
         await reloadMarketplaceListings();
         setLinkMessage(importData.message || `${linkSite} profile linked and listings imported.`);
+      } else if (linkSite === "eBay") {
+        setLinkMessage("eBay profile linked. Use Connect eBay below once, then Sync eBay to load its listings and photos.");
       } else {
         setLinkMessage(data.message || `${linkSite} profile linked.`);
       }
@@ -710,6 +680,8 @@ export default function Gallery() {
         onChanged={setLinkedSellSites}
         onListingsSynced={reloadMarketplaceListings}
       />
+
+      <EbayConnectionBlock />
 
       <MobileMarketplaceSyncCard />
 
