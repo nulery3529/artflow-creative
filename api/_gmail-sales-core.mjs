@@ -115,25 +115,38 @@ function vintedRows(subject, text) {
 
 function poshmarkRows(subject, text) {
   const normalizedSubject = clean(subject).replace(/^(?:(?:fwd?|fw):\s*)+/i, '');
-  const subjectMatch = normalizedSubject.match(/^"([\s\S]+?)"\s+just sold to\s+@([^\s!]+)\s+on Poshmark!/i);
+  const subjectMatch = normalizedSubject.match(/^\"([\s\S]+?)\"\s+just sold to\s+@([^\s!]+)\s+on Poshmark!/i);
   if (!subjectMatch) return [];
+
   const title = clean(subjectMatch[1]);
   const buyer = clean(subjectMatch[2]);
   const orderId = clean(text.match(/Order ID\s*(?:\n|:)\s*([a-z0-9-]+)/i)?.[1] || '');
   const itemBlock = text.match(/Item\s*\n\s*Price\s*\n([\s\S]*?)(?:Your Earnings|Sales tax|Packaging Reminder)/i)?.[1] || '';
-  const priceText =
+
+  // For bundle orders, Poshmark lists each item's original price and then the
+  // accepted Offer Price. The offer is the real gross sale amount and must win
+  // over the first individual item price.
+  const offerPriceText =
+    text.match(/(?:Offer|Bundle)\s+Price\s*\$([\d,.]+)/i)?.[1]
+    || '';
+  const firstItemPriceText =
     itemBlock.match(/\$([\d,.]+)/)?.[1]
     || text.match(/(?:Item|Listing|Order)\s*Price\s*(?:\n|:)?\s*\$([\d,.]+)/i)?.[1]
     || text.match(/Price\s*\n[\s\S]{0,160}?\$([\d,.]+)/i)?.[1]
     || '';
-  const price = Number(priceText.replace(/,/g, '')) || 0;
+
+  const saleTotal = Number((offerPriceText || firstItemPriceText).replace(/,/g, '')) || 0;
+  const explicitBundleQty = Number(text.match(/sold\s+(\d+)\s+items?\s+in a bundle/i)?.[1] || 0);
+  const subjectMoreCount = Number(title.match(/\band\s+(\d+)\s+more\s+items?\b/i)?.[1] || 0);
+  const quantity = Math.max(1, explicitBundleQty || (subjectMoreCount ? subjectMoreCount + 1 : 1));
+
   return [{
     platform: 'Poshmark',
     product_name: title,
-    quantity: 1,
+    quantity,
     size: sizeFromTitle(title),
-    sale_total: price,
-    unit_price: price,
+    sale_total: saleTotal,
+    unit_price: quantity > 1 ? Number((saleTotal / quantity).toFixed(2)) : saleTotal,
     buyer,
     order_id: orderId || null,
   }];
