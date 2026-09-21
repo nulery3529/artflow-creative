@@ -1176,7 +1176,11 @@ export default async function handler(req, res) {
       const urls = { ...mobileShopUrls };
       for (const site of SUPPORTED) {
         const shared = clean(marketplaceLinks?.[site] || marketplaceLinks?.[normalize(site)] || '');
-        if (shared) urls[site] = shared;
+        if (shared) {
+          urls[site] = site === 'eBay'
+            ? (linkedSiteProfileUrl('eBay', shared) || shared)
+            : shared;
+        }
       }
       return res.status(200).json({
         supported: SUPPORTED,
