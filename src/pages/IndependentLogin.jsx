@@ -92,7 +92,24 @@ export default function IndependentLogin() {
       setError(serverError === "google_sign_in_failed"
         ? "Google sign-in did not finish. Please try again."
         : "Could not sign in. Please try again.");
+      return;
     }
+
+    // A valid Better Auth cookie can survive a deploy or a manual visit to
+    // /login. Do not trap an already-authenticated user on the login form.
+    let cancelled = false;
+    artflowAuthClient.getSession()
+      .then((result) => {
+        if (cancelled) return;
+        const session = result?.data || result;
+        if (session?.user) {
+          window.location.replace(safeReturnTo());
+        }
+      })
+      .catch(() => {
+        // Stay on the login form when the cookie is missing or stale.
+      });
+    return () => { cancelled = true; };
   }, []);
 
   return (
