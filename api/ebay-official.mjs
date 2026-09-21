@@ -236,7 +236,33 @@ export default async function handler(req,res){
         `state=${encodeURIComponent(state)}`,
         `scope=${encodeURIComponent(SCOPES.join(' '))}`,
       ].join('&');
-      return res.status(200).json({authorization_url:`${AUTH_URL}?${q}`});
+      const authorizationUrl=`${AUTH_URL}?${q}`;
+
+      // eBay occasionally returns a raw OAuth 500 ("temporarily_unavailable")
+      // before the user can even reach the consent screen. Detect that here so
+      // Art Flow can keep the user in-app and fall back to public seller imports.
+      try {
+        const controller=new AbortController();
+        const timeout=setTimeout(()=>controller.abort(),8000);
+        const probe=await fetch(authorizationUrl,{
+          method:'GET',
+          redirect:'manual',
+          signal:controller.signal,
+          headers:{'User-Agent':'ArtFlowCreative/1.0'},
+        }).finally(()=>clearTimeout(timeout));
+        if(probe.status>=500){
+          await client.query(`DELETE FROM artflow.marketplace_oauth_states WHERE state=$1`,[state]);
+          return res.status(503).json({
+            error:'eBay sign-in is temporarily unavailable on eBay. Your public eBay listings can still be imported from your seller profile.',
+            reason:'ebay_oauth_temporarily_unavailable',
+          });
+        }
+      }catch{
+        // If the probe itself cannot complete, still allow the normal browser
+        // OAuth attempt rather than blocking a connection that may work.
+      }
+
+      return res.status(200).json({authorization_url:authorizationUrl});
     }
 
     if(action==='disconnect'){
