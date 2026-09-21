@@ -30,9 +30,7 @@ export default function ForgotPassword() {
         credentials: "include",
         cache: "no-store",
         body: JSON.stringify({
-          email: email.trim().toLowerCase() === "natashaulery@gmail.com"
-            ? "nulery3529@gmail.com"
-            : email.trim(),
+          email: email.trim(),
           redirectTo: `${window.location.origin}/reset-password`,
         }),
       });
