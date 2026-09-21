@@ -103,8 +103,8 @@ export default function EbayConnectionBlock() {
             {status.connected
               ? `Connected${status.username ? ` as ${status.username}` : ""}. Active listings, photos, prices and paid orders sync into Art Flow.`
               : status.configured
-                ? "Official eBay sign-in — no password stored, tokens encrypted."
-                : "Add EBAY_CLIENT_ID, EBAY_CLIENT_SECRET and EBAY_RUNAME to the server environment, then reload this page."}
+                ? "Connect your own eBay account securely — no API key or eBay password is entered into Art Flow."
+                : "eBay connection is temporarily unavailable. Please try again later or contact support."}
           </p>
         </div>
       </div>
@@ -125,7 +125,7 @@ export default function EbayConnectionBlock() {
       ) : (
         <button onClick={connect} disabled={busy === "connect" || !status.configured} className="w-full h-11 rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50">
           {busy === "connect" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
-          {status.configured ? "Connect eBay" : "eBay setup needed"}
+          {status.configured ? "Connect eBay" : "eBay unavailable"}
         </button>
       )}
     </div>
