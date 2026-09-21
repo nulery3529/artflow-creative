@@ -211,6 +211,7 @@ export default function Gallery() {
   const lastOfficialRefresh = useRef(0);
   const vintedProfileRefreshAttempted = useRef(false);
   const poshmarkProfileRefreshAttempted = useRef(false);
+  const ebayProfileRefreshAttempted = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -351,6 +352,42 @@ export default function Gallery() {
         if (response.ok) reloadMarketplaceListings();
       })
       .catch((error) => console.warn("Could not refresh saved Poshmark profile", error));
+  }, [linkedSellSites, reloadMarketplaceListings]);
+
+  useEffect(() => {
+    if (ebayProfileRefreshAttempted.current) return;
+    const profileUrl = linkedSellSites?.eBay || linkedSellSites?.ebay || "";
+    if (!profileUrl) return;
+
+    let username = "";
+    try {
+      const parsed = new URL(profileUrl);
+      username = parsed.searchParams.get("_ssn") || "";
+      if (!username) {
+        const parts = parsed.pathname.split("/").filter(Boolean);
+        const userIndex = parts.findIndex((part) => ["usr", "str"].includes(part.toLowerCase()));
+        username = userIndex >= 0 ? (parts[userIndex + 1] || "") : "";
+      }
+      username = username.replace(/^@+/, "");
+    } catch {}
+    if (!username) return;
+
+    ebayProfileRefreshAttempted.current = true;
+    fetch("/api/mobile-listing-sync", {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ platform: "eBay", username }),
+    })
+      .then(async (response) => ({ response, data: await response.json().catch(() => ({})) }))
+      .then(({ response, data }) => {
+        if (response.ok) {
+          reloadMarketplaceListings();
+          window.dispatchEvent(new CustomEvent("artflow:listings-synced", { detail: { platform: "eBay", saved: data?.saved || 0 } }));
+        }
+      })
+      .catch((error) => console.warn("Could not refresh saved eBay profile", error));
   }, [linkedSellSites, reloadMarketplaceListings]);
 
   useEffect(() => {
