@@ -499,7 +499,7 @@ export default function Gallery() {
       if (!response.ok) throw new Error(data.error || "Could not link seller profile");
       setLinkedSellSites(data.urls || {});
 
-      if (linkSite === "Poshmark") {
+      if (linkSite === "Poshmark" || linkSite === "eBay") {
         const importResponse = await fetch("/api/mobile-listing-sync", {
           method: "POST",
           credentials: "include",
@@ -513,8 +513,6 @@ export default function Gallery() {
         }
         await reloadMarketplaceListings();
         setLinkMessage(importData.message || `${linkSite} profile linked and listings imported.`);
-      } else if (linkSite === "eBay") {
-        setLinkMessage("eBay profile linked. Use Connect eBay below once, then Sync eBay to load its listings and photos.");
       } else {
         setLinkMessage(data.message || `${linkSite} profile linked.`);
       }
