@@ -149,12 +149,23 @@ async function directGoogleFormSignIn(req, res) {
     });
 
     response.headers.forEach((value, key) => {
-      if (key.toLowerCase() !== "set-cookie") res.setHeader(key, value);
+      if (key.toLowerCase() !== "set-cookie" && key.toLowerCase() !== "content-length") {
+        res.setHeader(key, value);
+      }
     });
     const setCookies = typeof response.headers.getSetCookie === "function"
       ? response.headers.getSetCookie()
       : [];
     if (setCookies.length) res.setHeader("set-cookie", setCookies);
+
+    const payload = await response.clone().json().catch(() => null);
+    const target = response.headers.get("location") || payload?.url || "";
+    if (target) {
+      res.statusCode = 303;
+      res.setHeader("Location", target);
+      return res.end();
+    }
+
     res.statusCode = response.status;
     const buffer = Buffer.from(await response.arrayBuffer());
     return res.end(buffer);
