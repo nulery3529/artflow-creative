@@ -536,6 +536,25 @@ function poshmarkListingUrl(item = {}) {
   return normalizeUrl(`https://poshmark.com/listing/${slug}-${id}`);
 }
 
+function poshmarkImageUrl(item = {}) {
+  const candidates = [
+    item?.cover_shot?.url,
+    item?.cover_shot?.url_large,
+    item?.cover_shot?.url_1280x,
+    item?.cover_shot?.url_600x,
+    item?.cover_shot?.url_310sq,
+    item?.cover_shot?.url_small,
+    item?.picture_url,
+    item?.image_url,
+    item?.pictures?.[0]?.url,
+    item?.pictures?.[0]?.url_large,
+    item?.pictures?.[0]?.url_1280x,
+    item?.photos?.[0]?.url,
+    item?.photos?.[0]?.url_large,
+  ];
+  return clean(candidates.find((value) => /^https:\/\//i.test(clean(value))) || '');
+}
+
 async function collectPoshmarkProfileListings(usernameInput) {
   const username = cleanMarketplaceUsername(usernameInput);
   if (!isValidMarketplaceUsername(username)) throw new Error('Enter a valid Poshmark username.');
@@ -570,7 +589,7 @@ async function collectPoshmarkProfileListings(usernameInput) {
         finalUrl: url,
         title: clean(item?.title || `Poshmark listing ${item?.id || ''}`).slice(0, 300),
         description: clean(item?.description || '').slice(0, 800),
-        imageUrl: clean(item?.cover_shot?.url || item?.picture_url || ''),
+        imageUrl: poshmarkImageUrl(item),
         price: item?.price_amount?.val ?? item?.price ?? 0,
         currency: clean(item?.price_amount?.currency_code || 'USD') || 'USD',
       },
