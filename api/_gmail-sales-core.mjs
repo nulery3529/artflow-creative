@@ -446,7 +446,29 @@ export async function syncGmailAccount(client, business, accessToken) {
   }
   result.matched = 1;
 
-  const messageIds = await listMessageIds(accessToken);
+  // Re-read older Poshmark orders that were imported before the current
+  // price/bundle parser. These rows already know their Gmail message IDs, so
+  // repair them before spending Gmail quota on broad mailbox searches.
+  const repairCandidates = await client.query(`
+    SELECT DISTINCT split_part(source_email_id, ':', 1) AS message_id
+      FROM artflow.orders
+     WHERE business_id=$1
+       AND sync_source='gmail_direct_sales'
+       AND platform='Poshmark'
+       AND COALESCE(source_email_id,'')<>''
+       AND COALESCE(data->>'poshmark_parser_version','') <> '2'
+     ORDER BY 1
+  `, [business.base44_id]);
+  const repairMessageIds = repairCandidates.rows
+    .map((row) => clean(row.message_id))
+    .filter(Boolean);
+
+  // If a full repair batch is already known, skip the expensive mailbox list
+  // queries on this run. The next automatic/manual sync continues the backlog.
+  const messageIds = repairMessageIds.length >= 75
+    ? []
+    : await listMessageIds(accessToken);
+
   const completed = await client.query(`
     SELECT split_part(source_email_id, ':', 1) AS message_id
       FROM artflow.orders
@@ -465,7 +487,10 @@ export async function syncGmailAccount(client, business, accessToken) {
   const completedIds = new Set(completed.rows.map((row) => clean(row.message_id)).filter(Boolean));
   // Bound each run so a historical backfill cannot exhaust Gmail's per-user
   // query-cost quota. Repeated runs continue with the remaining message IDs.
-  const pendingMessageIds = messageIds.filter((messageId) => !completedIds.has(messageId)).slice(0, 75);
+  const pendingMessageIds = Array.from(new Set([
+    ...repairMessageIds,
+    ...messageIds.filter((messageId) => !completedIds.has(messageId)),
+  ])).slice(0, 75);
   result.scanned = pendingMessageIds.length;
   for (let index = 0; index < pendingMessageIds.length; index += 10) {
     const batchIds = pendingMessageIds.slice(index, index + 10);
