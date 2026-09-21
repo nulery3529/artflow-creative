@@ -164,6 +164,15 @@ export default function IndependentLogin() {
       <p className="text-center text-xs text-muted-foreground mt-6 leading-relaxed">
         Google sign-in opens your existing Art Flow account. New users can create an email-and-password account below.
       </p>
+      <p className="text-center text-sm text-muted-foreground mt-4">
+        Having trouble signing in?{" "}
+        <a
+          href="mailto:help@artflowcreative.com?subject=Art%20Flow%20sign-in%20help"
+          className="font-semibold text-[hsl(var(--primary))] hover:underline"
+        >
+          help@artflowcreative.com
+        </a>
+      </p>
     </AuthLayout>
   );
 }
