@@ -16,6 +16,7 @@ const IMAGE_HOST_SUFFIXES = [
   'ebay.com',
   'poshmark.com',
   'di2ponv0v5otw.cloudfront.net',
+  'd2zlsagv0ouax1.cloudfront.net',
 ];
 
 const clean = (value = '') => String(value || '').trim();
