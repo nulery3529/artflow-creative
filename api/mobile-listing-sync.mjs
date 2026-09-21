@@ -949,12 +949,14 @@ async function collectEbayProfileListings(usernameInput) {
   let complete = false;
 
   // eBay's Browse API supports filtering search results to a seller account.
-  // category_ids=0 provides an all-category seller inventory query and the
-  // buyingOptions filter keeps auction-only listings from being omitted.
+  // Use the root category only as the discovery criterion and keep the seller
+  // filter independent. buyingOptions is defined at the leaf-category level;
+  // combining it with root category 0 can suppress otherwise valid listings.
   for (let page = 0; page < 50 && offset < 10000; page += 1) {
     const url = new URL('https://api.ebay.com/buy/browse/v1/item_summary/search');
     url.searchParams.set('category_ids', '0');
-    url.searchParams.set('filter', `buyingOptions:{AUCTION|FIXED_PRICE|BEST_OFFER},sellers:{${username}}`);
+    url.searchParams.set('filter', `sellers:{${username}}`);
+    url.searchParams.set('fieldgroups', 'EXTENDED');
     url.searchParams.set('limit', '200');
     url.searchParams.set('offset', String(offset));
 
