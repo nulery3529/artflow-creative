@@ -6,7 +6,8 @@ const nodeHandler = toNodeHandler(auth);
 function requestBody(req) {
   if (req.body && typeof req.body === "object") return req.body;
   if (typeof req.body === "string") {
-    try { return JSON.parse(req.body); } catch { return {}; }
+    try { return JSON.parse(req.body); } catch {}
+    try { return Object.fromEntries(new URLSearchParams(req.body)); } catch {}
   }
   return {};
 }
@@ -83,6 +84,78 @@ async function directEmailSignIn(req, res) {
   }
 }
 
+function safeReturnPath(value = "/") {
+  const text = String(value || "/").trim();
+  if (!text.startsWith("/") || text.startsWith("//")) return "/";
+  return text;
+}
+
+function loginEmailAlias(value = "") {
+  const email = String(value || "").trim().toLowerCase();
+  return email === "natashaulery@gmail.com" ? "nulery3529@gmail.com" : email;
+}
+
+async function directEmailFormSignIn(req, res) {
+  const body = requestBody(req);
+  const returnTo = safeReturnPath(body.returnTo || "/");
+  try {
+    const result = await auth.api.signInEmail({
+      body: {
+        email: loginEmailAlias(body.email),
+        password: String(body.password || ""),
+        rememberMe: true,
+      },
+      headers: fromNodeHeaders(req.headers),
+      returnHeaders: true,
+      returnStatus: true,
+    });
+    applyHeaders(res, result?.headers);
+    res.statusCode = 303;
+    res.setHeader("Location", returnTo);
+    return res.end();
+  } catch (error) {
+    if (errorStatus(error) >= 500) {
+      console.error("Art Flow form sign-in failed", error?.stack || error?.message || error);
+    }
+    res.statusCode = 303;
+    res.setHeader("Location", "/login?error=invalid_credentials");
+    return res.end();
+  }
+}
+
+async function directGoogleFormSignIn(req, res) {
+  try {
+    const url = new URL(req.url, "http://localhost");
+    const returnTo = safeReturnPath(url.searchParams.get("returnTo") || "/");
+    const response = await auth.api.signInSocial({
+      body: {
+        provider: "google",
+        callbackURL: `https://artflowcreative.com${returnTo}`,
+        errorCallbackURL: "https://artflowcreative.com/login?error=google_sign_in_failed",
+        disableRedirect: false,
+      },
+      headers: fromNodeHeaders(req.headers),
+      asResponse: true,
+    });
+
+    response.headers.forEach((value, key) => {
+      if (key.toLowerCase() !== "set-cookie") res.setHeader(key, value);
+    });
+    const setCookies = typeof response.headers.getSetCookie === "function"
+      ? response.headers.getSetCookie()
+      : [];
+    if (setCookies.length) res.setHeader("set-cookie", setCookies);
+    res.statusCode = response.status;
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return res.end(buffer);
+  } catch (error) {
+    console.error("Art Flow Google form sign-in failed", error?.stack || error?.message || error);
+    res.statusCode = 303;
+    res.setHeader("Location", "/login?error=google_sign_in_failed");
+    return res.end();
+  }
+}
+
 export default async function handler(req, res) {
   let authPath = "";
   try {
@@ -110,6 +183,12 @@ export default async function handler(req, res) {
   }
   if (req.method === "POST" && authPath === "sign-in/email") {
     return directEmailSignIn(req, res);
+  }
+  if (req.method === "POST" && authPath === "login-form") {
+    return directEmailFormSignIn(req, res);
+  }
+  if (req.method === "GET" && authPath === "google-login") {
+    return directGoogleFormSignIn(req, res);
   }
   return nodeHandler(req, res);
 }
