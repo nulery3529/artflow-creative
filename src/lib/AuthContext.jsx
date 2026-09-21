@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }) => {
 
   const triggerLoginSync = useCallback(async () => {
     const now = Date.now();
-    if (syncInFlight.current || now - lastAutoSyncAt.current < 30 * 1000) return;
+    if (syncInFlight.current || now - lastAutoSyncAt.current < 10 * 60 * 1000) return;
     syncInFlight.current = true;
     publishSyncState({ status: 'syncing', at: new Date().toISOString() });
     try {
@@ -60,11 +60,11 @@ export const AuthProvider = ({ children }) => {
         });
         return { response, data: await response.json().catch(() => ({})) };
       };
-      const [gmail, expenses, tracker] = await Promise.all([
-        runSync('/api/gmail-sales-sync'),
-        runSync('/api/gmail-expense-sync'),
-        runSync('/api/tracker-sync'),
-      ]);
+      // Run Google services sequentially. Parallel Gmail + Sheets calls against
+      // the same account can exhaust Google's per-user quota during login.
+      const gmail = await runSync('/api/gmail-sales-sync');
+      const expenses = await runSync('/api/gmail-expense-sync');
+      const tracker = await runSync('/api/tracker-sync');
       const results = [gmail, expenses, tracker];
       const hardFailure = results.find(({ response }) => !response.ok && response.status !== 409);
       const connectorMessage = results
@@ -95,11 +95,11 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (!isAuthenticated) return undefined;
 
-    // Run once after login and every five minutes while the app is open.
+    // Run once after login and every fifteen minutes while the app is open.
     // Individual connectors remain isolated so one unavailable service never
     // blocks the rest of the app.
     triggerLoginSync();
-    const syncId = window.setInterval(() => triggerLoginSync(), 5 * 60 * 1000);
+    const syncId = window.setInterval(() => triggerLoginSync(), 15 * 60 * 1000);
     const syncWhenActive = () => {
       if (document.visibilityState === 'visible') triggerLoginSync();
     };
