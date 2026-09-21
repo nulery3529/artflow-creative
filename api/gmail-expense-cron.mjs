@@ -30,6 +30,7 @@ export default async function handler(req, res) {
     imported: 0,
     skipped: 0,
     reconnectRequired: 0,
+    rateLimited: 0,
     failed: 0,
   };
 
@@ -58,8 +59,10 @@ export default async function handler(req, res) {
         summary.imported += result.imported;
         summary.skipped += result.skipped;
       } catch (error) {
-        if (error?.status === 400 || error?.status === 401 || error?.status === 403 || error?.code === 'GMAIL_RECONNECT') {
+        if (error?.code === 'GMAIL_RECONNECT' || error?.status === 400 || error?.status === 401) {
           summary.reconnectRequired += 1;
+        } else if (error?.code === 'GMAIL_RATE_LIMIT' || error?.status === 429) {
+          summary.rateLimited += 1;
         } else {
           summary.failed += 1;
         }
