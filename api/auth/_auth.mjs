@@ -1,5 +1,4 @@
 import { betterAuth } from "better-auth";
-import { emailOTP } from "better-auth/plugins";
 import pg from "pg";
 import { pooledDatabaseUrl } from "../_db.mjs";
 
@@ -101,60 +100,11 @@ async function sendPasswordResetEmail({ user, url }) {
   }
 }
 
-async function sendEmailSignInCode({ email, otp, type = "sign-in" }) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.AUTH_EMAIL_FROM || process.env.PASSWORD_RESET_FROM || "Art Flow Creative <onboarding@resend.dev>";
-
-  if (!apiKey) {
-    throw new Error("RESEND_API_KEY is not configured");
-  }
-
-  const purpose = type === "sign-in" ? "sign in" : "verify your email";
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from,
-      to: [email],
-      subject: "Your Art Flow Creative sign-in code",
-      html: `
-        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#2e2140;max-width:560px;margin:0 auto;padding:24px;">
-          <h2 style="margin:0 0 12px;color:#6d48a8;">Art Flow Creative</h2>
-          <p>Use this code to ${purpose}:</p>
-          <div style="font-size:30px;letter-spacing:8px;font-weight:700;margin:24px 0;color:#2e2140;">${otp}</div>
-          <p style="font-size:13px;color:#6b6474;">This code expires in 10 minutes. If you did not request it, you can ignore this email.</p>
-        </div>
-      `,
-      text: `Your Art Flow Creative sign-in code is ${otp}. It expires in 10 minutes.`,
-    }),
-  });
-
-  if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    throw new Error(`Sign-in code email failed (${response.status})${detail ? `: ${detail.slice(0, 180)}` : ""}`);
-  }
-}
-
 export const auth = betterAuth({
   appName: "Art Flow Creative",
   baseURL,
   secret: process.env.BETTER_AUTH_SECRET,
   database: getAuthPool(),
-  plugins: [
-    emailOTP({
-      disableSignUp: true,
-      otpLength: 6,
-      expiresIn: 600,
-      allowedAttempts: 5,
-      resendStrategy: "rotate",
-      async sendVerificationOTP({ email, otp, type }) {
-        await sendEmailSignInCode({ email, otp, type });
-      },
-    }),
-  ],
   emailAndPassword: {
     enabled: true,
     autoSignIn: true,
