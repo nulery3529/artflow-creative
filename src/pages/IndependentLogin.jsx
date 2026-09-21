@@ -20,6 +20,11 @@ export default function IndependentLogin() {
     window.location.replace(safeReturnTo());
   };
 
+  const accountEmail = () => {
+    const entered = email.trim().toLowerCase();
+    return entered === "natashaulery@gmail.com" ? "nulery3529@gmail.com" : entered;
+  };
+
   const handleGoogleSignIn = async () => {
     if (loading || googleLoading) return;
     setError("");
@@ -60,7 +65,7 @@ export default function IndependentLogin() {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         cache: "no-store",
-        body: JSON.stringify({ email: email.trim(), password, rememberMe: true }),
+        body: JSON.stringify({ email: accountEmail(), password, rememberMe: true }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || data?.error) {
