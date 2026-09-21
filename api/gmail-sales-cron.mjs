@@ -27,7 +27,7 @@ export default async function handler(req, res) {
   }
 
   const client = await pool.connect();
-  const summary = { accounts: 0, matched: 0, scanned: 0, parsed: 0, imported: 0, reconnectRequired: 0, failed: 0 };
+  const summary = { accounts: 0, matched: 0, scanned: 0, parsed: 0, imported: 0, reconnectRequired: 0, rateLimited: 0, failed: 0 };
   try {
     const accounts = await client.query(`
       SELECT a.id, a."accountId", a."accessToken", a."refreshToken", a."accessTokenExpiresAt",
@@ -57,7 +57,9 @@ export default async function handler(req, res) {
         summary.parsed += result.parsed;
         summary.imported += result.imported;
       } catch (error) {
-        summary.failed += 1;
+        if (error?.code === 'GMAIL_RECONNECT' || error?.status === 401) summary.reconnectRequired += 1;
+        else if (error?.code === 'GMAIL_RATE_LIMIT' || error?.status === 429) summary.rateLimited += 1;
+        else summary.failed += 1;
         console.warn('Gmail cron sync account failed', error?.message || error);
       }
     }
