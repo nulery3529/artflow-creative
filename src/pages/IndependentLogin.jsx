@@ -20,10 +20,7 @@ export default function IndependentLogin() {
     window.location.replace(safeReturnTo());
   };
 
-  const accountEmail = () => {
-    const entered = email.trim().toLowerCase();
-    return entered === "natashaulery@gmail.com" ? "nulery3529@gmail.com" : entered;
-  };
+  const accountEmail = () => email.trim().toLowerCase();
 
   const handleGoogleSignIn = async () => {
     if (loading || googleLoading) return;
