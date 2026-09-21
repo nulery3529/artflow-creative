@@ -83,6 +83,46 @@ async function directEmailSignIn(req, res) {
   }
 }
 
+async function directEmailOtpSend(req, res) {
+  try {
+    const result = await auth.api.sendVerificationOTP({
+      body: requestBody(req),
+      headers: fromNodeHeaders(req.headers),
+      returnHeaders: true,
+      returnStatus: true,
+    });
+    applyHeaders(res, result?.headers);
+    return res.status(result?.status || 200).json(result?.response ?? { success: true });
+  } catch (error) {
+    const status = errorStatus(error);
+    const body = error?.body && typeof error.body === "object"
+      ? error.body
+      : { message: error?.message || "Could not send the sign-in code." };
+    if (status >= 500) console.error("Art Flow direct OTP send failed", error?.stack || error?.message || error);
+    return res.status(status).json(body);
+  }
+}
+
+async function directEmailOtpSignIn(req, res) {
+  try {
+    const result = await auth.api.signInEmailOTP({
+      body: requestBody(req),
+      headers: fromNodeHeaders(req.headers),
+      returnHeaders: true,
+      returnStatus: true,
+    });
+    applyHeaders(res, result?.headers);
+    return res.status(result?.status || 200).json(result?.response ?? {});
+  } catch (error) {
+    const status = errorStatus(error);
+    const body = error?.body && typeof error.body === "object"
+      ? error.body
+      : { message: error?.message || "Could not sign in with that code." };
+    if (status >= 500) console.error("Art Flow direct OTP sign-in failed", error?.stack || error?.message || error);
+    return res.status(status).json(body);
+  }
+}
+
 export default async function handler(req, res) {
   let authPath = "";
   try {
@@ -109,6 +149,12 @@ export default async function handler(req, res) {
   }
   if (req.method === "POST" && authPath === "sign-in/email") {
     return directEmailSignIn(req, res);
+  }
+  if (req.method === "POST" && authPath === "email-otp/send-verification-otp") {
+    return directEmailOtpSend(req, res);
+  }
+  if (req.method === "POST" && authPath === "sign-in/email-otp") {
+    return directEmailOtpSignIn(req, res);
   }
 
   return nodeHandler(req, res);
