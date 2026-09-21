@@ -8,6 +8,9 @@ export function pooledDatabaseUrl(raw = process.env.DATABASE_URL) {
       parts[0] = `${parts[0]}-pooler`;
       url.hostname = parts.join('.');
     }
+    // Keep the current strict TLS behavior explicit. pg currently treats
+    // sslmode=require as verify-full, but that alias changes in pg v9.
+    if (/\.neon\.tech$/i.test(url.hostname)) url.searchParams.set('sslmode', 'verify-full');
     return url.toString();
   } catch {
     return value;
