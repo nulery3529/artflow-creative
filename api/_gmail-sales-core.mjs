@@ -265,15 +265,20 @@ export async function googleJson(accessToken, url) {
     const text = await response.text().catch(() => '');
     const error = new Error(`Google Gmail request failed (${response.status})${text ? `: ${text.slice(0, 180)}` : ''}`);
     error.status = response.status;
+    error.code = response.status === 429 || /quota exceeded|rate limit/i.test(text)
+      ? 'GMAIL_RATE_LIMIT'
+      : response.status === 401 || response.status === 403
+        ? 'GMAIL_RECONNECT'
+        : 'GMAIL_REQUEST_ERROR';
     throw error;
   }
   return response.json();
 }
 
 const GMAIL_QUERIES = [
-  'from:no-reply@vinted.com subject:"You sold an item on Vinted"',
-  'from:orders@poshmark.com "just sold to" "on Poshmark"',
-  '{from:alerts.depop.com from:ohhey.depop.com} subject:"Sale confirmation for"',
+  'newer_than:180d from:no-reply@vinted.com subject:"You sold an item on Vinted"',
+  'newer_than:180d from:orders@poshmark.com "just sold to" "on Poshmark"',
+  'newer_than:180d {from:alerts.depop.com from:ohhey.depop.com} subject:"Sale confirmation for"',
 ];
 
 async function listMessageIds(accessToken) {
@@ -283,7 +288,7 @@ async function listMessageIds(accessToken) {
     // The first run is a true historical backfill. Later runs skip message IDs
     // already represented by a complete order, so a five-minute refresh does
     // not repeatedly download the full mailbox history.
-    for (let page = 0; page < 20; page += 1) {
+    for (let page = 0; page < 5; page += 1) {
       const url = new URL('https://gmail.googleapis.com/gmail/v1/users/me/messages');
       url.searchParams.set('q', query);
       url.searchParams.set('maxResults', '100');
@@ -406,7 +411,7 @@ export async function syncGmailAccount(client, business, accessToken) {
     const profileData = await googleJson(accessToken, 'https://gmail.googleapis.com/gmail/v1/users/me/profile');
     gmailAddress = normalize(profileData?.emailAddress || '');
   } catch (error) {
-    if (error?.status === 401 || error?.status === 403) {
+    if (error?.code === 'GMAIL_RECONNECT' || error?.status === 401) {
       result.reconnectRequired = true;
       return result;
     }
@@ -435,7 +440,9 @@ export async function syncGmailAccount(client, business, accessToken) {
     HAVING bool_and(COALESCE(sale_total,0)>0)
   `, [business.base44_id]);
   const completedIds = new Set(completed.rows.map((row) => clean(row.message_id)).filter(Boolean));
-  const pendingMessageIds = messageIds.filter((messageId) => !completedIds.has(messageId));
+  // Bound each run so a historical backfill cannot exhaust Gmail's per-user
+  // query-cost quota. Repeated runs continue with the remaining message IDs.
+  const pendingMessageIds = messageIds.filter((messageId) => !completedIds.has(messageId)).slice(0, 75);
   result.scanned = pendingMessageIds.length;
   for (let index = 0; index < pendingMessageIds.length; index += 10) {
     const batchIds = pendingMessageIds.slice(index, index + 10);
