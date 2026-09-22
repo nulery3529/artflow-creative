@@ -1290,7 +1290,6 @@ async function collectEbayProfileListings(usernameInput) {
   // seller import does not accidentally exclude valid active listings.
   for (let page = 0; page < 50 && offset < 10000; page += 1) {
     const url = new URL('https://api.ebay.com/buy/browse/v1/item_summary/search');
-    url.searchParams.set('category_ids', '0');
     url.searchParams.set('filter', `sellers:{${username}}`);
     url.searchParams.set('fieldgroups', 'EXTENDED');
     url.searchParams.set('limit', '200');
