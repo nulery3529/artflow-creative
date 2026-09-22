@@ -164,6 +164,25 @@ function poshmarkRows(subject, text) {
   }];
 }
 
+export function parsePoshmarkCancellation(subject = '', text = '') {
+  const normalizedSubject = clean(subject).replace(/^(?:(?:fwd?|fw):\s*)+/i, '');
+  if (!/please do not ship:/i.test(normalizedSubject) || !/was canceled/i.test(normalizedSubject)) return null;
+
+  const orderId = clean(
+    text.match(/(?:Re:\s*)?Order\s+Id\s*[:#]?\s*([a-z0-9-]+)/i)?.[1]
+      || text.match(/order\s*#\s*([a-z0-9-]+)/i)?.[1]
+      || ''
+  );
+  const title = clean(
+    normalizedSubject.match(/Please do not ship:\s*[\"“]([\s\S]+?)[\"”]\s+for\s+@[^\s]+\s+was canceled/i)?.[1]
+      || ''
+  );
+
+  return orderId || title
+    ? { order_id: orderId || null, product_name: title }
+    : null;
+}
+
 function depopRows(subject, text) {
   if (!/sale confirmation for\s+@/i.test(subject) || !/you've made a sale!/i.test(text)) return [];
   const buyer = clean(subject.match(/sale confirmation for\s+@([^\.\s]+)/i)?.[1] || '');
@@ -303,6 +322,7 @@ export async function googleJson(accessToken, url) {
 export const GMAIL_QUERIES = [
   'from:no-reply@vinted.com subject:"You sold an item on Vinted"',
   'from:poshmark.com "just sold to" "on Poshmark"',
+  'from:poshmark.com subject:"Please do not ship:" "was canceled"',
   '{from:alerts.depop.com from:ohhey.depop.com} subject:"Sale confirmation for"',
 ];
 
@@ -428,11 +448,37 @@ async function insertRows(client, businessId, messageId, receivedAt, rows) {
   return inserted;
 }
 
+async function archivePoshmarkCancellation(client, businessId, messageId, subject, text) {
+  const cancellation = parsePoshmarkCancellation(subject, text);
+  if (!cancellation) return 0;
+
+  const result = await client.query(
+    `UPDATE artflow.orders
+        SET archived=true,
+            updated_date=now(),
+            data=COALESCE(data,'{}'::jsonb) || jsonb_build_object(
+              'poshmark_canceled',true,
+              'cancellation_email_id',$4::text,
+              'canceled_at',now()
+            )
+      WHERE business_id=$1
+        AND platform='Poshmark'
+        AND archived IS NOT TRUE
+        AND (
+          ($2::text<>'' AND order_id=$2::text)
+          OR ($3::text<>'' AND lower(product_name)=lower($3::text))
+        )
+      RETURNING base44_id`,
+    [businessId, cancellation.order_id || '', cancellation.product_name || '', messageId]
+  );
+  return Number(result.rowCount || 0);
+}
+
 // Sync one Gmail mailbox into the given business workspace. Returns the counts
 // the callers aggregate for their status responses. Permission problems are
 // reported via reconnectRequired instead of throwing; other errors bubble up.
 export async function syncGmailAccount(client, business, accessToken) {
-  const result = { matched: 0, scanned: 0, parsed: 0, imported: 0, reconnectRequired: false, gmailAddress: '' };
+  const result = { matched: 0, scanned: 0, parsed: 0, imported: 0, canceled: 0, reconnectRequired: false, gmailAddress: '' };
   if (!business?.base44_id) return result;
 
   let gmailAddress = '';
@@ -482,19 +528,30 @@ export async function syncGmailAccount(client, business, accessToken) {
     : await listMessageIds(accessToken);
 
   const completed = await client.query(`
-    SELECT split_part(source_email_id, ':', 1) AS message_id
-      FROM artflow.orders
-     WHERE business_id=$1
-       AND sync_source='gmail_direct_sales'
-       AND COALESCE(source_email_id,'')<>''
-     GROUP BY 1
-    HAVING bool_and(
-      COALESCE(sale_total,0)>0
-      AND (
-        platform <> 'Poshmark'
-        OR COALESCE(data->>'poshmark_parser_version','') = '2'
-      )
-    )
+    SELECT message_id
+      FROM (
+        SELECT split_part(source_email_id, ':', 1) AS message_id
+          FROM artflow.orders
+         WHERE business_id=$1
+           AND sync_source='gmail_direct_sales'
+           AND COALESCE(source_email_id,'')<>''
+         GROUP BY 1
+        HAVING bool_and(
+          COALESCE(sale_total,0)>0
+          AND (
+            platform <> 'Poshmark'
+            OR COALESCE(data->>'poshmark_parser_version','') = '2'
+          )
+        )
+        UNION
+        SELECT data->>'cancellation_email_id' AS message_id
+          FROM artflow.orders
+         WHERE business_id=$1
+           AND platform='Poshmark'
+           AND COALESCE(data->>'poshmark_canceled','false')='true'
+           AND COALESCE(data->>'cancellation_email_id','')<>''
+      ) completed_messages
+     WHERE COALESCE(message_id,'')<>''
   `, [business.base44_id]);
   const completedIds = new Set(completed.rows.map((row) => clean(row.message_id)).filter(Boolean));
   // Bound each run so a historical backfill stays within Gmail quota while
@@ -514,6 +571,19 @@ export async function syncGmailAccount(client, business, accessToken) {
       if (!isAllowedMarketplaceSender(from)) continue;
       const subject = headerValue(message, 'Subject');
       const text = bodyTextFromPayload(message?.payload || {});
+
+      const canceled = await archivePoshmarkCancellation(
+        client,
+        business.base44_id,
+        messageId,
+        subject,
+        text
+      );
+      if (canceled) {
+        result.canceled += canceled;
+        continue;
+      }
+
       const rows = parseSaleEmail(from, subject, text);
       if (!rows.length) continue;
       result.parsed += rows.length;
