@@ -528,19 +528,30 @@ export async function syncGmailAccount(client, business, accessToken) {
     : await listMessageIds(accessToken);
 
   const completed = await client.query(`
-    SELECT split_part(source_email_id, ':', 1) AS message_id
-      FROM artflow.orders
-     WHERE business_id=$1
-       AND sync_source='gmail_direct_sales'
-       AND COALESCE(source_email_id,'')<>''
-     GROUP BY 1
-    HAVING bool_and(
-      COALESCE(sale_total,0)>0
-      AND (
-        platform <> 'Poshmark'
-        OR COALESCE(data->>'poshmark_parser_version','') = '2'
-      )
-    )
+    SELECT message_id
+      FROM (
+        SELECT split_part(source_email_id, ':', 1) AS message_id
+          FROM artflow.orders
+         WHERE business_id=$1
+           AND sync_source='gmail_direct_sales'
+           AND COALESCE(source_email_id,'')<>''
+         GROUP BY 1
+        HAVING bool_and(
+          COALESCE(sale_total,0)>0
+          AND (
+            platform <> 'Poshmark'
+            OR COALESCE(data->>'poshmark_parser_version','') = '2'
+          )
+        )
+        UNION
+        SELECT data->>'cancellation_email_id' AS message_id
+          FROM artflow.orders
+         WHERE business_id=$1
+           AND platform='Poshmark'
+           AND COALESCE(data->>'poshmark_canceled','false')='true'
+           AND COALESCE(data->>'cancellation_email_id','')<>''
+      ) completed_messages
+     WHERE COALESCE(message_id,'')<>''
   `, [business.base44_id]);
   const completedIds = new Set(completed.rows.map((row) => clean(row.message_id)).filter(Boolean));
   // Bound each run so a historical backfill stays within Gmail quota while
