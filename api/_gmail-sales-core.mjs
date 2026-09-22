@@ -121,8 +121,12 @@ function poshmarkRows(subject, text) {
 
   const title = clean(subjectMatch[1]);
   const buyer = clean(subjectMatch[2]);
-  const orderId = clean(text.match(/Order ID\s*(?:\n|:)\s*([a-z0-9-]+)/i)?.[1] || '');
-  const itemBlock = text.match(/Item\s*\n\s*Price\s*\n([\s\S]*?)(?:Your Earnings|Sales tax|Packaging Reminder)/i)?.[1] || '';
+  const orderId = clean(text.match(/Order\s*ID\s*(?:\n|:)?\s*([a-z0-9-]+)/i)?.[1] || '');
+  const itemBlock = text.match(/Item\s+(?:Price\s*)?([\s\S]*?)(?:Your Earnings|Sales tax|Packaging Reminder)/i)?.[1] || '';
+  const titleIndex = String(text).toLowerCase().lastIndexOf(title.toLowerCase());
+  const titlePriceText = titleIndex >= 0
+    ? (String(text).slice(titleIndex + title.length, titleIndex + title.length + 320).match(/\$([\d,.]+)/)?.[1] || '')
+    : '';
 
   // For bundle orders, Poshmark lists each item's original price and then the
   // accepted Offer Price. The offer is the real gross sale amount and must win
@@ -132,8 +136,9 @@ function poshmarkRows(subject, text) {
     || '';
   const firstItemPriceText =
     itemBlock.match(/\$([\d,.]+)/)?.[1]
+    || titlePriceText
     || text.match(/(?:Item|Listing|Order)\s*Price\s*(?:\n|:)?\s*\$([\d,.]+)/i)?.[1]
-    || text.match(/Price\s*\n[\s\S]{0,160}?\$([\d,.]+)/i)?.[1]
+    || text.match(/Price\s*(?:\n|:)\s*[\s\S]{0,220}?\$([\d,.]+)/i)?.[1]
     || '';
 
   const explicitBundleQty = Number(text.match(/sold\s+(\d+)\s+items?\s+in a bundle/i)?.[1] || 0);
