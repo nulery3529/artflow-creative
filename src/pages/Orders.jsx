@@ -213,14 +213,9 @@ export default function Orders() {
         {filtered.map((o) => {
           const sourceUrl = orderSourceUrl(o);
           return (
-          <a
+          <div
             key={o.id}
-            href={sourceUrl || undefined}
-            target={sourceUrl ? "_blank" : undefined}
-            rel={sourceUrl ? "noreferrer" : undefined}
-            onClick={(event) => { if (!sourceUrl) event.preventDefault(); }}
-            className={`block bg-card rounded-2xl p-4 border border-[hsl(var(--border))] transition-transform ${sourceUrl ? "active:scale-[0.99]" : ""}`}
-            aria-label={sourceUrl ? `Open ${displayPlatform(o.platform)} order` : undefined}
+            className="bg-card rounded-2xl p-4 border border-[hsl(var(--border))]"
           >
             <div className="flex items-start justify-between mb-2">
               <div className="min-w-0">
@@ -257,7 +252,19 @@ export default function Orders() {
                 </p>
               </div>
             </div>
-          </a>
+            {sourceUrl && (
+              <a
+                href={sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 h-10 px-4 rounded-xl bg-muted text-foreground text-sm font-semibold flex items-center justify-center gap-2 active:scale-[0.99] transition-transform"
+                aria-label={`Open on ${displayPlatform(o.platform)}`}
+              >
+                <ExternalLink className="w-4 h-4" />
+                Open on {displayPlatform(o.platform)}
+              </a>
+            )}
+          </div>
           );
         })}
       </div>
