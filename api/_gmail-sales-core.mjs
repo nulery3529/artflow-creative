@@ -135,10 +135,22 @@ function poshmarkRows(subject, text) {
     || text.match(/Price\s*\n[\s\S]{0,160}?\$([\d,.]+)/i)?.[1]
     || '';
 
-  const saleTotal = Number((offerPriceText || firstItemPriceText).replace(/,/g, '')) || 0;
   const explicitBundleQty = Number(text.match(/sold\s+(\d+)\s+items?\s+in a bundle/i)?.[1] || 0);
   const subjectMoreCount = Number(title.match(/\band\s+(\d+)\s+more\s+items?\b/i)?.[1] || 0);
   const quantity = Math.max(1, explicitBundleQty || (subjectMoreCount ? subjectMoreCount + 1 : 1));
+
+  // Older Poshmark bundle emails do not always include an Offer Price.
+  // Prefer an explicit Total Price (after seller discounts); otherwise sum
+  // all item prices in the bundle instead of using only the first item.
+  const totalPriceText = text.match(/\bTotal\s+Price\s*\$([\d,.]+)/i)?.[1] || '';
+  const bundleItemPrices = quantity > 1
+    ? Array.from(itemBlock.matchAll(/\$([\d,.]+)/g), (match) => Number(match[1].replace(/,/g, '')) || 0)
+    : [];
+  const bundleItemsTotal = bundleItemPrices.reduce((sum, value) => sum + value, 0);
+  const saleTotal = Number(
+    (offerPriceText || totalPriceText || (bundleItemsTotal > 0 ? String(bundleItemsTotal) : firstItemPriceText))
+      .replace(/,/g, '')
+  ) || 0;
 
   return [{
     platform: 'Poshmark',
