@@ -671,7 +671,6 @@ export default function Dashboard() {
       const results = await Promise.all([
         runSync("/api/gmail-sales-sync"),
         runSync("/api/gmail-expense-sync"),
-        runSync("/api/tracker-sync"),
       ]);
 
       const hardFailure = results.find(
