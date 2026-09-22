@@ -33,9 +33,102 @@ function ebayUsername(raw = '') {
   } catch { return ''; }
 }
 
+function decodeEntities(value = '') {
+  return String(value || '')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+}
+
+function stripMarkup(value = '') {
+  return decodeEntities(value)
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function priceFromText(value = '') {
+  const match = String(value || '').match(/(?:US\s*)?\$\s*([0-9][0-9,]*(?:\.\d{1,2})?)/i);
+  const price = Number((match?.[1] || '').replace(/,/g, ''));
+  return Number.isFinite(price) ? price : 0;
+}
+
+function ebayItemFromMarkup(markup = '') {
+  const html = decodeEntities(String(markup || ''));
+  const href = html.match(/href=["']([^"']*\/itm\/[^"']+)["']/i)?.[1] || '';
+  let url = '';
+  try { url = normalizeUrl(new URL(href, 'https://www.ebay.com').toString()); } catch {}
+  const itemId = url.match(/\/itm\/(?:[^/]+\/)?(\d{8,16})/i)?.[1] || '';
+  if (!itemId) return null;
+  const imageUrl = clean(html.match(/https?:\/\/[^"'\s<>]*ebayimg\.com\/[^"'\s<>]+/i)?.[0] || '').replace(/&amp;/g, '&');
+  const alt = html.match(/\balt=["']([^"']{2,500})["']/i)?.[1] || '';
+  const text = stripMarkup(html);
+  const title = clean(alt || text.split(/\$\s*[0-9]/)[0] || `eBay listing ${itemId}`)
+    .replace(/^opens in a new window or tab\s*/i, '')
+    .slice(0, 300);
+  return { item_id: itemId, url, title: title || `eBay listing ${itemId}`, image_url: imageUrl, price: priceFromText(text), currency: 'USD' };
+}
+
+async function collectEbayMicrolinkListings(username) {
+  const listings = [];
+  const seen = new Set();
+  let complete = false;
+
+  for (let page = 1; page <= 25 && listings.length < 5000; page += 1) {
+    const sellerPage = new URL('https://www.ebay.com/sch/i.html');
+    sellerPage.searchParams.set('_ssn', username);
+    sellerPage.searchParams.set('_ipg', '240');
+    sellerPage.searchParams.set('_pgn', String(page));
+    sellerPage.searchParams.set('_sop', '10');
+
+    const endpoint = new URL('https://api.microlink.io/');
+    endpoint.searchParams.set('url', sellerPage.toString());
+    endpoint.searchParams.set('meta', 'false');
+    endpoint.searchParams.set('prerender', 'true');
+    endpoint.searchParams.set('data.cards.selectorAll', 'li.s-item');
+    endpoint.searchParams.set('data.cards.attr', 'outerHTML');
+    endpoint.searchParams.set('data.links.selectorAll', 'a[href*="/itm/"]');
+    endpoint.searchParams.set('data.links.attr', 'outerHTML');
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 28000);
+    let response;
+    try {
+      response = await fetch(endpoint, { signal: controller.signal, headers: { accept: 'application/json' } });
+    } finally {
+      clearTimeout(timer);
+    }
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload?.status === 'error') {
+      throw new Error(clean(payload?.message || payload?.data?.url || `Browser catalog returned ${response.status}`));
+    }
+
+    const cards = Array.isArray(payload?.data?.cards) ? payload.data.cards : [];
+    const links = Array.isArray(payload?.data?.links) ? payload.data.links : [];
+    const fragments = cards.length ? cards : links;
+    let added = 0;
+    for (const fragment of fragments) {
+      const item = ebayItemFromMarkup(fragment);
+      if (!item || seen.has(item.item_id)) continue;
+      seen.add(item.item_id);
+      listings.push(item);
+      added += 1;
+    }
+    if (!fragments.length || added === 0) {
+      complete = true;
+      break;
+    }
+  }
+  return { listings, total: listings.length, complete };
+}
+
 async function collectEbayListings(username) {
   const apiKey = clean(process.env.SCRAPEBADGER_API_KEY);
-  if (!apiKey) throw new Error('eBay catalog fallback is not configured');
+  if (!apiKey) return collectEbayMicrolinkListings(username);
 
   const listings = [];
   const seen = new Set();
