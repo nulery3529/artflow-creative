@@ -18,8 +18,8 @@ export function getProfitScore(order) {
     return { label: "Great", margin };
   }
 
-  // No recorded sale amount: a cost without revenue is money lost.
-  if (Number.isFinite(cost) && cost > 0) return { label: "Lost Money", margin: -1 };
-
+  // Missing or zero imported revenue is incomplete data, not proof of a loss.
+  // Do not label marketplace orders as "Lost Money" until a positive sale
+  // amount is present and the profit calculation can be evaluated reliably.
   return null;
 }
