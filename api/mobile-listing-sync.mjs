@@ -1085,13 +1085,113 @@ function ebayScrapeBadgerPrice(item = {}) {
   return Number.isFinite(value) ? value : 0;
 }
 
+function stripMarketplaceMarkup(value = '') {
+  return decodeEntities(String(value || ''))
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function ebayCardFromMarkup(markup = '') {
+  const html = decodeEntities(String(markup || ''));
+  const href = html.match(/href=["']([^"']*\/itm\/[^"']+)["']/i)?.[1] || '';
+  let url = '';
+  try { url = normalizeUrl(new URL(href, 'https://www.ebay.com').toString()); } catch {}
+  const listingId = listingIdFromUrl('eBay', url);
+  if (!listingId) return null;
+
+  const imageUrl = clean(
+    html.match(/https?:\/\/[^"'\s<>]*ebayimg\.com\/[^"'\s<>]+/i)?.[0] || ''
+  ).replace(/&amp;/g, '&');
+
+  const alt = html.match(/\balt=["']([^"']{2,500})["']/i)?.[1] || '';
+  const text = stripMarketplaceMarkup(html);
+  const title = clean(alt || text.split(/\$\s*[0-9]/)[0] || `eBay listing ${listingId}`)
+    .replace(/^opens in a new window or tab\s*/i, '')
+    .slice(0, 300);
+  const price = priceFromText(text);
+
+  return {
+    platform: 'eBay',
+    url,
+    meta: {
+      finalUrl: url,
+      title: title || `eBay listing ${listingId}`,
+      description: '',
+      imageUrl,
+      price,
+      currency: 'USD',
+    },
+  };
+}
+
+async function collectEbayMicrolinkListings(username) {
+  const profileUrl = linkedSiteProfileUrl('eBay', username);
+  const listings = [];
+  const seen = new Set();
+  let complete = false;
+
+  for (let page = 1; page <= 25 && listings.length < 5000; page += 1) {
+    const sellerPage = new URL('https://www.ebay.com/sch/i.html');
+    sellerPage.searchParams.set('_ssn', username);
+    sellerPage.searchParams.set('_ipg', '240');
+    sellerPage.searchParams.set('_pgn', String(page));
+    sellerPage.searchParams.set('_sop', '10');
+
+    const endpoint = new URL('https://api.microlink.io/');
+    endpoint.searchParams.set('url', sellerPage.toString());
+    endpoint.searchParams.set('meta', 'false');
+    endpoint.searchParams.set('prerender', 'true');
+    endpoint.searchParams.set('data.cards.selectorAll', 'li.s-item');
+    endpoint.searchParams.set('data.cards.attr', 'outerHTML');
+    endpoint.searchParams.set('data.links.selectorAll', 'a[href*="/itm/"]');
+    endpoint.searchParams.set('data.links.attr', 'outerHTML');
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 28000);
+    let response;
+    try {
+      response = await fetch(endpoint, { signal: controller.signal, headers: { accept: 'application/json' } });
+    } finally {
+      clearTimeout(timer);
+    }
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload?.status === 'error') {
+      const detail = clean(payload?.message || payload?.data?.url || `Browser catalog returned ${response.status}`);
+      const error = new Error(detail || 'Browser eBay catalog fallback failed');
+      error.code = 'EBAY_BROWSER_FALLBACK_ERROR';
+      throw error;
+    }
+
+    const cards = Array.isArray(payload?.data?.cards) ? payload.data.cards : [];
+    const links = Array.isArray(payload?.data?.links) ? payload.data.links : [];
+    const fragments = cards.length ? cards : links;
+    let added = 0;
+
+    for (const fragment of fragments) {
+      const item = ebayCardFromMarkup(fragment);
+      const itemId = item ? listingIdFromUrl('eBay', item.url) : '';
+      if (!item || !itemId || seen.has(itemId)) continue;
+      seen.add(itemId);
+      listings.push(item);
+      added += 1;
+    }
+
+    if (!fragments.length || added === 0) {
+      complete = true;
+      break;
+    }
+  }
+
+  return { username, profileUrl, listings, complete, total: listings.length, source: 'microlink' };
+}
+
 async function collectEbayScrapeBadgerListings(username) {
   const apiKey = clean(process.env.SCRAPEBADGER_API_KEY);
-  if (!apiKey) {
-    const error = new Error('Art Flow’s eBay catalog fallback is not configured.');
-    error.code = 'EBAY_FALLBACK_NOT_CONFIGURED';
-    throw error;
-  }
+  if (!apiKey) return collectEbayMicrolinkListings(username);
 
   const profileUrl = linkedSiteProfileUrl('eBay', username);
   const listings = [];
