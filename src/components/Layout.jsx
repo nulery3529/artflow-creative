@@ -4,7 +4,6 @@ import { useTheme } from "next-themes";
 import {
   LayoutDashboard,
   ShoppingCart,
-  Images,
   Receipt,
   Package,
   BarChart3,
@@ -43,7 +42,6 @@ const tabPaths = new Set(tabs.map((item) => item.path));
 const navItems = [
   { label: "Dashboard", to: "/", icon: LayoutDashboard },
   { label: "Orders", to: "/orders", icon: ShoppingCart },
-  { label: "Gallery", to: "/gallery", icon: Images },
   { label: "Expenses", to: "/expenses", icon: Receipt },
   { label: "Inventory", to: "/inventory", icon: Package },
   { label: "Reports", to: "/reports", icon: BarChart3 },
