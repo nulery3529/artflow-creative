@@ -5,6 +5,14 @@ import {
   clean, normalize, session, profile, businessForUser, encrypt, decrypt, parseBody, insertOrders,
 } from './_official-sync-shared.mjs';
 import { parseSaleEmail } from './_gmail-sales-core.mjs';
+import {
+  categoryFor,
+  extractTotal,
+  isNonExpenseNotice,
+  localDate as expenseLocalDate,
+  originalSubject,
+  sourceName,
+} from './gmail-expense-sync.mjs';
 
 const { Pool } = pg;
 const pool = new Pool({
@@ -264,6 +272,157 @@ function literalMessages(response) {
   return result;
 }
 
+const YAHOO_EXPENSE_TERMS = [
+  'artflow expense',
+  'receipt',
+  'invoice',
+  'order confirmation',
+  'payment confirmation',
+  'payment receipt',
+  'purchase confirmation',
+  'thanks for your order',
+  'subscription renewal',
+];
+
+async function yahooExpenseMessages(email, appPassword, afterUid=0) {
+  const imap = await openImap(email, appPassword);
+  try {
+    const found = new Set();
+    const yearStart = `01-Jan-${new Date().getFullYear()}`;
+    for (const term of YAHOO_EXPENSE_TERMS) {
+      const uidRange = afterUid > 0 ? `UID ${afterUid + 1}:* ` : '';
+      const response = await imap.command(
+        `UID SEARCH ${uidRange}SINCE ${yearStart} HEADER SUBJECT ${imapQuote(term)}`
+      );
+      const text = response.toString('utf8');
+      const searchLine = text.match(/^\* SEARCH(?:\s+([0-9 ]+))?/mi)?.[1] || '';
+      for (const uid of searchLine.split(/\s+/).map(Number).filter((n) => Number.isFinite(n) && n > 0)) {
+        found.add(uid);
+      }
+    }
+
+    const allUids = [...found].sort((a,b)=>a-b);
+    const uids = allUids.slice(0, MAX_MESSAGES_PER_RUN);
+    const messages = [];
+    for (let i = 0; i < uids.length; i += 20) {
+      const batch = uids.slice(i, i + 20);
+      const response = await imap.command(`UID FETCH ${batch.join(',')} (UID BODY.PEEK[])`);
+      messages.push(...literalMessages(response));
+    }
+    return {
+      messages,
+      remaining: Math.max(0, allUids.length - uids.length),
+      maxUid: uids.length ? Math.max(...uids) : afterUid,
+    };
+  } finally {
+    await imap.close();
+  }
+}
+
+async function recordYahooExpenseImport(client, business, email, uid, status, details) {
+  const messageId = `yahoo:${email}:${uid}`;
+  await client.query(`
+    INSERT INTO artflow.email_import_messages (
+      base44_id,business_id,message_id,import_type,status,platform,created_by_id,created_date,updated_date,data
+    )
+    SELECT gen_random_uuid()::text,$1,$2,'expense',$3,'Yahoo',$4,now(),now(),$5::jsonb
+    WHERE NOT EXISTS (
+      SELECT 1 FROM artflow.email_import_messages
+      WHERE business_id=$1 AND message_id=$2 AND import_type='expense'
+    )
+  `,[
+    business.base44_id,
+    messageId,
+    status,
+    business.created_by_id || null,
+    JSON.stringify({ source:'yahoo_expense_sync', details, parser_version:1 }),
+  ]);
+}
+
+async function insertYahooExpense(client, business, email, uid, parsed) {
+  const messageKey = `yahoo:${email}:${uid}`;
+  const saleRows = parseSaleEmail(parsed.from, parsed.subject, parsed.text, /ebay/i.test(parsed.from));
+  if (saleRows.length) {
+    await recordYahooExpenseImport(client, business, email, uid, 'skipped', 'Marketplace sale message was not counted as an expense');
+    return { imported:0, skipped:1 };
+  }
+
+  if (isNonExpenseNotice(parsed.subject)) {
+    await recordYahooExpenseImport(client, business, email, uid, 'skipped', 'Credit, refund, or failed-payment notice was not counted as a positive expense');
+    return { imported:0, skipped:1 };
+  }
+
+  const amount = extractTotal(`${parsed.subject}\n${parsed.text}`);
+  if (!amount) {
+    await recordYahooExpenseImport(client, business, email, uid, 'skipped', 'Yahoo receipt did not contain a recognizable purchase total');
+    return { imported:0, skipped:1 };
+  }
+
+  const receiptId = `yahoo-expense:${email}:${uid}`;
+  const existing = await client.query(`
+    SELECT 1 FROM artflow.expenses
+    WHERE business_id=$1
+      AND (receipt_id=$2 OR data->>'yahoo_message_key'=$3)
+    LIMIT 1
+  `,[business.base44_id,receiptId,messageKey]);
+
+  if (existing.rowCount) {
+    await recordYahooExpenseImport(client, business, email, uid, 'skipped', 'Duplicate Yahoo expense email');
+    return { imported:0, skipped:1 };
+  }
+
+  const description = originalSubject(parsed.subject, parsed.text).slice(0,240) || 'Yahoo email receipt';
+  const category = categoryFor(parsed.subject, parsed.text);
+  const source = sourceName(parsed.subject, parsed.text, parsed.from).slice(0,120);
+  const accessEmails = Array.from(new Set([
+    business.primary_email,
+    business.data?.primary_email,
+    ...(Array.isArray(business.data?.member_emails) ? business.data.member_emails : []),
+    ...(Array.isArray(business.data?.expense_emails) ? business.data.expense_emails : []),
+    email,
+  ].map(normalize).filter(Boolean)));
+
+  const result = await client.query(`
+    INSERT INTO artflow.expenses (
+      base44_id,business_id,expense_date,category,amount,archived,source,receipt_id,created_by_id,created_date,updated_date,data
+    ) VALUES (
+      gen_random_uuid()::text,$1,$2,$3,$4,false,$5,$6,$7,now(),now(),$8::jsonb
+    )
+    RETURNING base44_id
+  `,[
+    business.base44_id,
+    expenseLocalDate(parsed.date || new Date().toISOString()),
+    category,
+    amount,
+    source,
+    receiptId,
+    business.created_by_id || null,
+    JSON.stringify({
+      source:'yahoo_expense_sync',
+      sync_source:'yahoo_expense_sync',
+      source_email:email,
+      yahoo_uid:uid,
+      yahoo_message_key:messageKey,
+      yahoo_message_id:parsed.messageId || '',
+      description,
+      deductible_percent:100,
+      deductible_amount:amount,
+      status:'pending',
+      access_emails:accessEmails,
+    }),
+  ]);
+
+  await recordYahooExpenseImport(
+    client,
+    business,
+    email,
+    uid,
+    result.rows[0] ? 'imported' : 'skipped',
+    result.rows[0] ? `Imported Yahoo expense: ${description}` : 'Duplicate Yahoo expense email'
+  );
+  return { imported:result.rows[0] ? 1 : 0, skipped:result.rows[0] ? 0 : 1 };
+}
+
 async function yahooMessages(email, appPassword, afterUid=0) {
   const imap = await openImap(email, appPassword);
   try {
@@ -307,6 +466,40 @@ async function saveYahooConfig(client, business, patch) {
   );
   business.data = next;
   return yahooMail;
+}
+
+export async function syncYahooExpenses(client, business) {
+  const config = yahooConfig(business);
+  const email = normalize(config.email);
+  if (!config.connected || !email || !config.app_password_enc) {
+    return { connected:false, checked:0, imported:0, skipped:0, remaining:0 };
+  }
+
+  const password = decrypt(config.app_password_enc);
+  const { messages, remaining, maxUid } = await yahooExpenseMessages(
+    email,
+    password,
+    Number(config.last_expense_uid || 0)
+  );
+
+  let imported = 0;
+  let skipped = 0;
+  for (const item of messages) {
+    const parsed = parseRawMessage(item.raw);
+    const result = await insertYahooExpense(client, business, email, item.uid, parsed);
+    imported += result.imported;
+    skipped += result.skipped;
+  }
+
+  await saveYahooConfig(client, business, {
+    last_expense_uid:maxUid,
+    last_expense_sync_at:new Date().toISOString(),
+    last_expense_checked:messages.length,
+    last_expense_imported:imported,
+    last_expense_error:'',
+  });
+
+  return { connected:true, checked:messages.length, imported, skipped, remaining };
 }
 
 export async function syncYahooMailbox(client, business) {
@@ -365,6 +558,10 @@ export default async function handler(req, res) {
         last_checked: Number(config.last_checked || 0),
         last_saved: Number(config.last_saved || 0),
         last_error: clean(config.last_error || ''),
+        last_expense_sync_at: config.last_expense_sync_at || null,
+        last_expense_checked: Number(config.last_expense_checked || 0),
+        last_expense_imported: Number(config.last_expense_imported || 0),
+        last_expense_error: clean(config.last_expense_error || ''),
       });
     }
 
@@ -403,28 +600,35 @@ export default async function handler(req, res) {
       );
       business.data = next;
 
-      const result = await syncYahooMailbox(client, business);
+      const [salesResult, expenseResult] = await Promise.all([
+        syncYahooMailbox(client, business),
+        syncYahooExpenses(client, business),
+      ]);
       return res.status(200).json({
         ok:true,
-        ...result,
+        ...salesResult,
+        expenses:expenseResult,
         email,
-        message: result.saved > 0
-          ? `Yahoo connected. Imported ${result.saved} eBay sale${result.saved === 1 ? '' : 's'}.`
-          : 'Yahoo connected. The inbox is now being checked directly for eBay sales.',
+        message: expenseResult.imported > 0
+          ? `Yahoo connected. Added ${expenseResult.imported} expense receipt${expenseResult.imported === 1 ? '' : 's'} to review.`
+          : 'Yahoo connected. Sales and expense receipts are now checked directly.',
       });
     }
 
     if (action === 'sync') {
       try {
-        const result = await syncYahooMailbox(client, business);
+        const [result, expenses] = await Promise.all([
+          syncYahooMailbox(client, business),
+          syncYahooExpenses(client, business),
+        ]);
         return res.status(200).json({
           ok:true,
           ...result,
-          message: result.saved > 0
-            ? `Imported ${result.saved} new eBay sale${result.saved === 1 ? '' : 's'} from Yahoo.`
-            : result.remaining > 0
-              ? 'Yahoo sync is catching up on older eBay messages.'
-              : 'Yahoo eBay sales are up to date.',
+          expenses,
+          message: [
+            result.saved > 0 ? `${result.saved} new eBay sale${result.saved === 1 ? '' : 's'}` : '',
+            expenses.imported > 0 ? `${expenses.imported} Yahoo expense receipt${expenses.imported === 1 ? '' : 's'} added to review` : '',
+          ].filter(Boolean).join(' and ') || 'Yahoo sales and expenses are up to date.',
         });
       } catch (error) {
         await saveYahooConfig(client, business, { last_error: clean(error?.message || 'Yahoo sync failed') }).catch(() => {});
