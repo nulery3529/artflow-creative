@@ -585,13 +585,17 @@ export default async function handler(req, res) {
         ...(business.data || {}),
         sales_emails: salesEmails,
         yahoo_mail: {
+          ...config,
           email,
           connected:true,
           app_password_enc: encrypt(appPassword),
           connected_at: new Date().toISOString(),
-          last_uid: 0,
-          last_sync_at: null,
+          last_uid: Number(config.last_uid || config.sales_floor_uid || 0),
+          last_expense_uid: Number(config.last_expense_uid || 0),
+          last_sync_at: config.last_sync_at || null,
+          last_expense_sync_at: config.last_expense_sync_at || null,
           last_error:'',
+          last_expense_error:'',
         },
       };
       await client.query(
@@ -637,8 +641,17 @@ export default async function handler(req, res) {
     }
 
     if (action === 'disconnect') {
-      const next = { ...(business.data || {}) };
-      delete next.yahoo_mail;
+      const next = {
+        ...(business.data || {}),
+        yahoo_mail: {
+          ...config,
+          connected:false,
+          app_password_enc:'',
+          disconnected_at:new Date().toISOString(),
+          last_error:'',
+          last_expense_error:'',
+        },
+      };
       await client.query(
         `UPDATE artflow.businesses SET data=$2::jsonb, updated_date=now() WHERE base44_id=$1`,
         [business.base44_id, JSON.stringify(next)]
