@@ -4,6 +4,13 @@ const clean = (value = '', max = 500) => String(value || '').trim().slice(0, max
 const PRODUCT_STATUSES = ['draft', 'active', 'archived'];
 const ORDER_STATUSES = ['pending', 'paid', 'processing', 'shipped', 'completed', 'cancelled'];
 
+function cleanProductImage(value = '') {
+  const image = String(value || '').trim();
+  if (/^https?:\/\//i.test(image)) return image.slice(0, 4000);
+  if (/^data:image\/(?:jpeg|jpg|png|webp);base64,/i.test(image) && image.length <= 2500000) return image;
+  return '';
+}
+
 // Seller-side store management: products, categories, orders, customers.
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -94,8 +101,8 @@ export default async function handler(req, res) {
       const categoryId = normalizeUuid(body.category_id);
       const description = clean(body.description, 4000);
       const images = (Array.isArray(body.images) ? body.images : [])
-        .map((url) => clean(url, 800))
-        .filter((url) => /^https?:\/\//i.test(url))
+        .map((url) => cleanProductImage(url))
+        .filter(Boolean)
         .slice(0, 8);
       const id = normalizeUuid(body.id);
 
