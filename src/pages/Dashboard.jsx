@@ -22,7 +22,7 @@ import {
   currentMonthKey,
   monthLabel,
 } from "@/lib/format";
-import { displayPlatform } from "@/lib/platforms";
+import { displayPlatform, PLATFORMS } from "@/lib/platforms";
 import ProfitScoreBadge from "@/components/ProfitScoreBadge";
 import { useAuth } from "@/lib/AuthContext";
 import { toast } from "sonner";
@@ -461,7 +461,9 @@ export default function Dashboard() {
       ? totalSales / uniqueOrderIds.size
       : 0;
 
-    const platformMap = new Map();
+    const platformMap = new Map(
+      PLATFORMS.map((platform) => [platform, 0])
+    );
 
     for (const order of activeOrders) {
       const platform = displayPlatform(
@@ -842,11 +844,11 @@ export default function Dashboard() {
         <Card className="p-5 lg:p-6">
           <div className="mb-5">
             <h2 className="text-sm font-semibold">
-              Sales by Platform
+              Market Performance
             </h2>
 
             <p className="text-[10px] text-muted-foreground mt-1">
-              Marketplace performance
+              Sales across all marketplaces
             </p>
           </div>
 
