@@ -5,7 +5,11 @@
   "crons": [
     {
       "path": "/api/gmail-sales-cron",
-      "schedule": "0 6 * * *"
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/marketplace-orders-cron",
+      "schedule": "*/15 * * * *"
     },
     {
       "path": "/api/gmail-expense-cron",
