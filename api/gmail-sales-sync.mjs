@@ -63,12 +63,18 @@ export default async function handler(req, res) {
           if (error?.code === 'GMAIL_RECONNECT' || error?.status === 401) reconnectRequired = true;
         }
       }
+      const connectedEmailSet = new Set(connectedAccounts.map((item) => normalize(item.email)));
+      const salesInboxes = Array.from(allowedEmails);
+      const forwardOnlyInboxes = salesInboxes.filter((email) => !connectedEmailSet.has(normalize(email)));
+
       return res.status(200).json({
         configured: googleAccounts.length > 0,
         connected: connectedAccounts.some((item) => item.approved),
         gmail_access: connectedAccounts.length > 0,
         reconnect_required: reconnectRequired && connectedAccounts.length === 0,
         accounts: connectedAccounts,
+        sales_inboxes: salesInboxes,
+        forward_only_inboxes: forwardOnlyInboxes,
         message: connectedAccounts.length
           ? 'Gmail access is connected.'
           : googleAccounts.length
