@@ -1064,12 +1064,113 @@ function ebayLegacyItemId(item = {}) {
   return clean(match?.[1] || '');
 }
 
+function ebayScrapeBadgerItemId(item = {}) {
+  return clean(item?.item_id || item?.legacy_item_id || item?.itemId || item?.legacyItemId || '');
+}
+
+function ebayScrapeBadgerPrice(item = {}) {
+  const raw = item?.price;
+  if (raw && typeof raw === 'object') {
+    const value = Number(raw.value);
+    if (Number.isFinite(value)) return value;
+  }
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : 0;
+}
+
+async function collectEbayScrapeBadgerListings(username) {
+  const apiKey = clean(process.env.SCRAPEBADGER_API_KEY);
+  if (!apiKey) {
+    const error = new Error('Art Flow’s eBay catalog fallback is not configured.');
+    error.code = 'EBAY_FALLBACK_NOT_CONFIGURED';
+    throw error;
+  }
+
+  const profileUrl = linkedSiteProfileUrl('eBay', username);
+  const listings = [];
+  const seen = new Set();
+  let total = null;
+  let complete = false;
+
+  for (let page = 1; page <= 100 && listings.length < 20000; page += 1) {
+    const endpoint = new URL(`https://scrapebadger.com/v1/ebay/sellers/${encodeURIComponent(username)}/items`);
+    endpoint.searchParams.set('domain', 'com');
+    endpoint.searchParams.set('page', String(page));
+    endpoint.searchParams.set('per_page', '240');
+
+    const response = await fetch(endpoint, {
+      headers: { 'x-api-key': apiKey, accept: 'application/json' },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const detail = clean(payload?.detail || payload?.error || payload?.message || `eBay catalog fallback returned ${response.status}`);
+      const error = new Error(detail || 'eBay catalog fallback failed');
+      error.status = response.status;
+      error.code = 'EBAY_FALLBACK_ERROR';
+      throw error;
+    }
+
+    const items = Array.isArray(payload?.results)
+      ? payload.results
+      : Array.isArray(payload?.items)
+        ? payload.items
+        : [];
+    const pagination = payload?.pagination || {};
+    const reportedTotal = Number(pagination?.total_results);
+    if (Number.isFinite(reportedTotal) && reportedTotal >= 0) total = reportedTotal;
+
+    for (const item of items) {
+      const listingId = ebayScrapeBadgerItemId(item);
+      const listingUrl = normalizeUrl(item?.url || (listingId ? `https://www.ebay.com/itm/${listingId}` : ''));
+      if (!listingId || !listingUrl || seen.has(listingUrl)) continue;
+      seen.add(listingUrl);
+      listings.push({
+        platform: 'eBay',
+        url: listingUrl,
+        meta: {
+          finalUrl: listingUrl,
+          title: clean(item?.title || `eBay listing ${listingId}`).slice(0, 300),
+          description: [item?.condition, item?.buying_format, item?.location].map(clean).filter(Boolean).join(' · ').slice(0, 800),
+          imageUrl: clean(item?.image || ''),
+          price: ebayScrapeBadgerPrice(item),
+          currency: clean(item?.price?.currency || item?.currency || 'USD').toUpperCase() || 'USD',
+        },
+      });
+    }
+
+    const totalPages = Number(pagination?.total_pages);
+    const currentPage = Number(pagination?.current_page || page);
+    const hasMore = pagination?.has_more;
+    if (
+      items.length === 0 ||
+      hasMore === false ||
+      (Number.isFinite(totalPages) && totalPages > 0 && currentPage >= totalPages) ||
+      (total !== null && listings.length >= total)
+    ) {
+      complete = true;
+      break;
+    }
+    if (items.length < 240 && hasMore !== true && !Number.isFinite(totalPages)) {
+      complete = true;
+      break;
+    }
+  }
+
+  return { username, profileUrl, listings, total: total ?? listings.length, complete, source: 'scrapebadger' };
+}
+
 async function collectEbayProfileListings(usernameInput) {
   const username = cleanMarketplaceUsername(usernameInput);
   if (!isValidMarketplaceUsername(username)) throw new Error('Enter a valid eBay username or shop name.');
 
   const profileUrl = linkedSiteProfileUrl('eBay', username);
-  const accessToken = await ebayApplicationToken();
+  let accessToken = '';
+  try {
+    accessToken = await ebayApplicationToken();
+  } catch (error) {
+    console.warn('eBay official app token unavailable; using catalog fallback', error?.message || error);
+    return collectEbayScrapeBadgerListings(username);
+  }
   const listings = [];
   const seen = new Set();
   let offset = 0;
