@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Download, ImagePlus, Camera, Trash2, Loader2, Link2 } from "lucide-react";
+import { Check, Clipboard, Download, ImagePlus, Camera, Trash2, Loader2, Link2, Save } from "lucide-react";
 import { centsToPriceInput, priceInputToCents } from "@/lib/storeClient";
 import { downloadImage } from "@/lib/downloadImage";
 
@@ -44,6 +44,8 @@ export default function ProductForm({ product, categories, onSave, onCancel }) {
   const [status, setStatus] = useState(product?.status || "draft");
   const [categoryId, setCategoryId] = useState(product?.category_id || "");
   const [description, setDescription] = useState(product?.description || "");
+  const [hashtags, setHashtags] = useState(product?.hashtags || "");
+  const [copiedField, setCopiedField] = useState("");
   const [images, setImages] = useState(Array.isArray(product?.images) ? product.images.filter(Boolean).slice(0, MAX_IMAGES) : []);
   const [imageLink, setImageLink] = useState("");
   const [saving, setSaving] = useState(false);
@@ -65,6 +67,7 @@ export default function ProductForm({ product, categories, onSave, onCancel }) {
         status,
         category_id: categoryId || null,
         description: description.trim(),
+        hashtags: hashtags.trim(),
         images,
       });
     } finally {
@@ -106,13 +109,61 @@ export default function ProductForm({ product, categories, onSave, onCancel }) {
     setImages((current) => current.filter((_, i) => i !== index));
   };
 
+  const copyText = async (field, value) => {
+    const text = String(value || "").trim();
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      window.setTimeout(() => setCopiedField((current) => current === field ? "" : current), 1400);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      textarea.remove();
+      setCopiedField(field);
+      window.setTimeout(() => setCopiedField((current) => current === field ? "" : current), 1400);
+    }
+  };
+
+  const copyAllListingText = () => {
+    const parts = [
+      name.trim(),
+      description.trim(),
+      hashtags.trim(),
+    ].filter(Boolean);
+    copyText("all", parts.join("\n\n"));
+  };
+
+  const saveAllImages = async () => {
+    for (let index = 0; index < images.length; index += 1) {
+      await downloadImage(images[index], `${name || "product"}-${index + 1}`);
+      await new Promise((resolve) => window.setTimeout(resolve, 180));
+    }
+  };
+
   return (
     <form onSubmit={submit} className="bg-card rounded-3xl p-5 border border-[hsl(var(--border))] space-y-4">
       <p className="font-heading text-lg">{product?.id ? "Edit product" : "New product"}</p>
 
-      <div>
-        <label className="text-xs font-semibold text-muted-foreground">Name</label>
-        <input value={name} onChange={(e) => setName(e.target.value)} className="form-input mt-1" placeholder="Sunset Over the Bay" required />
+      <div className="space-y-1">
+        <div className="flex items-center justify-between gap-2">
+          <label className="text-xs font-semibold text-muted-foreground">Title</label>
+          <button
+            type="button"
+            onClick={() => copyText("title", name)}
+            disabled={!name.trim()}
+            className="h-8 px-3 rounded-xl bg-muted text-xs font-semibold flex items-center gap-1.5 disabled:opacity-50"
+          >
+            {copiedField === "title" ? <Check className="w-3.5 h-3.5" /> : <Clipboard className="w-3.5 h-3.5" />}
+            {copiedField === "title" ? "Copied" : "Copy Title"}
+          </button>
+        </div>
+        <input value={name} onChange={(e) => setName(e.target.value)} className="form-input" placeholder="Sunset Over the Bay" required />
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -149,15 +200,70 @@ export default function ProductForm({ product, categories, onSave, onCancel }) {
         Track stock (blocks buying when it reaches zero)
       </label>
 
-      <div>
-        <label className="text-xs font-semibold text-muted-foreground">Description</label>
-        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="form-textarea mt-1" placeholder="Materials, size, story behind the piece…" />
+      <div className="space-y-1">
+        <div className="flex items-center justify-between gap-2">
+          <label className="text-xs font-semibold text-muted-foreground">Description</label>
+          <button
+            type="button"
+            onClick={() => copyText("description", description)}
+            disabled={!description.trim()}
+            className="h-8 px-3 rounded-xl bg-muted text-xs font-semibold flex items-center gap-1.5 disabled:opacity-50"
+          >
+            {copiedField === "description" ? <Check className="w-3.5 h-3.5" /> : <Clipboard className="w-3.5 h-3.5" />}
+            {copiedField === "description" ? "Copied" : "Copy Description"}
+          </button>
+        </div>
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className="form-textarea" placeholder="Materials, size, condition, details…" />
       </div>
 
+      <div className="space-y-1">
+        <div className="flex items-center justify-between gap-2">
+          <label className="text-xs font-semibold text-muted-foreground">Hashtags</label>
+          <button
+            type="button"
+            onClick={() => copyText("hashtags", hashtags)}
+            disabled={!hashtags.trim()}
+            className="h-8 px-3 rounded-xl bg-muted text-xs font-semibold flex items-center gap-1.5 disabled:opacity-50"
+          >
+            {copiedField === "hashtags" ? <Check className="w-3.5 h-3.5" /> : <Clipboard className="w-3.5 h-3.5" />}
+            {copiedField === "hashtags" ? "Copied" : "Copy Hashtags"}
+          </button>
+        </div>
+        <textarea
+          value={hashtags}
+          onChange={(e) => setHashtags(e.target.value)}
+          rows={2}
+          className="form-textarea"
+          placeholder="#artprint #wallart #homedecor"
+        />
+      </div>
+
+      <button
+        type="button"
+        onClick={copyAllListingText}
+        disabled={!name.trim() && !description.trim() && !hashtags.trim()}
+        className="w-full h-11 rounded-2xl bg-muted text-foreground text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+      >
+        {copiedField === "all" ? <Check className="w-4 h-4" /> : <Clipboard className="w-4 h-4" />}
+        {copiedField === "all" ? "Listing Text Copied" : "Copy All Listing Text"}
+      </button>
+
       <div className="space-y-3">
-        <div>
-          <label className="text-xs font-semibold text-muted-foreground">Product photos</label>
-          <p className="text-[11px] text-muted-foreground mt-1">Take a new photo or choose one already on your device. Up to {MAX_IMAGES} photos.</p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground">Product photos</label>
+            <p className="text-[11px] text-muted-foreground mt-1">Take a new photo or choose one already on your device. Up to {MAX_IMAGES} photos.</p>
+          </div>
+          {images.length > 0 && (
+            <button
+              type="button"
+              onClick={saveAllImages}
+              className="h-9 px-3 rounded-xl bg-muted text-xs font-semibold flex items-center gap-1.5 shrink-0"
+            >
+              <Save className="w-3.5 h-3.5" />
+              Save All Images
+            </button>
+          )}
         </div>
 
         <input
@@ -227,20 +333,22 @@ export default function ProductForm({ product, categories, onSave, onCancel }) {
                   <button
                     type="button"
                     onClick={() => downloadImage(url, `${name || "product"}-${index + 1}`)}
-                    className="h-9 rounded-xl bg-card flex items-center justify-center"
-                    aria-label={`Download product photo ${index + 1}`}
-                    title="Download photo"
+                    className="h-9 rounded-xl bg-card text-[11px] font-semibold flex items-center justify-center gap-1"
+                    aria-label={`Save product photo ${index + 1}`}
+                    title="Save image"
                   >
-                    <Download className="w-4 h-4" />
+                    <Download className="w-3.5 h-3.5" />
+                    Save
                   </button>
                   <button
                     type="button"
                     onClick={() => removeImage(index)}
-                    className="h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center"
+                    className="h-9 rounded-xl bg-rose-50 text-rose-600 text-[11px] font-semibold flex items-center justify-center gap-1"
                     aria-label={`Delete product photo ${index + 1}`}
                     title="Delete photo"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete
                   </button>
                 </div>
               </div>
