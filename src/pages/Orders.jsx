@@ -57,16 +57,13 @@ export default function Orders() {
         });
         return { response, data: await response.json().catch(() => ({})) };
       };
-      const [gmail, tracker] = await Promise.all([
-        runSync("/api/gmail-sales-sync"),
-        runSync("/api/tracker-sync"),
-      ]);
-      const usable = [gmail, tracker].filter(({ response }) => response.ok || response.status === 409);
-      if (!usable.length) throw new Error(gmail.data?.error || tracker.data?.error || "Sales sync failed");
+      const gmail = await runSync("/api/gmail-sales-sync");
+      if (!gmail.response.ok && gmail.response.status !== 409) {
+        throw new Error(gmail.data?.error || "Sales sync failed");
+      }
       await reloadOrders();
-      const success = [gmail, tracker].find(({ response }) => response.ok);
-      if (success) toast.success(success.data?.message || "Sales are up to date");
-      else toast.info(gmail.data?.error || tracker.data?.error || "Reconnect Google to resume automatic sales sync");
+      if (gmail.response.ok) toast.success(gmail.data?.message || "Sales are up to date");
+      else toast.info(gmail.data?.error || "Reconnect Gmail to resume automatic sales sync");
     } catch (e) {
       toast.error("Sales sync failed", { description: e?.message });
     } finally {
