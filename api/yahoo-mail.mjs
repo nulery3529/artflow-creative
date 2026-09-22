@@ -230,7 +230,7 @@ async function openImap(email, appPassword) {
   } catch (error) {
     socket.destroy();
     const message = /AUTHENTICATIONFAILED|LOGIN failed|invalid credentials/i.test(error?.message || '')
-      ? 'Yahoo rejected the connection. Use a Yahoo app password, not your normal Yahoo password.'
+      ? 'Yahoo rejected this credential. Create a new Yahoo app password in Yahoo Account Security under External connections, then paste that generated password here. Do not use your normal Yahoo sign-in password.'
       : error?.message || 'Could not connect to Yahoo Mail';
     throw new Error(message);
   }
