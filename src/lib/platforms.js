@@ -44,7 +44,20 @@ export function orderSourceUrl(order) {
   }
 
   const direct = String(order?.source_url || order?.data?.source_url || "").trim();
-  if (!/^https:\/\//i.test(direct)) return "";
-  if (/support\.poshmark\.com/i.test(direct)) return "";
-  return direct;
+  if (/^https:\/\//i.test(direct) && !/support\.poshmark\.com/i.test(direct)) {
+    return direct;
+  }
+
+  // Historical Sheet imports often do not contain the original order URL.
+  // Keep the action useful without pretending we know a specific order page:
+  // newer records still use their exact source URL, while old records fall
+  // back to the marketplace itself.
+  const fallback = {
+    Vinted: "https://www.vinted.com/",
+    Depop: "https://www.depop.com/",
+    Etsy: "https://www.etsy.com/",
+    eBay: "https://www.ebay.com/",
+    Poshmark: "https://poshmark.com/",
+  };
+  return fallback[platform] || "";
 }
