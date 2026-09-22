@@ -1,11 +1,9 @@
 export const ARTFLOW_GOOGLE_SCOPES = [
-  "https://www.googleapis.com/auth/drive.file",
   "https://www.googleapis.com/auth/gmail.readonly",
 ];
 
-// ArtFlow uses one Google authorization for both the private tracker and the
-// Gmail sales inbox. Keeping the complete scope set here prevents a future UI
-// entry point from creating a partially-authorized Google account.
+// Google is used only for Gmail sales and expense syncing.
+// Art Flow no longer requests Google Drive or Google Sheets access.
 export function artflowGoogleLinkOptions({ callbackURL, loginHint = "" } = {}) {
   const canonicalCallbackURL = String(callbackURL || "").replace(
     /^https:\/\/www\.artflowcreative\.com/i,
