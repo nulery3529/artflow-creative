@@ -27,14 +27,15 @@ function marketplaceImageSrc(listing) {
   if (/^data:image\//i.test(String(listing?.image_url || ""))) return listing.image_url;
   if (/^https:\/\/[^/]*etsystatic\.com\//i.test(String(listing?.image_url || ""))) return listing.image_url;
   const params = new URLSearchParams();
+  const imageListingUrl = listing?._image_listing_url || listing?.listing_url || "";
   if (listing.image_url) params.set("image", listing.image_url);
-  if (listing.listing_url) params.set("listing", listing.listing_url);
+  if (imageListingUrl) params.set("listing", imageListingUrl);
   return `/api/listing-image?${params.toString()}`;
 }
 
 
 function MarketplaceListingImage({ listing }) {
-  const sourceKey = `${listing?.image_url || ""}|${listing?.listing_url || ""}`;
+  const sourceKey = `${listing?.image_url || ""}|${listing?._image_listing_url || ""}|${listing?.listing_url || ""}`;
   const sources = useMemo(() => {
     const next = [];
     const add = (value) => {
@@ -89,6 +90,30 @@ const GENERIC_TITLE_WORDS = new Set([
   "art", "print", "wall", "framed", "frame", "quilled", "quilling", "style",
   "decor", "new", "brand", "condition", "with", "without", "tags", "the", "and",
 ]);
+
+const CROSS_LIST_GENERIC_WORDS = new Set([
+  ...GENERIC_TITLE_WORDS,
+  "black", "white", "gold", "wood", "wooden", "paper", "home", "canvas", "colorful",
+  "colourful", "for", "from", "this", "that",
+]);
+
+function crossListPhotoKey(value = "") {
+  const cleaned = String(value || "")
+    .toLowerCase()
+    .replace(/\b\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?\b/g, " ")
+    .replace(/[|—–-]+/g, " ")
+    .replace(/[^a-z0-9\s]+/g, " ");
+  const parts = cleaned.split(/\s+/).filter(Boolean);
+  const kept = parts.filter((part, index) => {
+    if (CROSS_LIST_GENERIC_WORDS.has(part)) return false;
+    if (/^\d+$/.test(part) || /^[a-z]$/.test(part)) return false;
+    // Marketplace titles often end with short internal inventory codes.
+    if (/^[a-f0-9]{2,5}$/.test(part) && index >= Math.max(2, parts.length - 4)) return false;
+    return true;
+  });
+  return kept.join(" ").trim();
+}
+
 
 function titleWords(value = "") {
   return String(value || "")
@@ -426,8 +451,36 @@ export default function Gallery() {
   const [marketplaceFilter, setMarketplaceFilter] = useState("All sites");
   const [search, setSearch] = useState("");
 
+  const marketplaceListingsWithCrossListPhotos = useMemo(() => {
+    const byKey = new Map();
+
+    for (const listing of marketplaceListings) {
+      const imageUrl = String(listing?.image_url || "").trim();
+      if (!imageUrl) continue;
+      const key = crossListPhotoKey(listing?.title);
+      if (!key) continue;
+      if (!byKey.has(key)) byKey.set(key, new Map());
+      byKey.get(key).set(imageUrl, listing);
+    }
+
+    return marketplaceListings.map((listing) => {
+      if (listing?.image_url) return listing;
+      const key = crossListPhotoKey(listing?.title);
+      const bucket = key ? byKey.get(key) : null;
+      if (!bucket || bucket.size !== 1) return listing;
+      const source = [...bucket.values()][0];
+      if (!source?.image_url || source.id === listing.id) return listing;
+      return {
+        ...listing,
+        image_url: source.image_url,
+        _image_listing_url: source.listing_url || "",
+        _cross_list_photo_platform: displayPlatform(source.platform),
+      };
+    });
+  }, [marketplaceListings]);
+
   const availableMarketplaceListings = useMemo(
-    () => marketplaceListings.filter((listing) => {
+    () => marketplaceListingsWithCrossListPhotos.filter((listing) => {
       if ((listing.status || "Active") !== "Active") return false;
 
       const platform = displayPlatform(listing.platform);
@@ -440,7 +493,7 @@ export default function Gallery() {
 
       return true;
     }),
-    [marketplaceListings, orders]
+    [marketplaceListingsWithCrossListPhotos, orders]
   );
   const stats = useMemo(() => {
     const manualSold = records.filter((p) => p.status === "Sold").length;

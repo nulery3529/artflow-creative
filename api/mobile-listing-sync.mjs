@@ -158,6 +158,49 @@ function linkedSiteProfileUrl(platform, usernameInput = '') {
   return '';
 }
 
+async function resolvePoshmarkProfileUrl(raw = '') {
+  const input = clean(raw);
+  if (!input) return '';
+  try {
+    const parsed = new URL(input);
+    const host = parsed.hostname.toLowerCase();
+    if (host === 'poshmark.com' || host.endsWith('.poshmark.com')) {
+      const parts = parsed.pathname.split('/').filter(Boolean);
+      const closetIndex = parts.findIndex((part) => part.toLowerCase() === 'closet');
+      const username = closetIndex >= 0 ? clean(parts[closetIndex + 1]).replace(/^@+/, '') : '';
+      return username && isValidMarketplaceUsername(username)
+        ? linkedSiteProfileUrl('Poshmark', username)
+        : normalizeUrl(input);
+    }
+    if (host === 'posh.mk' || host.endsWith('.posh.mk')) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 9000);
+      try {
+        const response = await fetch(input, {
+          redirect: 'follow',
+          signal: controller.signal,
+          headers: {
+            'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1',
+            accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          },
+        });
+        const finalUrl = clean(response.url || input);
+        try { await response.body?.cancel?.(); } catch {}
+        if (allowedHost('Poshmark', finalUrl)) {
+          const final = new URL(finalUrl);
+          const parts = final.pathname.split('/').filter(Boolean);
+          const closetIndex = parts.findIndex((part) => part.toLowerCase() === 'closet');
+          const username = closetIndex >= 0 ? clean(parts[closetIndex + 1]).replace(/^@+/, '') : '';
+          if (username && isValidMarketplaceUsername(username)) return linkedSiteProfileUrl('Poshmark', username);
+        }
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+  } catch {}
+  return input;
+}
+
 function normalizeEtsyCredentials(keyInput = '', secretInput = '') {
   let key = clean(keyInput);
   let secret = clean(secretInput);
@@ -558,12 +601,95 @@ function poshmarkImageUrl(item = {}) {
 async function collectPoshmarkProfileListings(usernameInput) {
   const username = cleanMarketplaceUsername(usernameInput);
   if (!isValidMarketplaceUsername(username)) throw new Error('Enter a valid Poshmark username.');
-  const profileUrl = `https://poshmark.com/closet/${encodeURIComponent(username)}`;
+
+  const profileUrl = linkedSiteProfileUrl('Poshmark', username);
+  const listings = [];
+  const seen = new Set();
+  let total = null;
+  let apiSucceeded = false;
+
+  // Poshmark's public closet endpoint is read-only and paginated. Use it first
+  // so large closets are not limited to the listings embedded in the first HTML page.
+  try {
+    let offset = 0;
+    for (let page = 0; page < 110 && offset < 5000; page += 1) {
+      const endpoint = `https://poshmark.com/vm-rest/users/${encodeURIComponent(username)}/posts?count=48&offset=${offset}`;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 12000);
+      let response;
+      try {
+        response = await fetch(endpoint, {
+          signal: controller.signal,
+          headers: {
+            'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1',
+            accept: 'application/json,text/plain,*/*',
+            'accept-language': 'en-US,en;q=0.9',
+            referer: profileUrl,
+          },
+        });
+      } finally {
+        clearTimeout(timer);
+      }
+      const text = await response.text();
+      let payload = {};
+      try { payload = text ? JSON.parse(text) : {}; } catch { payload = { raw: text }; }
+      if (!response.ok) throw new Error(clean(payload?.error || payload?.message || `Poshmark closet returned ${response.status}`));
+
+      apiSucceeded = true;
+      const rows = Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(payload?.posts)
+          ? payload.posts
+          : Array.isArray(payload?.results)
+            ? payload.results
+            : [];
+      const reportedTotal = Number(payload?.more?.total ?? payload?.total);
+      if (Number.isFinite(reportedTotal) && reportedTotal >= 0) total = reportedTotal;
+
+      for (const item of rows) {
+        const status = normalize(item?.status || item?.inventory?.status || '');
+        if (['sold', 'sold_out', 'reserved', 'inactive', 'deleted'].includes(status)) continue;
+        if (normalize(item?.inventory?.status) && normalize(item?.inventory?.status) !== 'available') continue;
+        if (item?.active_item === false) continue;
+        const url = poshmarkListingUrl(item);
+        if (!url || seen.has(url)) continue;
+        seen.add(url);
+        listings.push({
+          platform: 'Poshmark',
+          url,
+          meta: {
+            finalUrl: url,
+            title: clean(item?.title || `Poshmark listing ${item?.id || ''}`).slice(0, 300),
+            description: clean(item?.description || '').slice(0, 800),
+            imageUrl: poshmarkImageUrl(item),
+            price: item?.price_amount?.val ?? item?.price?.amount ?? item?.price ?? 0,
+            currency: clean(item?.price_amount?.currency_code || item?.price?.currency_code || 'USD') || 'USD',
+          },
+        });
+      }
+
+      offset += rows.length;
+      if (!rows.length || rows.length < 48 || (total !== null && offset >= total)) break;
+    }
+  } catch (error) {
+    console.warn('Poshmark public closet API unavailable; falling back to closet HTML', error?.message || error);
+  }
+
+  if (apiSucceeded && listings.length) {
+    return {
+      username,
+      profileUrl,
+      listings,
+      total: total ?? listings.length,
+    };
+  }
+
+  // Fallback for rare API blocks: keep the existing HTML hydration parser.
   const { html, finalUrl } = await fetchHtml(profileUrl, 12000);
   const marker = 'window.__INITIAL_STATE__=';
-  const start = html.indexOf(marker);
-  if (start < 0) throw new Error(`Poshmark closet @${username} could not be read.`);
-  const jsonStart = start + marker.length;
+  const initialStart = html.indexOf(marker);
+  if (initialStart < 0) throw new Error(`Poshmark closet @${username} could not be read.`);
+  const jsonStart = initialStart + marker.length;
   let jsonEnd = html.indexOf('};(function', jsonStart);
   if (jsonEnd < 0) jsonEnd = html.indexOf('</script>', jsonStart);
   if (jsonEnd < 0) throw new Error(`Poshmark closet @${username} did not return listing data.`);
@@ -575,13 +701,13 @@ async function collectPoshmarkProfileListings(usernameInput) {
     throw new Error(`Poshmark closet @${username} returned unreadable listing data.`);
   }
   const rows = Array.isArray(state?.$_closet?.listingsPostData?.data) ? state.$_closet.listingsPostData.data : [];
-  const listings = [];
   for (const item of rows) {
     if (normalize(item?.status) !== 'published') continue;
     if (normalize(item?.inventory?.status) !== 'available') continue;
     if (item?.active_item === false) continue;
     const url = poshmarkListingUrl(item);
-    if (!url) continue;
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
     listings.push({
       platform: 'Poshmark',
       url,
@@ -594,7 +720,6 @@ async function collectPoshmarkProfileListings(usernameInput) {
         currency: clean(item?.price_amount?.currency_code || 'USD') || 'USD',
       },
     });
-    if (listings.length >= 500) break;
   }
   return {
     username,
@@ -1186,6 +1311,11 @@ export default async function handler(req, res) {
             ? (linkedSiteProfileUrl('eBay', shared) || shared)
             : shared;
         }
+      }
+      const savedPoshmark = clean(urls.Poshmark || urls.poshmark || '');
+      if (savedPoshmark) {
+        const resolvedPoshmark = await resolvePoshmarkProfileUrl(savedPoshmark);
+        if (resolvedPoshmark) urls.Poshmark = resolvedPoshmark;
       }
       return res.status(200).json({
         supported: SUPPORTED,
