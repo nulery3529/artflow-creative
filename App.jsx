@@ -20,7 +20,6 @@ import { Navigate } from 'react-router-dom';
 import { ThemeProvider } from "next-themes";
 import Account from '@/pages/Account';
 import Calendar from '@/pages/Calendar';
-import Gallery from '@/pages/Gallery';
 import Mileage from '@/pages/Mileage';
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
 import TermsOfService from '@/pages/TermsOfService';
@@ -112,7 +111,7 @@ const AuthenticatedApp = () => {
           <Route path="/etsy/callback" element={<EtsyCallback />} />
           <Route path="/ebay/callback" element={<EbayCallback />} />
           <Route path="/calendar" element={<Calendar />} />
-          <Route path="/gallery" element={<Gallery />} />
+          <Route path="/gallery" element={<Navigate to="/orders" replace />} />
           <Route path="/mileage" element={<Mileage />} />
         </Route>
       </Route>
