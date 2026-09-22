@@ -128,7 +128,8 @@ export default function ProductForm({ product, categories, onSave, onCancel }) {
           <label className="text-xs font-semibold text-muted-foreground">Status</label>
           <select value={status} onChange={(e) => setStatus(e.target.value)} className="form-input mt-1">
             <option value="draft">Draft</option>
-            <option value="active">Active</option>
+            <option value="active">Available</option>
+            <option value="sold">Sold</option>
             <option value="archived">Archived</option>
           </select>
         </div>
