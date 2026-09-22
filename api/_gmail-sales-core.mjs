@@ -526,7 +526,11 @@ async function insertRows(client, businessId, messageId, receivedAt, rows) {
     // for old Poshmark rows that were saved before the email price parser was
     // broadened and therefore never contributed to dashboard totals.
     const result = await client.query(`
-      WITH repaired AS (
+      WITH sync_lock AS MATERIALIZED (
+        SELECT pg_advisory_xact_lock(
+          hashtextextended($1::text || ':' || $5::text, 0)
+        )
+      ), repaired AS (
         UPDATE artflow.orders
            SET sale_date=$2,
                platform=$3,
@@ -546,6 +550,7 @@ async function insertRows(client, businessId, messageId, receivedAt, rows) {
                total_cost=$17,
                estimated_profit=$18,
                sync_source='gmail_direct_sales'
+          FROM sync_lock
          WHERE business_id=$1
            AND (
              source_email_id=$5 OR
