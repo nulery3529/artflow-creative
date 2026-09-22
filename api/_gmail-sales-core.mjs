@@ -242,6 +242,82 @@ function bodyTextFromPayload(payload = {}) {
   return payload?.mimeType === 'text/html' ? htmlToText(fallback) : clean(fallback);
 }
 
+
+function bodyHtmlFromPayload(payload = {}) {
+  const html = [];
+  const walk = (part) => {
+    if (!part || typeof part !== 'object') return;
+    const mime = String(part.mimeType || '').toLowerCase();
+    const data = part?.body?.data;
+    if (data && mime === 'text/html') html.push(decodeBase64Url(data));
+    for (const child of part.parts || []) walk(child);
+  };
+  walk(payload);
+  if (html.length) return clean(html.join('\n'));
+  if (String(payload?.mimeType || '').toLowerCase() === 'text/html') {
+    return clean(decodeBase64Url(payload?.body?.data || ''));
+  }
+  return '';
+}
+
+function decodeHtmlUrl(value = '') {
+  return clean(value)
+    .replace(/&amp;/gi, '&')
+    .replace(/&#38;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'");
+}
+
+function marketplaceSourceUrl(platform = '', html = '') {
+  const domains = {
+    Vinted: 'vinted.com',
+    Poshmark: 'poshmark.com',
+    Depop: 'depop.com',
+  };
+  const domain = domains[platform];
+  if (!domain || !html) return '';
+
+  const values = [];
+  for (const match of String(html).matchAll(/href\s*=\s*["']([^"']+)["']/gi)) values.push(match[1]);
+  for (const match of String(html).matchAll(/https?:\/\/[^"'<>\s]+/gi)) values.push(match[0]);
+
+  const candidates = [];
+  const addCandidate = (raw) => {
+    let value = decodeHtmlUrl(raw);
+    if (!value) return;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const decoded = decodeURIComponent(value);
+        if (decoded === value) break;
+        value = decoded;
+      } catch { break; }
+    }
+    if (value.startsWith('//')) value = `https:${value}`;
+
+    const embedded = value.match(/https?:\/\/[^"'<>\s]+/gi) || [];
+    const variants = /^https?:\/\//i.test(value) ? [value, ...embedded] : embedded;
+
+    for (const variant of variants) {
+      try {
+        const url = new URL(variant);
+        const host = url.hostname.toLowerCase();
+        if (host !== domain && !host.endsWith(`.${domain}`)) continue;
+        url.hash = '';
+        const text = `${url.pathname}${url.search}`;
+        let score = 1;
+        if (/order|transaction|item|listing|product|sale|sold|purchase/i.test(text)) score += 8;
+        if (/unsubscribe|privacy|terms|help|support|download|preferences/i.test(text)) score -= 12;
+        if (url.pathname === '/' || url.pathname === '') score -= 2;
+        candidates.push({ url: url.toString(), score });
+      } catch {}
+    }
+  };
+
+  values.forEach(addCandidate);
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates[0]?.url || '';
+}
+
 function headerValue(message, name) {
   const headers = message?.payload?.headers || [];
   return clean(headers.find((header) => String(header?.name || '').toLowerCase() === name.toLowerCase())?.value || '');
@@ -375,6 +451,8 @@ async function insertRows(client, businessId, messageId, receivedAt, rows) {
       JSON.stringify({
         source: 'gmail_direct_sales',
         gmail_message_id: messageId,
+        source_link_parser_version: 1,
+        ...(row.source_url ? { source_url: row.source_url } : {}),
         ...(row.platform === 'Poshmark' ? { poshmark_parser_version: 2 } : {}),
       }),
       row.product_name,
@@ -542,6 +620,7 @@ export async function syncGmailAccount(client, business, accessToken) {
             platform <> 'Poshmark'
             OR COALESCE(data->>'poshmark_parser_version','') = '2'
           )
+          AND COALESCE(data->>'source_link_parser_version','') = '1'
         )
         UNION
         SELECT data->>'cancellation_email_id' AS message_id
@@ -571,6 +650,7 @@ export async function syncGmailAccount(client, business, accessToken) {
       if (!isAllowedMarketplaceSender(from)) continue;
       const subject = headerValue(message, 'Subject');
       const text = bodyTextFromPayload(message?.payload || {});
+      const html = bodyHtmlFromPayload(message?.payload || {});
 
       const canceled = await archivePoshmarkCancellation(
         client,
@@ -586,6 +666,10 @@ export async function syncGmailAccount(client, business, accessToken) {
 
       const rows = parseSaleEmail(from, subject, text);
       if (!rows.length) continue;
+      for (const row of rows) {
+        const sourceUrl = marketplaceSourceUrl(row.platform, html);
+        if (sourceUrl) row.source_url = sourceUrl;
+      }
       result.parsed += rows.length;
       const receivedAt = Number(message?.internalDate)
         ? new Date(Number(message.internalDate)).toISOString()
