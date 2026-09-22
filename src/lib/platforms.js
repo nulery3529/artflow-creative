@@ -33,6 +33,18 @@ export function displayProductName(order) {
 }
 
 export function orderSourceUrl(order) {
+  const platform = displayPlatform(order?.platform);
+  const orderId = String(order?.order_id || "").trim();
+
+  if (platform === "Poshmark" && /^[a-f0-9]{24}$/i.test(orderId)) {
+    return `https://poshmark.com/order/sales/${orderId}`;
+  }
+  if (platform === "eBay" && orderId) {
+    return `https://www.ebay.com/sh/ord/details?orderid=${encodeURIComponent(orderId)}`;
+  }
+
   const direct = String(order?.source_url || order?.data?.source_url || "").trim();
-  return /^https:\/\//i.test(direct) ? direct : "";
+  if (!/^https:\/\//i.test(direct)) return "";
+  if (/support\.poshmark\.com/i.test(direct)) return "";
+  return direct;
 }
