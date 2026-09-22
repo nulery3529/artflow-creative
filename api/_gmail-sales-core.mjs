@@ -670,6 +670,10 @@ export async function syncGmailAccount(client, business, accessToken) {
       const rows = parseSaleEmail(from, subject, text);
       if (!rows.length) continue;
       for (const row of rows) {
+        if (row.platform === 'Poshmark' && /^[a-f0-9]{24}$/i.test(clean(row.order_id))) {
+          row.source_url = `https://poshmark.com/order/sales/${clean(row.order_id)}`;
+          continue;
+        }
         const sourceUrl = marketplaceSourceUrl(row.platform, html);
         if (sourceUrl) row.source_url = sourceUrl;
       }
