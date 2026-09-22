@@ -1,6 +1,6 @@
 import pg from 'pg';
 import { pooledDatabaseUrl } from './_db.mjs';
-import { syncYahooMailbox } from './yahoo-mail.mjs';
+import { syncYahooExpenses, syncYahooMailbox } from './yahoo-mail.mjs';
 
 const { Pool } = pg;
 const pool = new Pool({
@@ -22,7 +22,16 @@ export default async function handler(req, res) {
   if (!authorized(req)) return res.status(401).json({ error:'Unauthorized' });
 
   const client = await pool.connect();
-  const summary = { accounts:0, checked:0, saved:0, remaining:0, failed:0 };
+  const summary = {
+    accounts:0,
+    checked:0,
+    saved:0,
+    remaining:0,
+    expense_checked:0,
+    expense_imported:0,
+    expense_remaining:0,
+    failed:0,
+  };
 
   try {
     const businesses = await client.query(`
@@ -36,10 +45,16 @@ export default async function handler(req, res) {
     for (const business of businesses.rows) {
       summary.accounts += 1;
       try {
-        const result = await syncYahooMailbox(client, business);
+        const [result, expenses] = await Promise.all([
+          syncYahooMailbox(client, business),
+          syncYahooExpenses(client, business),
+        ]);
         summary.checked += Number(result.checked || 0);
         summary.saved += Number(result.saved || 0);
         summary.remaining += Number(result.remaining || 0);
+        summary.expense_checked += Number(expenses.checked || 0);
+        summary.expense_imported += Number(expenses.imported || 0);
+        summary.expense_remaining += Number(expenses.remaining || 0);
       } catch (error) {
         summary.failed += 1;
         console.warn('Yahoo background sync failed', business.base44_id, error?.message || error);
