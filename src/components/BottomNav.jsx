@@ -7,7 +7,6 @@ import {
   Receipt,
   MoreHorizontal,
   Calendar as CalendarIcon,
-  Image as ImageIcon,
   Percent,
   Car,
   UserRound,
@@ -32,7 +31,6 @@ const primary = [
 
 const more = [
   { label: "Products", to: "/store-products", icon: Palette },
-  { label: "Gallery", to: "/gallery", icon: ImageIcon },
   { label: "Reports", to: "/reports", icon: BarChart3 },
   { label: "Business Plan", to: "/planning", icon: Target },
   { label: "Calendar", to: "/calendar", icon: CalendarIcon },
