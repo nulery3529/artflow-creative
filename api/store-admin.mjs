@@ -111,7 +111,13 @@ export default async function handler(req, res) {
         const updated = await storePool.query(
           `UPDATE artflow.store_products
               SET name=$2, slug=$3, description=$4, hashtags=$5, price_cents=$6, stock=$7, status=$8,
-                  category_id=$9, images=$10::jsonb, track_stock=$11, updated_at=now()
+                  category_id=$9, images=$10::jsonb, track_stock=$11,
+                  sold_at=CASE
+                    WHEN $8='sold' AND sold_at IS NULL THEN now()
+                    WHEN $8<>'sold' THEN NULL
+                    ELSE sold_at
+                  END,
+                  updated_at=now()
             WHERE id=$1 AND business_id=$12
             RETURNING *`,
           [id, name, slugify(name), description, hashtags, price, stock, status, categoryId, JSON.stringify(images),
@@ -139,7 +145,9 @@ export default async function handler(req, res) {
       }
       const updated = await storePool.query(
         `UPDATE artflow.store_products
-            SET status=$2, updated_at=now()
+            SET status=$2,
+                sold_at=CASE WHEN $2='sold' THEN COALESCE(sold_at,now()) ELSE NULL END,
+                updated_at=now()
           WHERE id=$1 AND business_id=$3
           RETURNING *`,
         [id, status, businessId]
