@@ -126,7 +126,107 @@ async function collectEbayMicrolinkListings(username) {
   return { listings, total: listings.length, complete };
 }
 
+
+async function ebayApplicationToken() {
+  const clientId = clean(process.env.EBAY_CLIENT_ID);
+  const clientSecret = clean(process.env.EBAY_CLIENT_SECRET);
+  if (!clientId || !clientSecret) throw new Error('eBay application credentials are not configured');
+
+  const basic = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+  const response = await fetch('https://api.ebay.com/identity/v1/oauth2/token', {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${basic}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Accept: 'application/json',
+    },
+    body: new URLSearchParams({
+      grant_type: 'client_credentials',
+      scope: 'https://api.ebay.com/oauth/api_scope',
+    }),
+  });
+  const text = await response.text();
+  let data = {};
+  try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+  if (!response.ok || !data?.access_token) {
+    throw new Error(clean(data?.error_description || data?.error || text || `eBay token request failed (${response.status})`));
+  }
+  return data.access_token;
+}
+
+function ebayLegacyItemId(item = {}) {
+  const direct = clean(item?.legacyItemId);
+  if (direct) return direct;
+  const restful = clean(item?.itemId);
+  return clean(restful.match(/^v1\\|([^|]+)\\|/i)?.[1] || '');
+}
+
+async function collectEbayBrowseListings(username) {
+  const accessToken = await ebayApplicationToken();
+  const listings = [];
+  const seen = new Set();
+  let offset = 0;
+  let total = null;
+  let complete = false;
+
+  for (let page = 0; page < 50 && offset < 10000; page += 1) {
+    const endpoint = new URL('https://api.ebay.com/buy/browse/v1/item_summary/search');
+    endpoint.searchParams.set('filter', `sellers:{${username}}`);
+    endpoint.searchParams.set('fieldgroups', 'EXTENDED');
+    endpoint.searchParams.set('limit', '200');
+    endpoint.searchParams.set('offset', String(offset));
+
+    const response = await fetch(endpoint, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
+        Accept: 'application/json',
+      },
+    });
+    const text = await response.text();
+    let data = {};
+    try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+    if (!response.ok) {
+      throw new Error(clean(data?.errors?.[0]?.message || data?.errors?.[0]?.longMessage || data?.error_description || data?.error || text || `eBay Browse API returned ${response.status}`));
+    }
+
+    const items = Array.isArray(data?.itemSummaries) ? data.itemSummaries : [];
+    const reportedTotal = Number(data?.total);
+    if (Number.isFinite(reportedTotal) && reportedTotal >= 0) total = reportedTotal;
+
+    for (const item of items) {
+      const itemId = ebayLegacyItemId(item);
+      const url = normalizeUrl(item?.itemWebUrl || (itemId ? `https://www.ebay.com/itm/${itemId}` : ''));
+      if (!itemId || !url || seen.has(itemId)) continue;
+      seen.add(itemId);
+      listings.push({
+        item_id: itemId,
+        url,
+        title: clean(item?.title || `eBay listing ${itemId}`).slice(0, 300),
+        image_url: clean(item?.image?.imageUrl || item?.thumbnailImages?.[0]?.imageUrl || ''),
+        price: Number(item?.price?.value || 0) || 0,
+        currency: clean(item?.price?.currency || 'USD').toUpperCase() || 'USD',
+      });
+    }
+
+    offset += items.length;
+    if (!items.length || items.length < 200 || (total !== null && offset >= total)) {
+      complete = true;
+      break;
+    }
+  }
+
+  return { listings, total: total ?? listings.length, complete, source: 'ebay_browse' };
+}
+
 async function collectEbayListings(username) {
+  try {
+    const official = await collectEbayBrowseListings(username);
+    if (official.listings.length) return official;
+  } catch (error) {
+    console.warn('eBay Browse catalog refresh failed; using fallback', error?.message || error);
+  }
+
   const apiKey = clean(process.env.SCRAPEBADGER_API_KEY);
   if (!apiKey) return collectEbayMicrolinkListings(username);
 
