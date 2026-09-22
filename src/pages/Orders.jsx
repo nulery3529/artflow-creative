@@ -15,6 +15,11 @@ import { PLATFORM_TONE, displayPlatform, displayProductName, orderSourceUrl } fr
 import { useMarketplacePreferences } from "@/lib/useMarketplacePreferences";
 import { toast } from "sonner";
 
+const hasRecordedSaleAmount = (order) => {
+  const sale = Number(order?.sale_total);
+  return Number.isFinite(sale) && sale > 0;
+};
+
 export default function Orders() {
   const { records: orders, reload: reloadOrders } = useOrders();
   const { selected: trackedSites, configured: sitesConfigured, loading: sitesLoading } = useMarketplacePreferences();
@@ -119,8 +124,9 @@ export default function Orders() {
   }, [activeOrders, platformFilter, monthFilter, search]);
 
   const summary = useMemo(() => {
-    const sales = filtered.reduce((s, o) => s + (o.sale_total || 0), 0);
-    const profit = filtered.reduce((s, o) => s + (o.estimated_profit || 0), 0);
+    const completedSales = filtered.filter(hasRecordedSaleAmount);
+    const sales = completedSales.reduce((s, o) => s + Number(o.sale_total || 0), 0);
+    const profit = completedSales.reduce((s, o) => s + Number(o.estimated_profit || 0), 0);
     const count = filtered.reduce((s, o) => s + Math.max(1, Number(o.quantity) || 1), 0);
     return { sales, profit, count };
   }, [filtered]);
@@ -249,6 +255,7 @@ export default function Orders() {
         {filtered.length === 0 && sitesConfigured && <EmptyRow text="No orders match your filters" />}
         {filtered.map((o) => {
           const sourceUrl = orderSourceUrl(o);
+          const saleRecorded = hasRecordedSaleAmount(o);
           return (
           <div
             key={o.id}
@@ -276,7 +283,7 @@ export default function Orders() {
             <div className="grid grid-cols-3 gap-2 text-center pt-2 border-t border-[hsl(var(--border))]">
               <div>
                 <p className="text-[10px] text-muted-foreground uppercase">Sale</p>
-                <p className="font-heading text-sm">{formatMoney(o.sale_total)}</p>
+                <p className="font-heading text-sm">{saleRecorded ? formatMoney(o.sale_total) : "Pending"}</p>
               </div>
               <div>
                 <p className="text-[10px] text-muted-foreground uppercase">Cost</p>
@@ -285,7 +292,7 @@ export default function Orders() {
               <div>
                 <p className="text-[10px] text-muted-foreground uppercase">Profit</p>
                 <p className="font-heading text-sm text-foreground">
-                  {formatMoney(o.estimated_profit)}
+                  {saleRecorded ? formatMoney(o.estimated_profit) : "Pending"}
                 </p>
               </div>
             </div>
