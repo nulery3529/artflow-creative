@@ -112,6 +112,8 @@ export default function GmailSyncCard() {
   if (user?.auth_backend !== "neon") return null;
 
   const accountEmails = Array.from(new Set((status?.accounts || []).map((item) => item?.email).filter(Boolean)));
+  const salesInboxes = Array.from(new Set((status?.sales_inboxes || []).filter(Boolean)));
+  const forwardOnlyInboxes = Array.from(new Set((status?.forward_only_inboxes || []).filter(Boolean)));
   const connected = status?.connected === true;
   const needsReconnect = status?.reconnect_required === true;
 
@@ -122,9 +124,9 @@ export default function GmailSyncCard() {
           <Mail className="w-5 h-5" />
         </div>
         <div className="flex-1 min-w-0">
-          <h2 className="font-heading text-lg">Gmail Sales & Expenses</h2>
+          <h2 className="font-heading text-lg">Sales & Expenses Inboxes</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Connect the Google account that receives marketplace sales and business receipts. Art Flow automatically checks supported sale emails and recent receipt/invoice emails, then puts possible business expenses in the review queue.
+            Art Flow watches connected Gmail inboxes and keeps additional sales inbox addresses on file for forwarded marketplace confirmations.
           </p>
         </div>
         {connected ? <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-1" /> : needsReconnect ? <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-1" /> : null}
@@ -137,7 +139,31 @@ export default function GmailSyncCard() {
           <div className="rounded-2xl bg-muted/60 p-3">
             <p className="text-sm font-semibold">{accountEmails.length > 1 ? `${accountEmails.length} Gmail inboxes connected` : "Gmail connected"}</p>
             {accountEmails.length > 0 && <p className="text-xs text-foreground mt-1 break-words">{accountEmails.join(" · ")}</p>}
-            <p className="text-xs text-muted-foreground mt-1">Sales and recent receipt/invoice emails are checked automatically in the background every fifteen minutes, even when Art Flow is closed. You can still use “artflow expense” for a receipt you want Art Flow to pick up explicitly.</p>
+            <p className="text-xs text-muted-foreground mt-1">Sales and recent receipt/invoice emails are checked automatically in the background every fifteen minutes, even when Art Flow is closed.</p>
+            {salesInboxes.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-[hsl(var(--border))]">
+                <p className="text-xs font-semibold">Saved sales inboxes</p>
+                <div className="mt-1 space-y-1">
+                  {salesInboxes.map((email) => (
+                    <div key={email} className="flex items-center justify-between gap-2 text-xs">
+                      <span className="break-all">{email}</span>
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                        forwardOnlyInboxes.includes(email)
+                          ? "bg-amber-100 text-amber-800"
+                          : "bg-emerald-100 text-emerald-800"
+                      }`}>
+                        {forwardOnlyInboxes.includes(email) ? "Forwarding" : "Connected"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                {forwardOnlyInboxes.some((email) => /@yahoo\./i.test(email)) && (
+                  <p className="text-[11px] text-muted-foreground mt-2">
+                    Yahoo eBay inboxes are saved here. Forward eBay sale confirmations to a connected Gmail inbox and Art Flow will import them automatically.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
           <button
             type="button"
