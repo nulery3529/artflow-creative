@@ -100,6 +100,7 @@ export default async function handler(req, res) {
       const status = PRODUCT_STATUSES.includes(body.status) ? body.status : 'draft';
       const categoryId = normalizeUuid(body.category_id);
       const description = clean(body.description, 4000);
+      const hashtags = clean(body.hashtags, 1200);
       const images = (Array.isArray(body.images) ? body.images : [])
         .map((url) => cleanProductImage(url))
         .filter(Boolean)
@@ -109,11 +110,11 @@ export default async function handler(req, res) {
       if (id) {
         const updated = await storePool.query(
           `UPDATE artflow.store_products
-              SET name=$2, slug=$3, description=$4, price_cents=$5, stock=$6, status=$7,
-                  category_id=$8, images=$9::jsonb, track_stock=$10, updated_at=now()
-            WHERE id=$1 AND business_id=$11
+              SET name=$2, slug=$3, description=$4, hashtags=$5, price_cents=$6, stock=$7, status=$8,
+                  category_id=$9, images=$10::jsonb, track_stock=$11, updated_at=now()
+            WHERE id=$1 AND business_id=$12
             RETURNING *`,
-          [id, name, slugify(name), description, price, stock, status, categoryId, JSON.stringify(images),
+          [id, name, slugify(name), description, hashtags, price, stock, status, categoryId, JSON.stringify(images),
            body.track_stock !== false, businessId]
         );
         if (!updated.rows[0]) return res.status(404).json({ error: 'Product not found' });
@@ -121,10 +122,10 @@ export default async function handler(req, res) {
       }
 
       const created = await storePool.query(
-        `INSERT INTO artflow.store_products (business_id, category_id, name, slug, description, price_cents, stock, status, images, track_stock)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10)
+        `INSERT INTO artflow.store_products (business_id, category_id, name, slug, description, hashtags, price_cents, stock, status, images, track_stock)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11)
          RETURNING *`,
-        [businessId, categoryId, name, slugify(name), description, price, stock, status, JSON.stringify(images),
+        [businessId, categoryId, name, slugify(name), description, hashtags, price, stock, status, JSON.stringify(images),
          body.track_stock !== false]
       );
       return res.status(200).json({ product: created.rows[0] });
