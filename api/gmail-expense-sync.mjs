@@ -64,7 +64,7 @@ function addressOnly(value = '') {
   return clean(angle?.[1] || text).replace(/^mailto:/, '');
 }
 
-function localDate(value) {
+export function localDate(value) {
   const d = value ? new Date(value) : new Date();
   if (Number.isNaN(d.getTime())) return new Date().toISOString().slice(0, 10);
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -82,7 +82,7 @@ function parseMoney(value = '') {
   return Number.isFinite(amount) && amount > 0 ? Number(amount.toFixed(2)) : 0;
 }
 
-function extractTotal(text = '') {
+export function extractTotal(text = '') {
   const normalized = String(text || '').replace(/\u00a0/g, ' ');
   const patterns = [
     /(?:order\s+total|grand\s+total|payment\s+total|purchase\s+total)\s*[:\-]?\s*(?:USD\s*)?\$\s*([\d,]+\.\d{2})/i,
@@ -101,7 +101,7 @@ function extractTotal(text = '') {
   return 0;
 }
 
-function isNonExpenseNotice(subject = '') {
+export function isNonExpenseNotice(subject = '') {
   const value = String(subject || '').toLowerCase();
   return /\bcredit invoice\b|\brefund(?:ed)?\b|\bpayment (?:failed|declined|unsuccessful)\b/.test(value);
 }
@@ -111,14 +111,14 @@ function forwardedHeader(text = '', label = 'From') {
   return clean(String(text || '').match(pattern)?.[1] || '');
 }
 
-function originalSubject(subject = '', text = '') {
+export function originalSubject(subject = '', text = '') {
   const forwarded = clean(forwardedHeader(text, 'Subject'));
   if (forwarded && !/^artflow expense$/i.test(forwarded)) return forwarded.replace(/^(?:(?:fwd?|fw):\s*)+/i, '');
   const direct = clean(subject).replace(/^(?:(?:fwd?|fw):\s*)+/i, '');
   return /^artflow expense$/i.test(direct) ? 'Email receipt' : direct;
 }
 
-function categoryFor(subject = '', text = '') {
+export function categoryFor(subject = '', text = '') {
   const value = `${subject}\n${text}`.toLowerCase();
   if (/\b(etsy fee|ebay fee|depop fee|vinted fee|poshmark fee|seller fee|listing fee|marketplace fee|platform fee|transaction fee)\b/.test(value)) return 'Marketplace & Selling Fees';
   if (/\b(processing fee|payment processing|stripe fee|paypal fee|bank fee|service charge|merchant fee)\b/.test(value)) return 'Bank & Payment Processing Fees';
@@ -149,7 +149,7 @@ function categoryFor(subject = '', text = '') {
   return 'Other Business Expense';
 }
 
-function sourceName(subject = '', text = '', sender = '') {
+export function sourceName(subject = '', text = '', sender = '') {
   const forwarded = addressOnly(forwardedHeader(text, 'From'));
   const sourceEmail = forwarded || addressOnly(sender);
   const domain = sourceEmail.split('@')[1] || '';
