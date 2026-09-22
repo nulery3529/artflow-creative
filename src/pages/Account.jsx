@@ -10,6 +10,7 @@ import BusinessManager from "@/components/BusinessManager";
 import ThemeSettings from "@/components/ThemeSettings";
 import MarketplaceTrackingCard from "@/components/MarketplaceTrackingCard";
 import GmailSyncCard from "@/components/GmailSyncCard";
+import YahooInboxCard from "@/components/YahooInboxCard";
 import EbayConnectionBlock from "@/components/marketplace/EbayConnectionBlock";
 
 export default function Account() {
@@ -67,6 +68,8 @@ export default function Account() {
       <BusinessManager />
 
       <GmailSyncCard />
+
+      <YahooInboxCard />
 
       <MarketplaceTrackingCard />
 
