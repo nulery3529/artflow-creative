@@ -103,9 +103,9 @@ export default function YahooInboxCard() {
           <Mail className="w-5 h-5" />
         </div>
         <div className="flex-1 min-w-0">
-          <h2 className="font-heading text-lg">Yahoo eBay Inbox</h2>
+          <h2 className="font-heading text-lg">Yahoo Inbox</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Connect Yahoo directly so Art Flow can read eBay sale confirmations from this inbox. Gmail forwarding is not required.
+            Connect Yahoo directly so Art Flow can read new eBay sales and business receipt emails from this inbox. Gmail forwarding is not required.
           </p>
         </div>
         {connected
@@ -123,11 +123,17 @@ export default function YahooInboxCard() {
             <p className="text-sm font-semibold">Yahoo connected directly</p>
             <p className="text-xs text-foreground mt-1 break-all">{status?.email}</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Art Flow checks this inbox automatically for eBay sales every 15 minutes.
+              Art Flow checks this inbox automatically every 15 minutes for new eBay sales and business expense receipts.
             </p>
             {status?.last_sync_at && (
               <p className="text-[11px] text-muted-foreground mt-2">
-                Last check: {new Date(status.last_sync_at).toLocaleString()}
+                Last sales check: {new Date(status.last_sync_at).toLocaleString()}
+              </p>
+            )}
+            {status?.last_expense_sync_at && (
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Last expense check: {new Date(status.last_expense_sync_at).toLocaleString()}
+                {status?.last_expense_imported ? ` · ${status.last_expense_imported} receipt${status.last_expense_imported === 1 ? "" : "s"} added to review` : ""}
               </p>
             )}
           </div>
