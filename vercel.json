@@ -10,6 +10,10 @@
     {
       "path": "/api/gmail-expense-cron",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/poshmark-listing-cron",
+      "schedule": "*/15 * * * *"
     }
   ],
   "outputDirectory": "dist",
