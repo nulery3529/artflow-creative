@@ -269,6 +269,34 @@ async function listOrders(client, session) {
              )
          )
        )
+     ),
+     deduped_orders AS (
+       SELECT *
+       FROM (
+         SELECT v.*,
+           row_number() OVER (
+             PARTITION BY
+               lower(COALESCE(v.platform,'')),
+               CASE
+                 WHEN NULLIF(trim(v.order_id),'') IS NOT NULL
+                   THEN 'order:' || lower(trim(v.order_id))
+                 WHEN NULLIF(trim(v.source_email_id),'') IS NOT NULL
+                   THEN 'email:' || lower(trim(v.source_email_id))
+                 ELSE 'fallback:' || COALESCE(v.dedupe_day,'') || '|' || COALESCE(v.dedupe_title,'') || '|' || COALESCE(v.dedupe_qty,1)::text || '|' || COALESCE(v.dedupe_total,0)::text
+               END
+             ORDER BY
+               CASE WHEN COALESCE(v.sale_total,0) > 0 THEN 0 ELSE 1 END,
+               CASE
+                 WHEN v.sync_source LIKE 'gmail_direct_sales%' THEN 0
+                 WHEN v.sync_source LIKE '%official%' THEN 1
+                 ELSE 2
+               END,
+               v.updated_date DESC NULLS LAST,
+               v.created_date DESC NULLS LAST
+           ) AS duplicate_rank
+         FROM visible_orders v
+       ) ranked
+       WHERE duplicate_rank = 1
      )
      SELECT
        base44_id AS id,
@@ -296,7 +324,7 @@ async function listOrders(client, session) {
        sync_source,
        business_id,
        data
-     FROM visible_orders
+     FROM deduped_orders
      ORDER BY sale_date DESC NULLS LAST, created_date DESC NULLS LAST
      LIMIT 10000`,
     [ids, email]
@@ -707,12 +735,12 @@ async function advisorSnapshot(client, session) {
     () => client.query(
       `SELECT
          COALESCE(sum(sale_total),0)::numeric AS total_sales,
-         count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(source_email_id,''), base44_id))::int AS total_orders,
+         count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(split_part(source_email_id, ':', 1),''), base44_id))::int AS total_orders,
          COALESCE(sum(COALESCE(quantity,1)),0)::numeric AS total_items,
          COALESCE(sum(total_cost),0)::numeric AS order_costs,
          COALESCE(sum(estimated_profit),0)::numeric AS gross_profit,
          COALESCE(sum(sale_total) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM')),0)::numeric AS month_sales,
-         (count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(source_email_id,''), base44_id)) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM')))::int AS month_orders,
+         (count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(split_part(source_email_id, ':', 1),''), base44_id)) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM')))::int AS month_orders,
          COALESCE(sum(total_cost) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM')),0)::numeric AS month_costs,
          COALESCE(sum(sale_total) FILTER (WHERE left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')),0)::numeric AS year_sales,
          COALESCE(sum(total_cost) FILTER (WHERE left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')),0)::numeric AS year_costs
@@ -723,7 +751,7 @@ async function advisorSnapshot(client, session) {
     () => client.query(
       `SELECT COALESCE(NULLIF(platform,''),'Unknown') AS name,
               COALESCE(sum(sale_total),0)::numeric AS sales,
-              count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(source_email_id,''), base44_id))::int AS orders,
+              count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(split_part(source_email_id, ':', 1),''), base44_id))::int AS orders,
               COALESCE(sum(COALESCE(quantity,1)),0)::numeric AS items,
               COALESCE(sum(estimated_profit),0)::numeric AS gross_profit
          FROM artflow.orders
@@ -735,7 +763,7 @@ async function advisorSnapshot(client, session) {
       `SELECT COALESCE(NULLIF(size,''),'Unknown') AS name,
               COALESCE(sum(sale_total),0)::numeric AS sales,
               COALESCE(sum(COALESCE(quantity,1)),0)::numeric AS items,
-              count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(source_email_id,''), base44_id))::int AS orders
+              count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(split_part(source_email_id, ':', 1),''), base44_id))::int AS orders
          FROM artflow.orders
         WHERE archived IS NOT TRUE AND ${accessSql}
         GROUP BY 1 ORDER BY items DESC, sales DESC LIMIT 12`,
@@ -745,7 +773,7 @@ async function advisorSnapshot(client, session) {
       `SELECT COALESCE(NULLIF(product_name,''),'Unknown item') AS name,
               COALESCE(sum(sale_total),0)::numeric AS sales,
               COALESCE(sum(COALESCE(quantity,1)),0)::numeric AS items,
-              count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(source_email_id,''), base44_id))::int AS orders,
+              count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(split_part(source_email_id, ':', 1),''), base44_id))::int AS orders,
               COALESCE(sum(estimated_profit),0)::numeric AS gross_profit
          FROM artflow.orders
         WHERE archived IS NOT TRUE AND ${accessSql}
@@ -783,8 +811,8 @@ async function advisorSnapshot(client, session) {
       `SELECT
          COALESCE(sum(sale_total) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM')),0)::numeric AS current_sales,
          COALESCE(sum(sale_total) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE - interval '1 month','YYYY-MM')),0)::numeric AS previous_sales,
-         (count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(source_email_id,''), base44_id)) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM')))::int AS current_orders,
-         (count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(source_email_id,''), base44_id)) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE - interval '1 month','YYYY-MM')))::int AS previous_orders
+         (count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(split_part(source_email_id, ':', 1),''), base44_id)) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM')))::int AS current_orders,
+         (count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(split_part(source_email_id, ':', 1),''), base44_id)) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE - interval '1 month','YYYY-MM')))::int AS previous_orders
        FROM artflow.orders
        WHERE archived IS NOT TRUE AND ${accessSql}`,
       [ids, email]
@@ -941,15 +969,43 @@ async function summary(client, session) {
                )
            )
          )
+       ),
+       deduped_orders AS (
+         SELECT *
+         FROM (
+           SELECT v.*,
+             row_number() OVER (
+               PARTITION BY
+                 lower(COALESCE(v.platform,'')),
+                 CASE
+                   WHEN NULLIF(trim(v.order_id),'') IS NOT NULL
+                     THEN 'order:' || lower(trim(v.order_id))
+                   WHEN NULLIF(trim(v.source_email_id),'') IS NOT NULL
+                     THEN 'email:' || lower(trim(v.source_email_id))
+                   ELSE 'fallback:' || COALESCE(v.dedupe_day,'') || '|' || COALESCE(v.dedupe_title,'') || '|' || COALESCE(v.dedupe_qty,1)::text || '|' || COALESCE(v.dedupe_total,0)::text
+                 END
+               ORDER BY
+                 CASE WHEN COALESCE(v.sale_total,0) > 0 THEN 0 ELSE 1 END,
+                 CASE
+                   WHEN v.sync_source LIKE 'gmail_direct_sales%' THEN 0
+                   WHEN v.sync_source LIKE '%official%' THEN 1
+                   ELSE 2
+                 END,
+                 v.updated_date DESC NULLS LAST,
+                 v.created_date DESC NULLS LAST
+             ) AS duplicate_rank
+           FROM visible_orders v
+         ) ranked
+         WHERE duplicate_rank = 1
        )
        SELECT
          COALESCE(sum(sale_total),0)::numeric AS total_sales,
-         count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(source_email_id,''), base44_id))::int AS total_orders,
+         count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(split_part(source_email_id, ':', 1),''), base44_id))::int AS total_orders,
          COALESCE(sum(COALESCE(quantity,1)),0)::numeric AS total_items,
          COALESCE(sum(total_cost),0)::numeric AS order_costs,
          COALESCE(sum(sale_total) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM')),0)::numeric AS month_sales,
          COALESCE(sum(total_cost) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM')),0)::numeric AS month_costs
-       FROM visible_orders`,
+       FROM deduped_orders`,
       [ids, email]
     ),
     () => client.query(

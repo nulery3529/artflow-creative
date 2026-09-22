@@ -79,3 +79,17 @@ test('uses the accepted offer price for a Poshmark bundle', () => {
   assert.equal(rows[0].sale_total, 25);
   assert.equal(rows[0].unit_price, 12.5);
 });
+
+
+test('parses a prefixed Poshmark sold email with smart quotes', () => {
+  const rows = parseSaleEmail(
+    'Poshmark <orders@poshmark.com>',
+    'Congrats! “8x8 Celestial Skeleton Print” just sold to @moonbuyer on Poshmark!',
+    'Order ID: smart-123\nItem Price: $18.00\nPackaging Reminder'
+  );
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].platform, 'Poshmark');
+  assert.equal(rows[0].sale_total, 18);
+  assert.equal(rows[0].order_id, 'smart-123');
+});

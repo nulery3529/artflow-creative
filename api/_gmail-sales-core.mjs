@@ -115,7 +115,7 @@ function vintedRows(subject, text) {
 
 function poshmarkRows(subject, text) {
   const normalizedSubject = clean(subject).replace(/^(?:(?:fwd?|fw):\s*)+/i, '');
-  const subjectMatch = normalizedSubject.match(/^\"([\s\S]+?)\"\s+just sold to\s+@([^\s!]+)\s+on Poshmark!/i);
+  const subjectMatch = normalizedSubject.match(/[\"“]([\s\S]+?)[\"”]\s+just sold to\s+@([^\s!]+)\s+on Poshmark!/i);
   if (!subjectMatch) return [];
 
   const title = clean(subjectMatch[1]);
@@ -290,7 +290,7 @@ export async function googleJson(accessToken, url) {
 
 export const GMAIL_QUERIES = [
   'from:no-reply@vinted.com subject:"You sold an item on Vinted"',
-  'from:orders@poshmark.com "just sold to" "on Poshmark"',
+  'from:poshmark.com "just sold to" "on Poshmark"',
   '{from:alerts.depop.com from:ohhey.depop.com} subject:"Sale confirmation for"',
 ];
 
@@ -465,7 +465,7 @@ export async function syncGmailAccount(client, business, accessToken) {
 
   // If a full repair batch is already known, skip the expensive mailbox list
   // queries on this run. The next automatic/manual sync continues the backlog.
-  const messageIds = repairMessageIds.length >= 75
+  const messageIds = repairMessageIds.length >= 200
     ? []
     : await listMessageIds(accessToken);
 
@@ -485,12 +485,12 @@ export async function syncGmailAccount(client, business, accessToken) {
     )
   `, [business.base44_id]);
   const completedIds = new Set(completed.rows.map((row) => clean(row.message_id)).filter(Boolean));
-  // Bound each run so a historical backfill cannot exhaust Gmail's per-user
-  // query-cost quota. Repeated runs continue with the remaining message IDs.
+  // Bound each run so a historical backfill stays within Gmail quota while
+  // still catching up a seller's full history in far fewer manual refreshes.
   const pendingMessageIds = Array.from(new Set([
     ...repairMessageIds,
     ...messageIds.filter((messageId) => !completedIds.has(messageId)),
-  ])).slice(0, 75);
+  ])).slice(0, 200);
   result.scanned = pendingMessageIds.length;
   for (let index = 0; index < pendingMessageIds.length; index += 10) {
     const batchIds = pendingMessageIds.slice(index, index + 10);
