@@ -1,7 +1,6 @@
 import pg from 'pg';
 import crypto from 'node:crypto';
 import { pooledDatabaseUrl } from './_db.mjs';
-import { collectPoshmarkProfileListings } from './mobile-listing-sync.mjs';
 
 const { Pool } = pg;
 const pool = new Pool({
@@ -11,6 +10,122 @@ const pool = new Pool({
 });
 
 const clean = (value = '') => String(value || '').trim();
+
+const normalize = (value = '') => clean(value).toLowerCase();
+
+function normalizeUrl(raw = '') {
+  try {
+    const url = new URL(clean(raw));
+    url.hash = '';
+    return url.toString().replace(/\/$/, '');
+  } catch {
+    return '';
+  }
+}
+
+function poshmarkListingUrl(item = {}) {
+  const id = clean(item?.id);
+  if (!/^[a-f0-9]{24}$/i.test(id)) return '';
+  const slug = clean(item?.title || 'listing')
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 170) || 'listing';
+  return normalizeUrl(`https://poshmark.com/listing/${slug}-${id}`);
+}
+
+function poshmarkImageUrl(item = {}) {
+  const candidates = [
+    item?.cover_shot?.url,
+    item?.cover_shot?.url_large,
+    item?.cover_shot?.url_1280x,
+    item?.cover_shot?.url_600x,
+    item?.cover_shot?.url_310sq,
+    item?.cover_shot?.url_small,
+    item?.picture_url,
+    item?.image_url,
+    item?.pictures?.[0]?.url,
+    item?.pictures?.[0]?.url_large,
+    item?.picture?.url,
+    item?.photos?.[0]?.url,
+    item?.photos?.[0]?.url_large,
+  ];
+  return clean(candidates.find((value) => /^https:\/\//i.test(clean(value))) || '');
+}
+
+async function collectPoshmarkProfileListings(username) {
+  const profileUrl = `https://poshmark.com/closet/${encodeURIComponent(username)}`;
+  const listings = [];
+  const seen = new Set();
+  let offset = 0;
+  let total = null;
+  let complete = false;
+
+  for (let page = 0; page < 110 && offset < 5000; page += 1) {
+    const endpoint = `https://poshmark.com/vm-rest/users/${encodeURIComponent(username)}/posts?count=48&offset=${offset}`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12000);
+    let response;
+    try {
+      response = await fetch(endpoint, {
+        signal: controller.signal,
+        headers: {
+          'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1',
+          accept: 'application/json,text/plain,*/*',
+          'accept-language': 'en-US,en;q=0.9',
+          referer: profileUrl,
+        },
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+
+    const text = await response.text();
+    let payload = {};
+    try { payload = text ? JSON.parse(text) : {}; } catch { payload = { raw: text }; }
+    if (!response.ok) {
+      throw new Error(clean(payload?.error || payload?.message || `Poshmark closet returned ${response.status}`));
+    }
+
+    const rows = Array.isArray(payload?.data)
+      ? payload.data
+      : Array.isArray(payload?.posts)
+        ? payload.posts
+        : Array.isArray(payload?.results)
+          ? payload.results
+          : [];
+    const reportedTotal = Number(payload?.more?.total ?? payload?.total);
+    if (Number.isFinite(reportedTotal) && reportedTotal >= 0) total = reportedTotal;
+
+    for (const item of rows) {
+      const itemStatus = normalize(item?.status || '');
+      const inventoryStatus = normalize(item?.inventory?.status || '');
+      if (['sold', 'sold_out', 'reserved', 'inactive', 'deleted'].includes(itemStatus)) continue;
+      if (inventoryStatus && inventoryStatus !== 'available') continue;
+      if (item?.active_item === false) continue;
+
+      const url = poshmarkListingUrl(item);
+      if (!url || seen.has(url)) continue;
+      seen.add(url);
+      listings.push({
+        url,
+        listing_id: clean(item?.id),
+        title: clean(item?.title || `Poshmark listing ${item?.id || ''}`).slice(0, 300),
+        price: Number(item?.price_amount?.val ?? item?.price?.amount ?? item?.price ?? 0) || 0,
+        currency: clean(item?.price_amount?.currency_code || item?.price?.currency_code || 'USD').toUpperCase() || 'USD',
+        image_url: poshmarkImageUrl(item),
+      });
+    }
+
+    offset += rows.length;
+    if (!rows.length || rows.length < 48 || (total !== null && offset >= total)) {
+      complete = true;
+      break;
+    }
+  }
+
+  return { username, profileUrl, listings, total: total ?? listings.length, complete };
+}
 
 function poshmarkUsername(raw = '') {
   try {
@@ -84,15 +199,14 @@ async function syncBusiness(client, business) {
   let saved = 0;
 
   for (const item of profile.listings) {
-    const url = clean(item?.url || item?.meta?.finalUrl);
-    const itemId = listingId(url);
+    const url = clean(item?.url);
+    const itemId = clean(item?.listing_id || listingId(url));
     if (!url || !itemId) continue;
 
-    const meta = item.meta || {};
-    const title = clean(meta.title || `Poshmark listing ${itemId}`).slice(0, 300);
-    const price = Number(meta.price || 0) || 0;
-    const currency = clean(meta.currency || 'USD').toUpperCase() || 'USD';
-    const imageUrl = clean(meta.imageUrl || '');
+    const title = clean(item?.title || `Poshmark listing ${itemId}`).slice(0, 300);
+    const price = Number(item?.price || 0) || 0;
+    const currency = clean(item?.currency || 'USD').toUpperCase() || 'USD';
+    const imageUrl = clean(item?.image_url || '');
     activeUrls.push(url);
 
     const existing = await client.query(
