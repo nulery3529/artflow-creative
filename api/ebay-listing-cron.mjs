@@ -158,7 +158,8 @@ function ebayLegacyItemId(item = {}) {
   const direct = clean(item?.legacyItemId);
   if (direct) return direct;
   const restful = clean(item?.itemId);
-  return clean(restful.match(/^v1\\|([^|]+)\\|/i)?.[1] || '');
+  const parts = restful.split('|');
+  return clean(parts[0]?.toLowerCase() === 'v1' ? parts[1] : '');
 }
 
 async function collectEbayBrowseListings(username) {
