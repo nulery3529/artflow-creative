@@ -9,7 +9,6 @@ import { useAuth } from "@/lib/AuthContext";
 import BusinessManager from "@/components/BusinessManager";
 import ThemeSettings from "@/components/ThemeSettings";
 import MarketplaceTrackingCard from "@/components/MarketplaceTrackingCard";
-import MarketplaceLinksCard from "@/components/MarketplaceLinksCard";
 import GmailSyncCard from "@/components/GmailSyncCard";
 
 export default function Account() {
@@ -69,8 +68,6 @@ export default function Account() {
       <GmailSyncCard />
 
       <MarketplaceTrackingCard />
-
-      <MarketplaceLinksCard />
 
       <ThemeSettings />
 
