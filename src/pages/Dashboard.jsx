@@ -714,7 +714,9 @@ export default function Dashboard() {
     }
   };
 
-  const kpis = serverMetrics || {
+  // Use the normalized client ledger for sales KPIs. It includes historical
+  // Poshmark gross-sale recovery for rows that were imported with a $0 total.
+  const kpis = {
     totalSales: dashboard.totalSales,
     totalOrders: dashboard.totalOrders,
     totalItems: dashboard.totalItems,
