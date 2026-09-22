@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { CheckCircle2, Mail, RefreshCw, Unlink, AlertCircle } from "lucide-react";
+import { CheckCircle2, Mail, RefreshCw, Unlink, AlertCircle, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
 const DEFAULT_YAHOO = "moe_moe_0069@yahoo.com";
@@ -176,9 +176,21 @@ export default function YahooInboxCard() {
             autoComplete="new-password"
             className="form-input"
           />
-          <p className="text-xs text-muted-foreground">
-            Use a Yahoo app password here, not your normal Yahoo password. Art Flow encrypts it before saving it.
-          </p>
+          <div className="rounded-2xl bg-muted/60 p-3 space-y-2">
+            <p className="text-xs font-semibold">Yahoo requires an app password</p>
+            <p className="text-xs text-muted-foreground">
+              Do not enter your normal Yahoo sign-in password. Create a Yahoo app password under Account Security → External connections, then paste that generated password here. Art Flow encrypts it before saving it.
+            </p>
+            <a
+              href="https://login.yahoo.com/account/security"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full min-h-11 px-4 rounded-xl border border-[hsl(var(--border))] bg-background text-foreground font-semibold flex items-center justify-center gap-2"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Create Yahoo App Password
+            </a>
+          </div>
           {status?.last_error && (
             <div className="rounded-2xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-950">
               {status.last_error}
