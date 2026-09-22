@@ -112,8 +112,10 @@ export default function GmailSyncCard() {
   if (user?.auth_backend !== "neon") return null;
 
   const accountEmails = Array.from(new Set((status?.accounts || []).map((item) => item?.email).filter(Boolean)));
-  const salesInboxes = Array.from(new Set((status?.sales_inboxes || []).filter(Boolean)));
-  const forwardOnlyInboxes = Array.from(new Set((status?.forward_only_inboxes || []).filter(Boolean)));
+  const salesInboxes = Array.from(new Set((status?.sales_inboxes || []).filter(Boolean)))
+    .filter((email) => /@(?:gmail|googlemail)\.com$/i.test(email));
+  const forwardOnlyInboxes = Array.from(new Set((status?.forward_only_inboxes || []).filter(Boolean)))
+    .filter((email) => /@(?:gmail|googlemail)\.com$/i.test(email));
   const connected = status?.connected === true;
   const needsReconnect = status?.reconnect_required === true;
 
@@ -126,7 +128,7 @@ export default function GmailSyncCard() {
         <div className="flex-1 min-w-0">
           <h2 className="font-heading text-lg">Sales & Expenses Inboxes</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Art Flow watches connected Gmail inboxes and keeps additional sales inbox addresses on file for forwarded marketplace confirmations.
+            Art Flow watches connected Gmail inboxes for marketplace sales and business expense receipts.
           </p>
         </div>
         {connected ? <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-1" /> : needsReconnect ? <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-1" /> : null}
@@ -157,11 +159,7 @@ export default function GmailSyncCard() {
                     </div>
                   ))}
                 </div>
-                {forwardOnlyInboxes.some((email) => /@yahoo\./i.test(email)) && (
-                  <p className="text-[11px] text-muted-foreground mt-2">
-                    Yahoo eBay inboxes are saved here. Forward eBay sale confirmations to a connected Gmail inbox and Art Flow will import them automatically.
-                  </p>
-                )}
+
               </div>
             )}
           </div>
