@@ -93,3 +93,57 @@ test('parses a prefixed Poshmark sold email with smart quotes', () => {
   assert.equal(rows[0].sale_total, 18);
   assert.equal(rows[0].order_id, 'smart-123');
 });
+
+
+test('sums item prices for a legacy Poshmark bundle without a total line', () => {
+  const rows = parseSaleEmail(
+    'Poshmark <orders@poshmark.com>',
+    '"Bundle of Tulip Art and 1 more item" just sold to @buyer on Poshmark!',
+    [
+      'Great news - you just sold 2 items in a bundle.',
+      'Order ID',
+      'legacy-bundle-2',
+      'Item',
+      'Price',
+      '8x8 Tulip Art',
+      '$12.00',
+      '8x8 Floral Art',
+      '$12.00',
+      'Your Earnings (minus fee and taxes) $19.20',
+    ].join('\n')
+  );
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].quantity, 2);
+  assert.equal(rows[0].sale_total, 24);
+  assert.equal(rows[0].unit_price, 12);
+});
+
+test('uses discounted Total Price for a legacy Poshmark bundle', () => {
+  const rows = parseSaleEmail(
+    'Poshmark <orders@poshmark.com>',
+    '"Bundle of Quilling Art and 2 more items" just sold to @buyer on Poshmark!',
+    [
+      'Great news - you just sold 3 items in a bundle.',
+      'Order ID',
+      'legacy-bundle-3',
+      'Item',
+      'Price',
+      'Art One',
+      '$12.00',
+      'Art Two',
+      '$18.00',
+      'Art Three',
+      '$12.00',
+      'Subtotal $42.00',
+      'Seller Discount (20%) -$8.40',
+      'Total Price $33.60',
+      'Your Earnings (minus fee and taxes) $26.88',
+    ].join('\n')
+  );
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].quantity, 3);
+  assert.equal(rows[0].sale_total, 33.6);
+  assert.equal(rows[0].unit_price, 11.2);
+});
