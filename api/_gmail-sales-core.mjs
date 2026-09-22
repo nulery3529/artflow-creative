@@ -507,7 +507,7 @@ async function insertRows(client, businessId, messageId, receivedAt, rows) {
         gmail_message_id: messageId,
         source_link_parser_version: 1,
         ...(row.source_url ? { source_url: row.source_url } : {}),
-        ...(row.platform === 'Poshmark' ? { poshmark_parser_version: 2 } : {}),
+        ...(row.platform === 'Poshmark' ? { poshmark_parser_version: 3 } : {}),
       }),
       row.product_name,
       row.quantity,
@@ -648,7 +648,7 @@ export async function syncGmailAccount(client, business, accessToken) {
        AND COALESCE(source_email_id,'')<>''
        AND (
          COALESCE(sale_total,0)=0
-         OR COALESCE(data->>'poshmark_parser_version','') <> '2'
+         OR COALESCE(data->>'poshmark_parser_version','') <> '3'
        )
      ORDER BY 1
   `, [business.base44_id]);
@@ -675,7 +675,7 @@ export async function syncGmailAccount(client, business, accessToken) {
           COALESCE(sale_total,0)>0
           AND (
             platform <> 'Poshmark'
-            OR COALESCE(data->>'poshmark_parser_version','') = '2'
+            OR COALESCE(data->>'poshmark_parser_version','') = '3'
           )
           AND COALESCE(data->>'source_link_parser_version','') = '1'
         )
@@ -723,7 +723,12 @@ export async function syncGmailAccount(client, business, accessToken) {
         continue;
       }
 
-      const rows = parseSaleEmail(from, subject, text, trustedForwarder);
+      // Some marketplace messages put the item price only in the HTML table
+      // while the text/plain part contains the order wording but omits the
+      // amount. Parse a combined representation so a valid Poshmark sale is
+      // never saved as $0 merely because Gmail's plain part was incomplete.
+      const combinedText = [text, html ? htmlToText(html) : ''].filter(Boolean).join('\n');
+      const rows = parseSaleEmail(from, subject, combinedText, trustedForwarder);
       if (!rows.length) continue;
       for (const row of rows) {
         if (row.platform === 'Poshmark' && /^[a-f0-9]{24}$/i.test(clean(row.order_id))) {
