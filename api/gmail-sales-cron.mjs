@@ -1,5 +1,4 @@
-// Scheduled auto-sync for Vinted, Depop and Poshmark sales, plus a Vinted Pro
-// imported-listings refresh for every connected Vinted Pro business.
+// Scheduled auto-sync for Vinted, Depop and Poshmark sales.
 // Vercel Cron calls this endpoint on a schedule (see vercel.json "crons").
 // It works without any user session: every linked Google mailbox is refreshed
 // server-side and scanned for marketplace sale emails, and new orders are
@@ -11,7 +10,6 @@ import {
   googleAccessTokenFor,
   syncGmailAccount,
 } from './_gmail-sales-core.mjs';
-import { syncAllConnectedVinted } from './_vinted-pro-core.mjs';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -64,16 +62,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // Autosync every connected Vinted Pro business so no one has to press
-    // "Sync imported" manually.
-    let vinted = { businesses: 0, saved: 0, failed: 0 };
-    try {
-      vinted = await syncAllConnectedVinted(client);
-    } catch (error) {
-      console.warn('Vinted Pro cron sync failed', error?.message || error);
-    }
-
-    return res.status(200).json({ ok: true, ...summary, vinted });
+    return res.status(200).json({ ok: true, ...summary });
   } catch (error) {
     console.error('gmail cron sync error', error?.message || error);
     return res.status(500).json({ error: error?.message || 'Cron sync failed.', ...summary });
