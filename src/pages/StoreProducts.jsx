@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Download, PackagePlus, Pencil, Trash2 } from "lucide-react";
+import { CheckCircle2, Download, History, PackagePlus, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import ProductForm from "@/components/store/ProductForm";
 import CategoryManager from "@/components/store/CategoryManager";
@@ -10,12 +10,15 @@ const statusStyles = {
   draft: "bg-muted text-foreground",
   active: "bg-emerald-100 text-emerald-900",
   archived: "bg-rose-100 text-rose-900",
+  sold: "bg-slate-200 text-slate-800",
 };
 
 export default function StoreProducts() {
   const [products, setProducts] = useState(null);
   const [categories, setCategories] = useState([]);
   const [editing, setEditing] = useState(null); // null | "new" | product
+  const [view, setView] = useState("available");
+  const [changingStatusId, setChangingStatusId] = useState(null);
 
   const load = async () => {
     try {
@@ -52,6 +55,20 @@ export default function StoreProducts() {
     }
   };
 
+  const setProductStatus = async (product, status) => {
+    setChangingStatusId(product.id);
+    try {
+      await storeAdmin.productStatus(product.id, status);
+      toast.success(status === "sold" ? "Moved to Sold History" : "Moved to Available");
+      await load();
+    } catch (error) {
+      toast.error("Could not update product status", { description: error?.message });
+    } finally {
+      setChangingStatusId(null);
+    }
+  };
+
+
   const saveCategory = async (payload) => {
     try {
       await storeAdmin.categorySave(payload);
@@ -71,6 +88,10 @@ export default function StoreProducts() {
     }
   };
 
+  const availableProducts = (products || []).filter((product) => product.status !== "sold");
+  const soldProducts = (products || []).filter((product) => product.status === "sold");
+  const visibleProducts = view === "sold" ? soldProducts : availableProducts;
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
@@ -87,6 +108,33 @@ export default function StoreProducts() {
       </div>
 
       <CategoryManager categories={categories} onSave={saveCategory} onDelete={deleteCategory} />
+
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => setView("available")}
+          className={`h-12 rounded-2xl border font-semibold flex items-center justify-center gap-2 ${
+            view === "available"
+              ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] border-transparent"
+              : "bg-card text-foreground border-[hsl(var(--border))]"
+          }`}
+        >
+          <CheckCircle2 className="w-4 h-4" />
+          Available ({availableProducts.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setView("sold")}
+          className={`h-12 rounded-2xl border font-semibold flex items-center justify-center gap-2 ${
+            view === "sold"
+              ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] border-transparent"
+              : "bg-card text-foreground border-[hsl(var(--border))]"
+          }`}
+        >
+          <History className="w-4 h-4" />
+          Sold History ({soldProducts.length})
+        </button>
+      </div>
 
       {editing !== null && (
         <ProductForm
@@ -109,14 +157,16 @@ export default function StoreProducts() {
 
       {products === null ? (
         <div className="h-24 rounded-3xl bg-muted animate-pulse" />
-      ) : products.length === 0 ? (
+      ) : visibleProducts.length === 0 ? (
         <div className="bg-card rounded-3xl border border-[hsl(var(--border))] p-10 text-center">
-          <p className="font-heading text-lg">No products yet</p>
-          <p className="text-sm text-muted-foreground mt-1">Create your first product to open your storefront.</p>
+          <p className="font-heading text-lg">{view === "sold" ? "No sold products yet" : "No available products yet"}</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {view === "sold" ? "Products you mark Sold will appear here." : "Create a product or move one back from Sold History."}
+          </p>
         </div>
       ) : (
         <div className="bg-card rounded-3xl border border-[hsl(var(--border))] divide-y divide-[hsl(var(--border))]">
-          {products.map((product) => (
+          {visibleProducts.map((product) => (
             <div key={product.id} className="p-4 flex items-center gap-3">
               {Array.isArray(product.images) && product.images[0] ? (
                 <div className="w-14 h-14 rounded-2xl overflow-hidden bg-muted shrink-0">
@@ -142,6 +192,21 @@ export default function StoreProducts() {
                 </div>
               </div>
               <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setProductStatus(product, product.status === "sold" ? "active" : "sold")}
+                  disabled={changingStatusId === product.id}
+                  className={`h-10 px-3 rounded-xl font-semibold text-xs flex items-center justify-center gap-1.5 disabled:opacity-50 ${
+                    product.status === "sold"
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-slate-100 text-slate-700"
+                  }`}
+                  aria-label={product.status === "sold" ? `Mark ${product.name} available` : `Mark ${product.name} sold`}
+                  title={product.status === "sold" ? "Move back to Available" : "Move to Sold History"}
+                >
+                  {product.status === "sold" ? <RotateCcw className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+                  {product.status === "sold" ? "Available" : "Sold"}
+                </button>
                 {Array.isArray(product.images) && product.images[0] ? (
                   <button
                     type="button"
