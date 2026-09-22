@@ -158,7 +158,7 @@ export async function insertOrders(client,businessId,rows,syncSource){
   const result=await client.query(`
     WITH incoming AS (
       SELECT * FROM jsonb_to_recordset($1::jsonb) AS x(
-        platform text, sale_date date, order_id text, product_name text, quantity int, size text,
+        platform text, sale_date text, order_id text, product_name text, quantity int, size text,
         unit_price numeric, sale_total numeric, buyer text, base_item_cost numeric, paper_ink_cost numeric,
         packaging_cost numeric, total_cost numeric, estimated_profit numeric, source_url text
       )
