@@ -1228,17 +1228,17 @@ export default function Dashboard() {
             </Link>
 
             <Link
-              to="/gallery"
+              to="/inventory"
               className="rounded-2xl bg-cyan-100/80 dark:bg-cyan-500/10 p-4 hover:-translate-y-0.5 transition"
             >
-              <Images className="w-5 h-5 text-cyan-600" />
+              <Package className="w-5 h-5 text-cyan-600" />
 
               <p className="text-xs font-semibold mt-3">
-                Gallery
+                Inventory
               </p>
 
               <p className="text-[9px] text-muted-foreground mt-1">
-                Manage listings
+                Manage costs
               </p>
             </Link>
 
