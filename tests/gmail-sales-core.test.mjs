@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { parseSaleEmail } from '../api/_gmail-sales-core.mjs';
+import { GMAIL_QUERIES, parsePoshmarkCancellation, parseSaleEmail } from '../api/_gmail-sales-core.mjs';
 
 test('parses a multiline Poshmark sold email with the full item price', () => {
   const rows = parseSaleEmail(
@@ -146,4 +146,27 @@ test('uses discounted Total Price for a legacy Poshmark bundle', () => {
   assert.equal(rows[0].quantity, 3);
   assert.equal(rows[0].sale_total, 33.6);
   assert.equal(rows[0].unit_price, 11.2);
+});
+
+
+test('recognizes a Poshmark cancellation and its order id', () => {
+  const cancellation = parsePoshmarkCancellation(
+    'Please do not ship: "Bundle of 8x8 Paper Quilling Tulip Wall and 1 more item" for @mellymelteaches was canceled',
+    [
+      'Re: Order Id 6aa45ffa0826402f6551ab6f',
+      'Hi Natasha\'s closet,',
+      'We wanted to let you know that this order was canceled.',
+    ].join('\n')
+  );
+
+  assert.deepEqual(cancellation, {
+    order_id: '6aa45ffa0826402f6551ab6f',
+    product_name: 'Bundle of 8x8 Paper Quilling Tulip Wall and 1 more item',
+  });
+});
+
+test('Gmail sync includes Poshmark cancellation messages', () => {
+  assert.ok(
+    GMAIL_QUERIES.some((query) => /poshmark/i.test(query) && /Please do not ship/i.test(query) && /canceled/i.test(query))
+  );
 });
