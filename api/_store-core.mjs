@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS artflow.store_products (
   name text NOT NULL,
   slug text NOT NULL DEFAULT '',
   description text NOT NULL DEFAULT '',
+  hashtags text NOT NULL DEFAULT '',
   price_cents integer NOT NULL DEFAULT 0,
   currency text NOT NULL DEFAULT 'USD',
   stock integer NOT NULL DEFAULT 0,
@@ -109,6 +110,7 @@ CREATE TABLE IF NOT EXISTS artflow.store_orders (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE artflow.store_products ADD COLUMN IF NOT EXISTS hashtags text NOT NULL DEFAULT '';
 CREATE UNIQUE INDEX IF NOT EXISTS store_orders_number_uidx ON artflow.store_orders (order_number);
 
 CREATE TABLE IF NOT EXISTS artflow.store_order_items (
