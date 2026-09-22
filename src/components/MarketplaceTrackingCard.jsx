@@ -4,11 +4,11 @@ import { useMarketplacePreferences } from "@/lib/useMarketplacePreferences";
 import { toast } from "sonner";
 
 const SITE_HELP = {
-  Vinted: "Sync Vinted listings and sales",
-  Depop: "Sync Depop listings and sales",
-  Etsy: "Sync Etsy listings and sales",
-  eBay: "Sync eBay listings and sales",
-  Poshmark: "Sync Poshmark listings and sales",
+  Vinted: "Sync Vinted orders and sales",
+  Depop: "Sync Depop orders and sales",
+  Etsy: "Sync Etsy orders and sales",
+  eBay: "Sync eBay orders and sales",
+  Poshmark: "Sync Poshmark orders and sales",
 };
 
 export default function MarketplaceTrackingCard() {
