@@ -90,6 +90,7 @@ export const storeAdmin = {
   order: (id) => adminFetch(`/api/store-admin?resource=orders&id=${encodeURIComponent(id)}`),
   customers: () => adminFetch("/api/store-admin?resource=customers"),
   productSave: (product) => adminFetch("/api/store-admin", { method: "POST", body: { action: "product_save", ...product } }),
+  productStatus: (id, status) => adminFetch("/api/store-admin", { method: "POST", body: { action: "product_status", id, status } }),
   productDelete: (id) => adminFetch("/api/store-admin", { method: "POST", body: { action: "product_delete", id } }),
   categorySave: (category) => adminFetch("/api/store-admin", { method: "POST", body: { action: "category_save", ...category } }),
   categoryDelete: (id) => adminFetch("/api/store-admin", { method: "POST", body: { action: "category_delete", id } }),
