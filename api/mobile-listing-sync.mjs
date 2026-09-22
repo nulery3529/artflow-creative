@@ -598,7 +598,7 @@ function poshmarkImageUrl(item = {}) {
   return clean(candidates.find((value) => /^https:\/\//i.test(clean(value))) || '');
 }
 
-async function collectPoshmarkProfileListings(usernameInput) {
+export async function collectPoshmarkProfileListings(usernameInput) {
   const username = cleanMarketplaceUsername(usernameInput);
   if (!isValidMarketplaceUsername(username)) throw new Error('Enter a valid Poshmark username.');
 
@@ -607,6 +607,7 @@ async function collectPoshmarkProfileListings(usernameInput) {
   const seen = new Set();
   let total = null;
   let apiSucceeded = false;
+  let complete = false;
 
   // Poshmark's public closet endpoint is read-only and paginated. Use it first
   // so large closets are not limited to the listings embedded in the first HTML page.
@@ -669,7 +670,10 @@ async function collectPoshmarkProfileListings(usernameInput) {
       }
 
       offset += rows.length;
-      if (!rows.length || rows.length < 48 || (total !== null && offset >= total)) break;
+      if (!rows.length || rows.length < 48 || (total !== null && offset >= total)) {
+        complete = true;
+        break;
+      }
     }
   } catch (error) {
     console.warn('Poshmark public closet API unavailable; falling back to closet HTML', error?.message || error);
@@ -681,6 +685,7 @@ async function collectPoshmarkProfileListings(usernameInput) {
       profileUrl,
       listings,
       total: total ?? listings.length,
+      complete,
     };
   }
 
@@ -721,11 +726,13 @@ async function collectPoshmarkProfileListings(usernameInput) {
       },
     });
   }
+  const fallbackTotal = Number(state?.$_closet?.listingsPostData?.more?.total) || listings.length;
   return {
     username,
     profileUrl: normalizeUrl(finalUrl || profileUrl) || profileUrl,
     listings,
-    total: Number(state?.$_closet?.listingsPostData?.more?.total) || listings.length,
+    total: fallbackTotal,
+    complete: listings.length >= fallbackTotal,
   };
 }
 
