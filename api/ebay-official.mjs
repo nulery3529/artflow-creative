@@ -76,7 +76,7 @@ function redirect(res,kind,message=''){
   const q=new URLSearchParams({ebay:kind});
   if(message) q.set('message',message.slice(0,180));
   res.statusCode=302;
-  res.setHeader('Location',`/gallery?${q.toString()}`);
+  res.setHeader('Location',`/account?${q.toString()}`);
   return res.end();
 }
 
@@ -256,7 +256,11 @@ export default async function handler(req,res){
         username,
         connected_at:business.data?.ebay_oauth?.connected_at||new Date().toISOString(),
       });
-      try{ await syncEbayListings(client,business,token.access_token); }catch(error){ console.warn('Initial eBay listing sync failed',error?.message||error); }
+      try{
+        await syncConnectedEbayOrders(client,business);
+      }catch(error){
+        console.warn('Initial eBay order sync failed',error?.message||error);
+      }
       return redirect(res,'connected');
     }
 
