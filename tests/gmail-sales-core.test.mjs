@@ -39,6 +39,24 @@ test('parses a forwarded Poshmark sold email with an inline item price', () => {
   assert.equal(rows[0].size, '5x7');
 });
 
+test('parses a flattened Poshmark sold email with size before price', () => {
+  const rows = parseSaleEmail(
+    'Poshmark <orders@poshmark.com>',
+    '"8 X 8 Black Framed Quilled Butterfly 7 E 89" just sold to @luxierose on Poshmark!',
+    [
+      'Great news - you just sold "8 X 8 Black Framed Quilled Butterfly 7 E 89" on Poshmark.',
+      'Order ID 6ab2df928a91b8c0d4d9aff0',
+      'Item Price 8 X 8 Black Framed Quilled Butterfly 7 E 89 Size: OS $10.00',
+      'Your Earnings (minus fee and taxes) $7.05',
+    ].join(' ')
+  );
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].order_id, '6ab2df928a91b8c0d4d9aff0');
+  assert.equal(rows[0].sale_total, 10);
+  assert.equal(rows[0].unit_price, 10);
+});
+
 test('ignores unrelated Poshmark email subjects', () => {
   const rows = parseSaleEmail(
     'orders@poshmark.com',
