@@ -10,14 +10,6 @@
     {
       "path": "/api/gmail-expense-cron",
       "schedule": "*/15 * * * *"
-    },
-    {
-      "path": "/api/poshmark-listing-cron",
-      "schedule": "*/15 * * * *"
-    },
-    {
-      "path": "/api/ebay-listing-cron",
-      "schedule": "15 */6 * * *"
     }
   ],
   "outputDirectory": "dist",
