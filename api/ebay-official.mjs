@@ -164,6 +164,60 @@ async function syncEbayListings(client,business,accessToken){
   return {saved,more:!complete};
 }
 
+
+export async function syncConnectedEbayOrders(client,business){
+  if(!business?.base44_id) return {saved:0,checked:0,more_possible:false};
+  if(!configured()) throw new Error('eBay connection is temporarily unavailable.');
+  const oauth=business.data?.ebay_oauth||{};
+  if(!oauth.connected || !oauth.refresh_token_enc) return {saved:0,checked:0,more_possible:false,skipped:true};
+
+  const token=await validAccessToken(client,business);
+  const rows=[];
+  const seen=new Set();
+  let more=false;
+
+  for(const status of ['COMPLETED','IN_PROGRESS']){
+    let pages=0, continuation='';
+    while(pages<20){
+      const url=continuation
+        ? `https://api.ebay.com${continuation}`
+        : `${ORDERS_URL}?filter=orderfulfillmentstatus:${encodeURIComponent(`{${status}}`)}&limit=50`;
+      const data=await ebayGet(url,token);
+      const orders=Array.isArray(data?.orders)?data.orders:[];
+      for(const order of orders){
+        if(order?.orderPaymentStatus!=='PAID') continue;
+        const orderId=clean(order?.orderId);
+        if(!orderId || seen.has(orderId)) continue;
+        seen.add(orderId);
+        const lineItems=Array.isArray(order?.lineItems)?order.lineItems:[];
+        const title=lineItems.map(li=>clean(li?.title)).filter(Boolean).join(' + ')||`eBay order ${orderId}`;
+        const quantity=lineItems.reduce((sum,li)=>sum+(Number(li?.quantity)||0),0)||1;
+        const total=Number(Number(order?.orderTotal?.value||0).toFixed(2));
+        if(total<=0) continue;
+        rows.push({
+          platform:'eBay',
+          product_name:title,
+          quantity,
+          size:sizeFromTitle(title),
+          unit_price:Number((total/quantity).toFixed(2)),
+          sale_total:total,
+          buyer:clean(order?.buyer?.username),
+          order_id:orderId,
+          sale_date:clean(order?.creationDate),
+          source_url:`https://www.ebay.com/sh/ord/details?orderid=${encodeURIComponent(orderId)}`,
+        });
+      }
+      pages+=1;
+      continuation=clean(data?.next||'');
+      if(!continuation) break;
+      if(pages===20) more=true;
+    }
+  }
+
+  const saved=await insertOrders(client,business.base44_id,rows,'ebay_official_oauth');
+  return {saved,checked:rows.length,more_possible:more};
+}
+
 export default async function handler(req,res){
   res.setHeader('Cache-Control','no-store');
   const client=await pool.connect();
@@ -274,55 +328,13 @@ export default async function handler(req,res){
 
     if(action==='sync'){
       if(!configured()) return res.status(503).json({error:'eBay connection is temporarily unavailable. Please try again later.'});
-      const token=await validAccessToken(client,business);
-      const listingSync=await syncEbayListings(client,business,token);
-      const rows=[];
-      const seen=new Set();
-      let more=false;
-      for(const status of ['COMPLETED','IN_PROGRESS']){
-        let pages=0, continuation='';
-        while(pages<20){
-          const url=continuation
-            ? `https://api.ebay.com${continuation}`
-            : `${ORDERS_URL}?filter=orderfulfillmentstatus:${encodeURIComponent(`{${status}}`)}&limit=50`;
-          const data=await ebayGet(url,token);
-          const orders=Array.isArray(data?.orders)?data.orders:[];
-          for(const order of orders){
-            if(order?.orderPaymentStatus!=='PAID') continue;
-            const orderId=clean(order?.orderId);
-            if(!orderId || seen.has(orderId)) continue;
-            seen.add(orderId);
-            const lineItems=Array.isArray(order?.lineItems)?order.lineItems:[];
-            const title=lineItems.map(li=>clean(li?.title)).filter(Boolean).join(' + ')||`eBay order ${orderId}`;
-            const quantity=lineItems.reduce((sum,li)=>sum+(Number(li?.quantity)||0),0)||1;
-            const total=Number(Number(order?.orderTotal?.value||0).toFixed(2));
-            if(total<=0) continue;
-            rows.push({
-              platform:'eBay',
-              product_name:title,
-              quantity,
-              size:sizeFromTitle(title),
-              unit_price:Number((total/quantity).toFixed(2)),
-              sale_total:total,
-              buyer:clean(order?.buyer?.username),
-              order_id:orderId,
-              sale_date:clean(order?.creationDate),
-            });
-          }
-          pages+=1;
-          continuation=clean(data?.next||'');
-          if(!continuation) break;
-          if(pages===20) more=true;
-        }
-      }
-      const saved=await insertOrders(client,business.base44_id,rows,'ebay_official_oauth');
+      const result=await syncConnectedEbayOrders(client,business);
       return res.status(200).json({
         ok:true,
-        saved,
-        listings_saved:listingSync.saved,
-        checked:rows.length,
-        more_possible:more||listingSync.more,
-        message:`eBay synced: ${listingSync.saved} active listing${listingSync.saved===1?'':'s'} refreshed in Gallery and ${saved} new sale${saved===1?'':'s'} imported.`,
+        ...result,
+        message:result.saved>0
+          ? `eBay synced: ${result.saved} new sale${result.saved===1?'':'s'} imported.`
+          : 'eBay orders are up to date.',
       });
     }
 
