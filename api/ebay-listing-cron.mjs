@@ -221,15 +221,28 @@ async function collectEbayBrowseListings(username) {
 }
 
 async function collectEbayListings(username) {
+  let officialResult = null;
   try {
-    const official = await collectEbayBrowseListings(username);
-    if (official.listings.length) return official;
+    officialResult = await collectEbayBrowseListings(username);
+    // A small non-empty Browse response can be partial for seller catalogs.
+    // Cross-check it with the secondary catalog source instead of treating any
+    // non-empty response as complete.
+    if (officialResult.listings.length >= 200) return officialResult;
   } catch (error) {
     console.warn('eBay Browse catalog refresh failed; using fallback', error?.message || error);
   }
 
   const apiKey = clean(process.env.SCRAPEBADGER_API_KEY);
-  if (!apiKey) return collectEbayMicrolinkListings(username);
+  if (!apiKey) {
+    try {
+      const fallback = await collectEbayMicrolinkListings(username);
+      if (fallback.listings.length > (officialResult?.listings?.length || 0)) return fallback;
+    } catch (error) {
+      console.warn('eBay browser catalog cross-check failed', error?.message || error);
+    }
+    if (officialResult?.listings?.length) return officialResult;
+    return { listings: [], total: 0, complete: false };
+  }
 
   const listings = [];
   const seen = new Set();
@@ -293,7 +306,11 @@ async function collectEbayListings(username) {
       break;
     }
   }
-  return { listings, total: total ?? listings.length, complete };
+  const fallbackResult = { listings, total: total ?? listings.length, complete };
+  if (officialResult?.listings?.length && officialResult.listings.length >= fallbackResult.listings.length) {
+    return officialResult;
+  }
+  return fallbackResult;
 }
 
 async function ensureTable(client) {
