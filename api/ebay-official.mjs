@@ -19,14 +19,13 @@ const TRADING_VERSION = '1477';
 const SCOPES = [
   'https://api.ebay.com/oauth/api_scope',
   'https://api.ebay.com/oauth/api_scope/sell.fulfillment.readonly',
-  'https://api.ebay.com/oauth/api_scope/sell.account.readonly',
-  'https://api.ebay.com/oauth/api_scope/commerce.identity.readonly',
 ];
 
 const ebayClientId = () => clean(process.env.EBAY_CLIENT_ID);
 const ebayClientSecret = () => clean(process.env.EBAY_CLIENT_SECRET);
 const ebayRuName = () => clean(process.env.EBAY_RUNAME || process.env.EBAY_REDIRECT_URI);
-const configured = () => Boolean(ebayClientId() && ebayClientSecret() && ebayRuName());
+const validRuName = () => Boolean(ebayRuName() && !/^https?:\/\//i.test(ebayRuName()));
+const configured = () => Boolean(ebayClientId() && ebayClientSecret() && validRuName());
 
 async function ebayToken(params, authHeader){
   const headers={'Content-Type':'application/x-www-form-urlencoded','Accept':'application/json'};
@@ -277,13 +276,19 @@ export default async function handler(req,res){
         connected:Boolean(oauth.connected&&oauth.refresh_token_enc),
         username:clean(oauth.username),
         redirect_uri:REDIRECT_ENDPOINT,
+        runame_configured:Boolean(ebayRuName()),
+        runame_valid:validRuName(),
       });
     }
     if(req.method!=='POST') return res.status(405).json({error:'Method not allowed'});
     const body=parseBody(req), action=clean(body.action);
 
     if(action==='start'){
-      if(!configured()) return res.status(503).json({error:'eBay connection is temporarily unavailable. Please try again later.'});
+      if(!configured()) return res.status(503).json({
+        error: ebayRuName() && !validRuName()
+          ? 'eBay OAuth is misconfigured: eBay requires the Production RuName, not a callback URL.'
+          : 'eBay connection is temporarily unavailable. Please try again later.'
+      });
       const state=crypto.randomBytes(32).toString('base64url');
       await client.query(`DELETE FROM artflow.marketplace_oauth_states WHERE expires_at<=now()`);
       await client.query(`INSERT INTO artflow.marketplace_oauth_states (state,business_id,platform,code_verifier,expires_at) VALUES ($1,$2,'eBay','',now()+interval '15 minutes')`,[state,business.base44_id]);
@@ -293,6 +298,8 @@ export default async function handler(req,res){
         `redirect_uri=${encodeURIComponent(ebayRuName())}`,
         `state=${encodeURIComponent(state)}`,
         `scope=${encodeURIComponent(SCOPES.join(' '))}`,
+        'locale=en-US',
+        'prompt=login',
       ].join('&');
       const authorizationUrl=`${AUTH_URL}?${q}`;
 
