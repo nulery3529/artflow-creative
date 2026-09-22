@@ -129,7 +129,7 @@ export const auth = betterAuth({
     accountLinking: {
       enabled: true,
       trustedProviders: ["email-password", "google"],
-      // Google is used as a linked inbox/tracker connection, not as the primary
+      // Google is used as a linked Gmail inbox connection, not as the primary
       // Art Flow login. Allow a user to attach more than one Gmail address.
       allowDifferentEmails: true,
     },
@@ -143,12 +143,9 @@ export const auth = betterAuth({
       // an accidental Google account choice from creating a blank workspace.
       disableSignUp: true,
       accessType: "offline",
-      // Every explicit Google connection in ArtFlow must be capable of both
-      // tracker access and Gmail sales syncing. Keeping the complete required
-      // scope set at the provider level protects future UI entry points from
-      // accidentally creating a partially-authorized Google account.
+      // Google is connected only for Gmail sales and expense syncing.
+      // Art Flow no longer requests Google Drive or Google Sheets access.
       scope: [
-        "https://www.googleapis.com/auth/drive.file",
         "https://www.googleapis.com/auth/gmail.readonly",
       ],
       // Google may omit a refresh token on repeat authorizations unless consent
