@@ -24,6 +24,7 @@ export function isAllowedMarketplaceSender(value = '') {
     '@poshmark.com',
     '@alerts.depop.com',
     '@ohhey.depop.com',
+    '@ebay.com',
   ].some((suffix) => email.endsWith(suffix));
 }
 
@@ -211,11 +212,64 @@ function depopRows(subject, text) {
   return rows;
 }
 
-export function parseSaleEmail(from, subject, text) {
+
+function ebayRows(subject, text) {
+  const normalizedSubject = clean(subject).replace(/^(?:(?:fwd?|fw):\s*)+/i, '');
+  const oldSale = normalizedSubject.match(/You made the sale for\s+(.+?)(?:!|$)/i);
+  const paymentSale = normalizedSubject.match(/The payment from\s+(.+?)\s+is confirmed:\s*(.+)$/i)
+    || normalizedSubject.match(/Payment from\s+(.+?)\s+(?:is\s+)?confirmed:\s*(.+)$/i);
+  const receivedPayment = normalizedSubject.match(/(?:You have received|You've received) a payment(?: from\s+(.+?))?(?::|\s+-)?\s*(.*)$/i);
+
+  const title = clean(
+    oldSale?.[1]
+      || paymentSale?.[2]
+      || receivedPayment?.[2]
+      || text.match(/(?:Item|Listing)\s*(?:title)?\s*(?:\n|:)\s*([^\n]+)/i)?.[1]
+      || ''
+  ).replace(/[.!]+$/, '');
+  if (!title) return [];
+
+  const buyer = clean(
+    paymentSale?.[1]
+      || receivedPayment?.[1]
+      || text.match(/Buyer\s*(?:username)?\s*(?:\n|:)\s*([^\n]+)/i)?.[1]
+      || ''
+  );
+
+  const orderId = clean(
+    text.match(/(?:Order\s*(?:number|ID)|Order #)\s*(?:\n|:|#)?\s*([A-Z0-9-]{8,})/i)?.[1]
+      || ''
+  );
+
+  const totalText =
+    text.match(/(?:Order total|Total paid|Total)\s*(?:\n|:)?\s*\$([\d,.]+)/i)?.[1]
+    || text.match(/(?:Sold for|Item price|Price)\s*(?:\n|:)?\s*\$([\d,.]+)/i)?.[1]
+    || '';
+  const saleTotal = Number(String(totalText).replace(/,/g, '')) || 0;
+  if (saleTotal <= 0) return [];
+
+  const quantity = Math.max(1, Number(text.match(/Quantity\s*(?:\n|:)?\s*(\d+)/i)?.[1] || 1));
+
+  return [{
+    platform: 'eBay',
+    product_name: title,
+    quantity,
+    size: sizeFromTitle(title),
+    sale_total: saleTotal,
+    unit_price: Number((saleTotal / quantity).toFixed(2)),
+    buyer,
+    order_id: orderId || null,
+    source_url: orderId ? `https://www.ebay.com/sh/ord/details?orderid=${encodeURIComponent(orderId)}` : '',
+  }];
+}
+
+export function parseSaleEmail(from, subject, text, trustedForwarder = false) {
   const email = addressOnly(from);
   if (email.endsWith('@vinted.com')) return vintedRows(subject, text);
   if (email.endsWith('@poshmark.com')) return poshmarkRows(subject, text);
   if (email.endsWith('@alerts.depop.com') || email.endsWith('@ohhey.depop.com')) return depopRows(subject, text);
+  if (email.endsWith('@ebay.com')) return ebayRows(subject, text);
+  if (trustedForwarder && /\bebay\b/i.test(`${subject}\n${text}`)) return ebayRows(subject, text);
   return [];
 }
 
@@ -650,7 +704,9 @@ export async function syncGmailAccount(client, business, accessToken) {
       const messageId = batchIds[offset];
       const message = messages[offset];
       const from = headerValue(message, 'From');
-      if (!isAllowedMarketplaceSender(from)) continue;
+      const senderEmail = addressOnly(from);
+      const trustedForwarder = allowedEmails.has(senderEmail);
+      if (!isAllowedMarketplaceSender(from) && !trustedForwarder) continue;
       const subject = headerValue(message, 'Subject');
       const text = bodyTextFromPayload(message?.payload || {});
       const html = bodyHtmlFromPayload(message?.payload || {});
@@ -667,7 +723,7 @@ export async function syncGmailAccount(client, business, accessToken) {
         continue;
       }
 
-      const rows = parseSaleEmail(from, subject, text);
+      const rows = parseSaleEmail(from, subject, text, trustedForwarder);
       if (!rows.length) continue;
       for (const row of rows) {
         if (row.platform === 'Poshmark' && /^[a-f0-9]{24}$/i.test(clean(row.order_id))) {
