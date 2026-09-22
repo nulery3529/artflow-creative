@@ -1,7 +1,7 @@
 import { ensureStoreTables, storePool, parseBody, getSellerBusiness, normalizeUuid, clampInt, slugify } from './_store-core.mjs';
 
 const clean = (value = '', max = 500) => String(value || '').trim().slice(0, max);
-const PRODUCT_STATUSES = ['draft', 'active', 'archived'];
+const PRODUCT_STATUSES = ['draft', 'active', 'archived', 'sold'];
 const ORDER_STATUSES = ['pending', 'paid', 'processing', 'shipped', 'completed', 'cancelled'];
 
 function cleanProductImage(value = '') {
@@ -128,6 +128,23 @@ export default async function handler(req, res) {
          body.track_stock !== false]
       );
       return res.status(200).json({ product: created.rows[0] });
+    }
+
+    if (action === 'product_status') {
+      const id = normalizeUuid(body.id);
+      const status = String(body.status || '');
+      if (!id || !['active', 'sold'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid product status' });
+      }
+      const updated = await storePool.query(
+        `UPDATE artflow.store_products
+            SET status=$2, updated_at=now()
+          WHERE id=$1 AND business_id=$3
+          RETURNING *`,
+        [id, status, businessId]
+      );
+      if (!updated.rows[0]) return res.status(404).json({ error: 'Product not found' });
+      return res.status(200).json({ product: updated.rows[0] });
     }
 
     if (action === 'product_delete') {
