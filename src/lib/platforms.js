@@ -32,16 +32,7 @@ export function displayProductName(order) {
   return name || `${displayPlatform(order?.platform)} sale`;
 }
 
-const PLATFORM_URL = {
-  Vinted: "https://www.vinted.com/",
-  Depop: "https://www.depop.com/",
-  eBay: "https://www.ebay.com/",
-  Etsy: "https://www.etsy.com/",
-  Poshmark: "https://poshmark.com/",
-};
-
 export function orderSourceUrl(order) {
-  const direct = String(order?.source_url || "").trim();
-  if (/^https:\/\//i.test(direct)) return direct;
-  return PLATFORM_URL[displayPlatform(order?.platform)] || "";
+  const direct = String(order?.source_url || order?.data?.source_url || "").trim();
+  return /^https:\/\//i.test(direct) ? direct : "";
 }
