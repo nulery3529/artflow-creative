@@ -12,6 +12,10 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/api/ebay-listing-cron",
+      "schedule": "7-59/15 * * * *"
+    },
+    {
       "path": "/api/gmail-expense-cron",
       "schedule": "*/15 * * * *"
     }
