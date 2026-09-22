@@ -211,6 +211,75 @@ async function syncEtsyListings(client,ownerScope,oauth,accessToken,creds){
   return {saved,more};
 }
 
+
+export async function syncConnectedEtsyOrders(client,p,business){
+  if(!p || !business?.base44_id) return {saved:0,checked:0,more_possible:false};
+  const creds=await etsyCredentials(client);
+  if(!creds.key||!creds.secret) throw new Error('Etsy credentials are not configured.');
+
+  const oauth=p.data?.etsy_oauth||{};
+  if(!oauth.connected || !oauth.refresh_token_enc) {
+    return {saved:0,checked:0,more_possible:false,skipped:true};
+  }
+
+  const token=await validAccessToken(client,p,creds);
+  let shopId=p.data?.etsy_oauth?.shop_id;
+  if(!shopId){
+    const userId=String(token||'').split('.')[0]||'';
+    if(/^\d+$/.test(userId)){
+      const ownedShop=await etsyGet(`/users/${userId}/shops`,token,creds);
+      shopId=ownedShop?.shop_id||null;
+      const shopName=clean(ownedShop?.shop_name);
+      if(shopId) await saveUserOAuth(client,p,{shop_id:shopId,shop_name:shopName});
+    }
+  }
+  if(!shopId) throw new Error('Etsy could not identify a shop for this account.');
+
+  const rows=[];
+  let offset=0,pages=0,more=false;
+  while(pages<5){
+    const data=await etsyGet(`/shops/${shopId}/receipts?limit=100&offset=${offset}`,token,creds);
+    const results=Array.isArray(data?.results)?data.results:[];
+    for(const receipt of results){
+      if(receipt?.was_paid===false) continue;
+      const saleDate=Number(receipt?.creation_tsz)>0
+        ? new Date(Number(receipt.creation_tsz)*1000).toISOString()
+        : new Date().toISOString();
+      const receiptId=clean(receipt?.receipt_id);
+      const fallbackTitle=`Etsy order ${receiptId}`;
+      const transactions=Array.isArray(receipt?.transactions)&&receipt.transactions.length
+        ? receipt.transactions
+        : [{title:fallbackTitle,transaction_id:receiptId,quantity:1,price:receipt?.grandtotal}];
+
+      for(const t of transactions){
+        const qty=Math.max(1,Number(t?.quantity)||1);
+        const unitPrice=moneyValue(t?.price);
+        const total=Number((unitPrice*qty).toFixed(2));
+        if(total<=0) continue;
+        const title=clean(t?.title)||fallbackTitle;
+        rows.push({
+          platform:'Etsy',
+          product_name:title,
+          quantity:qty,
+          size:sizeFromTitle(title),
+          unit_price:unitPrice,
+          sale_total:total,
+          buyer:String(receipt?.buyer_user_id||''),
+          order_id:String(t?.transaction_id||receiptId||''),
+          sale_date:saleDate,
+        });
+      }
+    }
+    pages+=1;
+    offset+=results.length;
+    if(results.length<100) break;
+    if(pages===5) more=true;
+  }
+
+  const saved=await insertOrders(client,business.base44_id,rows,'etsy_official_oauth');
+  return {saved,checked:rows.length,more_possible:more};
+}
+
 export default async function handler(req,res){
   res.setHeader('Cache-Control','no-store');
   const client=await pool.connect();
@@ -372,66 +441,13 @@ export default async function handler(req,res){
     if(action==='sync'){
       if(!creds.key||!creds.secret) return res.status(503).json({error:'Etsy credentials are not configured.'});
       if(!oauthBelongsToUser || !userOauth.refresh_token_enc) return res.status(400).json({error:'Etsy is not connected for this Art Flow account. Connect Etsy with this account first.'});
-      const token=await validAccessToken(client,p,creds);
-      let shopId=p.data?.etsy_oauth?.shop_id;
-      if(!shopId){
-        const userId=String(token||'').split('.')[0]||'';
-        if(/^\d+$/.test(userId)){
-          const ownedShop=await etsyGet(`/users/${userId}/shops`,token,creds);
-          shopId=ownedShop?.shop_id||null;
-          const shopName=clean(ownedShop?.shop_name);
-          if(shopId){
-            await saveUserOAuth(client,p,{shop_id:shopId,shop_name:shopName});
-          }
-        }
-      }
-      if(!shopId) return res.status(400).json({error:'Etsy could not identify a shop for this account. If this Etsy account has an active shop, reconnect Etsy and try again.'});
-      const listingSync=await syncEtsyListings(client,ownerScope,p.data?.etsy_oauth||{},token,creds);
-      const rows=[];
-      let offset=0,pages=0,more=false;
-      while(pages<3){
-        const data=await etsyGet(`/shops/${shopId}/receipts?limit=100&offset=${offset}`,token,creds);
-        const results=Array.isArray(data?.results)?data.results:[];
-        for(const receipt of results){
-          if(receipt?.was_paid===false) continue;
-          const saleDate=Number(receipt?.creation_tsz)*1000 || new Date().toISOString();
-          const fallbackTitle=`Etsy order ${clean(receipt?.receipt_id)}`;
-          const transactions=Array.isArray(receipt?.transactions)&&receipt.transactions.length
-            ? receipt.transactions
-            : [{title:fallbackTitle,transaction_id:receipt?.receipt_id,quantity:1,price:receipt?.grandtotal}];
-          for(const t of transactions){
-            const qty=Math.max(1,Number(t?.quantity)||1);
-            const unitPrice=Number(Number(t?.price||0)/100);
-            const total=Number((unitPrice*qty).toFixed(2));
-            if(total<=0) continue;
-            const title=clean(t?.title)||fallbackTitle;
-            rows.push({
-              platform:'Etsy',
-              product_name:title,
-              quantity:qty,
-              size:sizeFromTitle(title),
-              unit_price:unitPrice,
-              sale_total:total,
-              buyer:String(receipt?.buyer_user_id||''),
-              order_id:String(t?.transaction_id||receipt?.receipt_id||''),
-              sale_date:saleDate,
-            });
-          }
-        }
-        pages+=1; offset+=100;
-        if(results.length<100) break;
-        if(pages===3) more=true;
-      }
-      const saved=business ? await insertOrders(client,business.base44_id,rows,'etsy_official_oauth') : 0;
+      const result=await syncConnectedEtsyOrders(client,p,business);
       return res.status(200).json({
         ok:true,
-        saved,
-        listings_saved:listingSync.saved,
-        checked:rows.length,
-        more_possible:more||listingSync.more,
-        message:business
-          ? `Etsy synced: ${listingSync.saved} active listing${listingSync.saved===1?'':'s'} refreshed in Gallery and ${saved} new sale${saved===1?'':'s'} imported.`
-          : `Etsy synced: ${listingSync.saved} active listing${listingSync.saved===1?'':'s'} refreshed in Gallery. Create or join a business later if you want sales/profit tracking.`,
+        ...result,
+        message:result.saved>0
+          ? `Etsy synced: ${result.saved} new sale${result.saved===1?'':'s'} imported.`
+          : 'Etsy orders are up to date.',
       });
     }
 
