@@ -592,7 +592,10 @@ export async function syncGmailAccount(client, business, accessToken) {
        AND sync_source='gmail_direct_sales'
        AND platform='Poshmark'
        AND COALESCE(source_email_id,'')<>''
-       AND COALESCE(data->>'poshmark_parser_version','') <> '2'
+       AND (
+         COALESCE(sale_total,0)=0
+         OR COALESCE(data->>'poshmark_parser_version','') <> '2'
+       )
      ORDER BY 1
   `, [business.base44_id]);
   const repairMessageIds = repairCandidates.rows
