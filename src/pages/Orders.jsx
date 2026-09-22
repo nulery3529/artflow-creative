@@ -82,9 +82,24 @@ export default function Orders() {
 
   const isBundle = (o) => /bundle/i.test(o.product_name || "");
   const visiblePlatformTabs = useMemo(() => {
-    if (trackedSites.length > 0) return trackedSites;
-    return Array.from(new Set(activeOrders.map((order) => displayPlatform(order.platform)).filter(Boolean)));
+    const actual = activeOrders.map((order) => displayPlatform(order.platform)).filter(Boolean);
+    return Array.from(new Set([...(trackedSites || []), ...actual]));
   }, [trackedSites, activeOrders]);
+
+  const platformCounts = useMemo(() => {
+    const counts = {};
+    activeOrders.forEach((order) => {
+      const platform = displayPlatform(order.platform);
+      counts[platform] = (counts[platform] || 0) + 1;
+    });
+    return counts;
+  }, [activeOrders]);
+
+  const choosePlatform = (platform) => {
+    setPlatformFilter(platform);
+    setMonthFilter("All");
+    setSearch("");
+  };
 
   const filtered = useMemo(() => {
     return activeOrders
@@ -186,21 +201,43 @@ export default function Orders() {
         />
       </div>
 
-      <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1">
-        {["All", ...visiblePlatformTabs, "Bundles"].map((p) => (
-          <button
-            key={p}
-            onClick={() => setPlatformFilter(p)}
-            className={`px-4 h-9 rounded-full text-sm font-medium shrink-0 ${
-              platformFilter === p
-                ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"
-                : "bg-muted text-foreground"
-            }`}
-          >
-            {p}
-          </button>
-        ))}
+      <div className="flex flex-wrap gap-2">
+        {["All", ...visiblePlatformTabs, "Bundles"].map((p) => {
+          const count =
+            p === "All"
+              ? activeOrders.length
+              : p === "Bundles"
+              ? activeOrders.filter(isBundle).length
+              : platformCounts[p] || 0;
+          return (
+            <button
+              key={p}
+              onClick={() => choosePlatform(p)}
+              className={`px-3 h-9 rounded-full text-sm font-medium ${
+                platformFilter === p
+                  ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"
+                  : "bg-muted text-foreground"
+              }`}
+            >
+              {p} <span className="opacity-70">({count})</span>
+            </button>
+          );
+        })}
       </div>
+
+      {(platformCounts.Poshmark || 0) > 0 && platformFilter !== "Poshmark" && (
+        <button
+          type="button"
+          onClick={() => choosePlatform("Poshmark")}
+          className="w-full rounded-2xl border border-pink-200 bg-pink-50 px-4 py-3 text-left flex items-center justify-between gap-3"
+        >
+          <div>
+            <p className="text-sm font-semibold text-pink-800">Poshmark orders are available</p>
+            <p className="text-xs text-pink-700">{platformCounts.Poshmark} Poshmark orders in your history</p>
+          </div>
+          <span className="text-xs font-semibold text-pink-800 shrink-0">Show</span>
+        </button>
+      )}
 
       {!sitesLoading && !sitesConfigured && activeOrders.length === 0 && (
         <div className="rounded-2xl bg-muted p-4 text-sm text-muted-foreground">
