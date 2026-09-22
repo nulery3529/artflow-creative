@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { CheckCircle2, Download, History, PackagePlus, Pencil, RotateCcw, Trash2 } from "lucide-react";
+import { CheckCircle2, Clock3, Download, History, PackagePlus, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import ProductForm from "@/components/store/ProductForm";
 import CategoryManager from "@/components/store/CategoryManager";
@@ -90,7 +90,18 @@ export default function StoreProducts() {
 
   const availableProducts = (products || []).filter((product) => product.status !== "sold");
   const soldProducts = (products || []).filter((product) => product.status === "sold");
-  const visibleProducts = view === "sold" ? soldProducts : availableProducts;
+  const soldTodayProducts = soldProducts.filter((product) => {
+    if (!product.sold_at) return false;
+    const sold = new Date(product.sold_at);
+    const today = new Date();
+    return !Number.isNaN(sold.getTime()) && sold.toDateString() === today.toDateString();
+  });
+  const visibleProducts =
+    view === "sold-today"
+      ? soldTodayProducts
+      : view === "sold"
+        ? soldProducts
+        : availableProducts;
 
   return (
     <div className="space-y-5">
@@ -109,11 +120,11 @@ export default function StoreProducts() {
 
       <CategoryManager categories={categories} onSave={saveCategory} onDelete={deleteCategory} />
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <button
           type="button"
           onClick={() => setView("available")}
-          className={`h-12 rounded-2xl border font-semibold flex items-center justify-center gap-2 ${
+          className={`min-h-12 rounded-2xl border px-2 py-2 font-semibold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm ${
             view === "available"
               ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] border-transparent"
               : "bg-card text-foreground border-[hsl(var(--border))]"
@@ -124,8 +135,20 @@ export default function StoreProducts() {
         </button>
         <button
           type="button"
+          onClick={() => setView("sold-today")}
+          className={`min-h-12 rounded-2xl border px-2 py-2 font-semibold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm ${
+            view === "sold-today"
+              ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] border-transparent"
+              : "bg-card text-foreground border-[hsl(var(--border))]"
+          }`}
+        >
+          <Clock3 className="w-4 h-4" />
+          Sold Today ({soldTodayProducts.length})
+        </button>
+        <button
+          type="button"
           onClick={() => setView("sold")}
-          className={`h-12 rounded-2xl border font-semibold flex items-center justify-center gap-2 ${
+          className={`min-h-12 rounded-2xl border px-2 py-2 font-semibold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm ${
             view === "sold"
               ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] border-transparent"
               : "bg-card text-foreground border-[hsl(var(--border))]"
@@ -159,9 +182,15 @@ export default function StoreProducts() {
         <div className="h-24 rounded-3xl bg-muted animate-pulse" />
       ) : visibleProducts.length === 0 ? (
         <div className="bg-card rounded-3xl border border-[hsl(var(--border))] p-10 text-center">
-          <p className="font-heading text-lg">{view === "sold" ? "No sold products yet" : "No available products yet"}</p>
+          <p className="font-heading text-lg">
+            {view === "sold-today" ? "Nothing sold today yet" : view === "sold" ? "No sold products yet" : "No available products yet"}
+          </p>
           <p className="text-sm text-muted-foreground mt-1">
-            {view === "sold" ? "Products you mark Sold will appear here." : "Create a product or move one back from Sold History."}
+            {view === "sold-today"
+              ? "Products marked Sold today will appear here automatically."
+              : view === "sold"
+                ? "Products you mark Sold will appear here."
+                : "Create a product or move one back from Sold History."}
           </p>
         </div>
       ) : (
