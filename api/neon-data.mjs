@@ -749,8 +749,9 @@ async function advisorSnapshot(client, session) {
          COALESCE(sum(sale_total) FILTER (WHERE left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')),0)::numeric AS year_sales,
          COALESCE(sum(total_cost) FILTER (WHERE left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')),0)::numeric AS year_costs
        FROM artflow.orders
-       WHERE archived IS NOT TRUE AND ${accessSql}`,
+       WHERE archived IS NOT TRUE
          AND left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')
+         AND ${accessSql}`,
       [ids, email]
     ),
     () => client.query(
@@ -822,8 +823,9 @@ async function advisorSnapshot(client, session) {
          (count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(split_part(source_email_id, ':', 1),''), base44_id)) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE,'YYYY-MM')))::int AS current_orders,
          (count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(split_part(source_email_id, ':', 1),''), base44_id)) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE - interval '1 month','YYYY-MM')))::int AS previous_orders
        FROM artflow.orders
-       WHERE archived IS NOT TRUE AND ${accessSql}`,
+       WHERE archived IS NOT TRUE
          AND left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')
+         AND ${accessSql}`,
       [ids, email]
     ),
     () => client.query(
@@ -832,8 +834,9 @@ async function advisorSnapshot(client, session) {
          (count(*) FILTER (WHERE COALESCE(NULLIF(platform,''),'')=''))::int AS orders_missing_platform,
          (count(*) FILTER (WHERE COALESCE(NULLIF(size,''),'')=''))::int AS orders_missing_size
        FROM artflow.orders
-       WHERE archived IS NOT TRUE AND ${accessSql}`,
+       WHERE archived IS NOT TRUE
          AND left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')
+         AND ${accessSql}`,
       [ids, email]
     ),
   ]);
