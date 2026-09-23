@@ -512,7 +512,7 @@ async function insertRows(client, businessId, messageId, receivedAt, rows) {
         gmail_message_id: messageId,
         source_link_parser_version: 1,
         ...(row.source_url ? { source_url: row.source_url } : {}),
-        ...(row.platform === 'Poshmark' ? { poshmark_parser_version: 3 } : {}),
+        ...(row.platform === 'Poshmark' ? { poshmark_parser_version: 4 } : {}),
       }),
       row.product_name,
       row.quantity,
@@ -658,7 +658,7 @@ export async function syncGmailAccount(client, business, accessToken) {
        AND COALESCE(source_email_id,'')<>''
        AND (
          COALESCE(sale_total,0)=0
-         OR COALESCE(data->>'poshmark_parser_version','') <> '3'
+         OR COALESCE(data->>'poshmark_parser_version','') <> '4'
        )
      ORDER BY 1
   `, [business.base44_id]);
@@ -685,7 +685,7 @@ export async function syncGmailAccount(client, business, accessToken) {
           COALESCE(sale_total,0)>0
           AND (
             platform <> 'Poshmark'
-            OR COALESCE(data->>'poshmark_parser_version','') = '3'
+            OR COALESCE(data->>'poshmark_parser_version','') = '4'
           )
           AND COALESCE(data->>'source_link_parser_version','') = '1'
         )
