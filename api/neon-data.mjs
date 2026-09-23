@@ -191,9 +191,12 @@ async function existingWorkspace(client, user) {
   return { profile, businesses, ids: businessIds(businesses), email };
 }
 
-async function countBusinessRows(client, table, ids, email, archivedColumn = false) {
+async function countBusinessRows(client, table, ids, email, archivedColumn = false, currentYearColumn = '') {
   const params = [ids, email];
   const archived = archivedColumn ? `AND archived IS NOT TRUE` : '';
+  const currentYear = currentYearColumn === 'sale_date'
+    ? `AND left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')`
+    : '';
   const result = await client.query(
     `SELECT count(*)::int AS count
        FROM artflow.${table}
@@ -204,7 +207,7 @@ async function countBusinessRows(client, table, ids, email, archivedColumn = fal
             FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(data->'access_emails')='array' THEN data->'access_emails' ELSE '[]'::jsonb END) e(value)
            WHERE lower(e.value) = $2
         )
-      ) ${archived}`,
+      ) ${archived} ${currentYear}`,
     [ids, normalize(email)]
   );
   return result.rows[0]?.count || 0;
@@ -238,6 +241,7 @@ async function listOrders(client, session) {
          ) AS dedupe_title
        FROM artflow.orders o
        WHERE o.archived IS NOT TRUE
+         AND left(COALESCE(o.sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')
          AND (
            o.business_id = ANY($1::text[])
            OR EXISTS (
@@ -746,6 +750,7 @@ async function advisorSnapshot(client, session) {
          COALESCE(sum(total_cost) FILTER (WHERE left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')),0)::numeric AS year_costs
        FROM artflow.orders
        WHERE archived IS NOT TRUE AND ${accessSql}`,
+         AND left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')
       [ids, email]
     ),
     () => client.query(
@@ -756,6 +761,7 @@ async function advisorSnapshot(client, session) {
               COALESCE(sum(estimated_profit),0)::numeric AS gross_profit
          FROM artflow.orders
         WHERE archived IS NOT TRUE AND ${accessSql}
+          AND left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')
         GROUP BY 1 ORDER BY sales DESC, orders DESC LIMIT 10`,
       [ids, email]
     ),
@@ -766,6 +772,7 @@ async function advisorSnapshot(client, session) {
               count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(split_part(source_email_id, ':', 1),''), base44_id))::int AS orders
          FROM artflow.orders
         WHERE archived IS NOT TRUE AND ${accessSql}
+          AND left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')
         GROUP BY 1 ORDER BY items DESC, sales DESC LIMIT 12`,
       [ids, email]
     ),
@@ -777,6 +784,7 @@ async function advisorSnapshot(client, session) {
               COALESCE(sum(estimated_profit),0)::numeric AS gross_profit
          FROM artflow.orders
         WHERE archived IS NOT TRUE AND ${accessSql}
+          AND left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')
         GROUP BY 1 ORDER BY items DESC, sales DESC LIMIT 12`,
       [ids, email]
     ),
@@ -815,6 +823,7 @@ async function advisorSnapshot(client, session) {
          (count(DISTINCT COALESCE(NULLIF(order_id,''), NULLIF(split_part(source_email_id, ':', 1),''), base44_id)) FILTER (WHERE left(COALESCE(sale_date,''),7)=to_char(CURRENT_DATE - interval '1 month','YYYY-MM')))::int AS previous_orders
        FROM artflow.orders
        WHERE archived IS NOT TRUE AND ${accessSql}`,
+         AND left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')
       [ids, email]
     ),
     () => client.query(
@@ -824,6 +833,7 @@ async function advisorSnapshot(client, session) {
          (count(*) FILTER (WHERE COALESCE(NULLIF(size,''),'')=''))::int AS orders_missing_size
        FROM artflow.orders
        WHERE archived IS NOT TRUE AND ${accessSql}`,
+         AND left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')
       [ids, email]
     ),
   ]);
@@ -908,7 +918,7 @@ async function summary(client, session) {
   const { profile, businesses, ids } = await ensureWorkspace(client, session.user);
   const email = normalize(session.user.email);
   const [orders, expenses, emailImports, syncStates, orderMetrics, expenseMetrics] = await runSequential([
-    () => countBusinessRows(client, 'orders', ids, email, true),
+    () => countBusinessRows(client, 'orders', ids, email, true, 'sale_date'),
     () => countBusinessRows(client, 'expenses', ids, email, true),
     () => countBusinessRows(client, 'email_import_messages', ids, email, false),
     () => countBusinessRows(client, 'sync_states', ids, email, false),
@@ -938,6 +948,7 @@ async function summary(client, session) {
            ) AS dedupe_title
          FROM artflow.orders o
          WHERE o.archived IS NOT TRUE
+           AND left(COALESCE(o.sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')
            AND (
              o.business_id = ANY($1::text[])
              OR EXISTS (
