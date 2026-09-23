@@ -160,9 +160,9 @@ function poshmarkRows(subject, text) {
 
   return [{
     platform: 'Poshmark',
-    product_name: title,
+    product_name: normalizedTitle,
     quantity,
-    size: sizeFromTitle(title),
+    size: sizeFromTitle(normalizedTitle),
     sale_total: saleTotal,
     unit_price: quantity > 1 ? Number((saleTotal / quantity).toFixed(2)) : saleTotal,
     buyer,
@@ -232,7 +232,11 @@ function ebayRows(subject, text) {
       || text.match(/(?:Item|Listing)\s*(?:title)?\s*(?:\n|:)\s*([^\n]+)/i)?.[1]
       || ''
   ).replace(/[.!]+$/, '');
-  if (!title) return [];
+  const normalizedTitle = clean(title)
+    .replace(/&(?:#\d+|#x[0-9a-f]+|[a-z]+);/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!normalizedTitle || normalizedTitle.length < 3 || !/[a-z0-9]/i.test(normalizedTitle)) return [];
 
   const buyer = clean(
     paymentSale?.[1]
