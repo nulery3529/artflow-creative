@@ -61,17 +61,6 @@ export default async function handler(req, res) {
       }
     }
 
-    const ebayRows = await client.query(`
-      SELECT sale_date, order_id, product_name, quantity, sale_total, sync_source, created_date
-        FROM artflow.orders
-       WHERE archived IS NOT TRUE
-         AND lower(COALESCE(platform,''))='ebay'
-         AND left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')
-       ORDER BY sale_date DESC NULLS LAST, created_date DESC NULLS LAST
-       LIMIT 20
-    `);
-    console.log('Yahoo eBay diagnostic rows', JSON.stringify(ebayRows.rows));
-
     return res.status(200).json({ ok:true, ...summary });
   } catch (error) {
     console.error('Yahoo mail cron failed', error?.message || error);
