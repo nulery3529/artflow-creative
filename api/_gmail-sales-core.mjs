@@ -761,6 +761,29 @@ export async function syncGmailAccount(client, business, accessToken) {
 
 const ARTFLOW_GOOGLE_CLIENT_ID = "280802752102-m7pnv9mdpjrehg3maln9kjk4du8m80nb.apps.googleusercontent.com";
 
+function cleanGoogleEnvValue(value = '') {
+  const text = String(value || '').trim();
+  if (text.length >= 2 && ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'")))) {
+    return text.slice(1, -1).trim();
+  }
+  return text;
+}
+
+function googleOAuthCredentials() {
+  let clientId = cleanGoogleEnvValue(process.env.GOOGLE_CLIENT_ID);
+  let clientSecret = cleanGoogleEnvValue(process.env.GOOGLE_CLIENT_SECRET);
+  const looksLikeClientId = (value = '') => /\.apps\.googleusercontent\.com$/i.test(String(value || '').trim());
+
+  // Keep background token refresh aligned with Better Auth. Some earlier
+  // deployments had these two Vercel variables entered in opposite fields.
+  if (!looksLikeClientId(clientId) && looksLikeClientId(clientSecret)) {
+    [clientId, clientSecret] = [clientSecret, clientId];
+  }
+  if (process.env.VERCEL_ENV === 'production') clientId = ARTFLOW_GOOGLE_CLIENT_ID;
+
+  return { clientId, clientSecret };
+}
+
 // Refresh (or reuse) the Google access token for a better-auth account row so
 // background jobs can read Gmail without a browser session. Persists the new
 // token so signed-in sessions keep working too.
@@ -772,12 +795,20 @@ export async function googleAccessTokenFor(client, account) {
     error.code = 'GMAIL_RECONNECT';
     throw error;
   }
+
+  const { clientId, clientSecret } = googleOAuthCredentials();
+  if (!clientId || !clientSecret) {
+    const error = new Error('Google OAuth credentials are not configured for background Gmail sync.');
+    error.code = 'GMAIL_RECONNECT';
+    throw error;
+  }
+
   const response = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      client_id: ARTFLOW_GOOGLE_CLIENT_ID,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
+      client_id: clientId,
+      client_secret: clientSecret,
       grant_type: 'refresh_token',
       refresh_token: account.refreshToken,
     }),
