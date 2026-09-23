@@ -138,10 +138,10 @@ export const auth = betterAuth({
     google: {
       clientId: googleClientId,
       clientSecret: googleClientSecret,
-      // Google is a sign-in option only for accounts that are already linked.
-      // New users register with Art Flow email/password first, which prevents
-      // an accidental Google account choice from creating a blank workspace.
-      disableSignUp: true,
+      // Allow Google sign-in to create/link the auth identity. Art Flow's
+      // workspace resolver attaches a signed-in email to its existing business
+      // instead of requiring a pre-linked Better Auth account first.
+      disableSignUp: false,
       accessType: "offline",
       // Google is connected only for Gmail sales and expense syncing.
       // Art Flow no longer requests Google Drive or Google Sheets access.
