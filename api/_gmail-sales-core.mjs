@@ -160,9 +160,9 @@ function poshmarkRows(subject, text) {
 
   return [{
     platform: 'Poshmark',
-    product_name: normalizedTitle,
+    product_name: title,
     quantity,
-    size: sizeFromTitle(normalizedTitle),
+    size: sizeFromTitle(title),
     sale_total: saleTotal,
     unit_price: quantity > 1 ? Number((saleTotal / quantity).toFixed(2)) : saleTotal,
     buyer,
@@ -261,9 +261,9 @@ function ebayRows(subject, text) {
 
   return [{
     platform: 'eBay',
-    product_name: title,
+    product_name: normalizedTitle,
     quantity,
-    size: sizeFromTitle(title),
+    size: sizeFromTitle(normalizedTitle),
     sale_total: saleTotal,
     unit_price: Number((saleTotal / quantity).toFixed(2)),
     buyer,
