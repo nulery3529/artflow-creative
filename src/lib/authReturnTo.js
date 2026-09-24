@@ -1,7 +1,7 @@
 // Shared by auth pages that resume a flow after sign-in. Keep redirect
 // validation in one place because it is security-sensitive.
 
-// Resolve ?returnTo= to a safe same-origin path, else "/".
+// Resolve ?returnTo= to a safe same-origin path, else "/dashboard".
 //
 // The same-origin check alone is not enough: a value like /.//evil.com or
 // /\evil.com parses same-origin but normalizes to a protocol-relative
@@ -9,18 +9,18 @@
 // resolved path to be exactly one leading slash (no "//" prefix, no backslash).
 export function safeReturnTo() {
   const raw = new URLSearchParams(window.location.search).get("returnTo");
-  if (!raw) return "/";
+  if (!raw) return "/dashboard";
   try {
     const url = new URL(raw, window.location.origin);
-    if (url.origin !== window.location.origin) return "/";
+    if (url.origin !== window.location.origin) return "/dashboard";
     // Strip obsolete bootstrap and token parameters from historical links.
     for (const p of ["access_token", "clear_access_token", "app_id", "app_base_url", "functions_version", "from_url"]) {
       url.searchParams.delete(p);
     }
     const path = url.pathname + url.search;
-    if (!path.startsWith("/") || path.startsWith("//") || path.includes("\\")) return "/";
+    if (!path.startsWith("/") || path.startsWith("//") || path.includes("\\")) return "/dashboard";
     return path;
   } catch {
-    return "/";
+    return "/dashboard";
   }
 }
