@@ -400,6 +400,7 @@ export default function Dashboard() {
 
   const { user } = useAuth();
   const [serverMetrics, setServerMetrics] = useState(null);
+  const [marketplaceListings, setMarketplaceListings] = useState([]);
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
 
@@ -420,12 +421,31 @@ export default function Dashboard() {
     }
   }, []);
 
+  const loadMarketplaceListings = React.useCallback(async () => {
+    try {
+      const response = await fetch("/api/neon-data?op=listings", {
+        credentials: "include",
+        cache: "no-store",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || `Listings ${response.status}`);
+      setMarketplaceListings(Array.isArray(data.listings) ? data.listings : []);
+    } catch (error) {
+      console.error("Failed to load marketplace listing images:", error);
+      setMarketplaceListings([]);
+    }
+  }, []);
+
   useEffect(() => {
     loadServerMetrics();
-    const onSynced = () => loadServerMetrics();
+    loadMarketplaceListings();
+    const onSynced = () => {
+      loadServerMetrics();
+      loadMarketplaceListings();
+    };
     window.addEventListener("artflow:data-synced", onSynced);
     return () => window.removeEventListener("artflow:data-synced", onSynced);
-  }, [loadServerMetrics]);
+  }, [loadServerMetrics, loadMarketplaceListings]);
 
   const loading = ordersLoading || expensesLoading || inventoryLoading || metricsLoading;
   const currentMonth = currentMonthKey();
@@ -434,23 +454,61 @@ export default function Dashboard() {
   // must never hide a real sale that is already in the business ledger.
   const activeOrders = orders;
 
-  const inventoryImageByKey = useMemo(() => {
-    const map = new Map();
+  const imageSources = useMemo(() => {
+    const listingByUrl = new Map();
+    const listingByKey = new Map();
+    const inventoryByKey = new Map();
+
+    for (const listing of marketplaceListings) {
+      const image = directImageUrl(listing);
+      if (!image) continue;
+
+      const url = String(listing?.listing_url || "").trim();
+      if (url) listingByUrl.set(url, image);
+
+      const key = imageMatchKey(listing?.title);
+      if (key && !listingByKey.has(key)) listingByKey.set(key, image);
+    }
+
     for (const item of inventory) {
       const key = imageMatchKey(item?.name || item?.title);
       const image = directImageUrl(item);
-      if (key && image && !map.has(key)) map.set(key, image);
+      if (key && image && !inventoryByKey.has(key)) inventoryByKey.set(key, image);
     }
-    return map;
-  }, [inventory]);
+
+    return { listingByUrl, listingByKey, inventoryByKey };
+  }, [marketplaceListings, inventory]);
 
   const imageForOrder = React.useCallback(
     (order) => {
       const direct = directImageUrl(order);
       if (direct) return direct;
-      return inventoryImageByKey.get(imageMatchKey(orderTitle(order))) || "";
+
+      const source = String(order?.source_url || order?.data?.source_url || "").trim();
+      if (source && imageSources.listingByUrl.has(source)) {
+        return imageSources.listingByUrl.get(source);
+      }
+
+      const key = imageMatchKey(orderTitle(order));
+      if (!key) return "";
+
+      if (imageSources.listingByKey.has(key)) return imageSources.listingByKey.get(key);
+      if (imageSources.inventoryByKey.has(key)) return imageSources.inventoryByKey.get(key);
+
+      for (const [candidate, image] of imageSources.listingByKey.entries()) {
+        if (key.length >= 8 && candidate.length >= 8 && (key.includes(candidate) || candidate.includes(key))) {
+          return image;
+        }
+      }
+      for (const [candidate, image] of imageSources.inventoryByKey.entries()) {
+        if (key.length >= 8 && candidate.length >= 8 && (key.includes(candidate) || candidate.includes(key))) {
+          return image;
+        }
+      }
+
+      return "";
     },
-    [inventoryImageByKey]
+    [imageSources]
   );
 
   const dashboard = useMemo(() => {
@@ -748,17 +806,19 @@ export default function Dashboard() {
     publishSyncState({ status: "syncing", at: new Date().toISOString() });
 
     try {
-      const runSync = async (url) => {
+      const runSync = async (url, body = null) => {
         const response = await fetch(url, {
           method: "POST",
           credentials: "include",
           cache: "no-store",
+          headers: body ? { "Content-Type": "application/json" } : undefined,
+          body: body ? JSON.stringify(body) : undefined,
         });
         return { response, data: await response.json().catch(() => ({})) };
       };
 
       const results = await Promise.all([
-        runSync("/api/gmail-sales-sync"),
+        runSync("/api/gmail-sales-sync", { force: true }),
         runSync("/api/gmail-expense-sync"),
       ]);
 
@@ -775,6 +835,7 @@ export default function Dashboard() {
         reloadExpenses?.(),
         reloadInventory?.(),
         loadServerMetrics(),
+        loadMarketplaceListings(),
       ]);
 
       const state = {
