@@ -213,7 +213,7 @@ test('parses the current Vinted bundle sale email format', () => {
   assert.equal(rows[0].unit_price, 6);
 });
 
-test('parses the current Depop multi-item sale confirmation format', () => {
+test('collapses the current Depop multi-item sale confirmation into one bundle order', () => {
   const rows = parseSaleEmail(
     'Depop <sold@alerts.depop.com>',
     'Your USPS shipping label and sale confirmation for @battybonesx.',
@@ -234,12 +234,14 @@ test('parses the current Depop multi-item sale confirmation format', () => {
     ].join('\n')
   );
 
-  assert.equal(rows.length, 2);
+  assert.equal(rows.length, 1);
   assert.equal(rows[0].platform, 'Depop');
   assert.equal(rows[0].buyer, 'battybonesx');
-  assert.equal(rows[0].sale_total, 8.28);
-  assert.equal(rows[1].sale_total, 8.10);
-  assert.equal(rows.reduce((sum,row)=>sum+row.sale_total,0), 16.38);
+  assert.equal(rows[0].product_name, 'Bundle of 2 items');
+  assert.equal(rows[0].quantity, 2);
+  assert.equal(rows[0].sale_total, 16.38);
+  assert.equal(rows[0].unit_price, 8.19);
+  assert.equal(rows[0].depop_bundle, true);
 });
 
 test('ignores eBay listing activity that is not a completed sale', () => {
