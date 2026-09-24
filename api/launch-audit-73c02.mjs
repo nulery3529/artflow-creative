@@ -45,6 +45,30 @@ export default async function handler(req,res){
       return res.status(200).json({ok:true,removed:Number(cleaned.rowCount||0)});
     }
 
+    if(String(req.query?.action||'')==='clean-exact-sheet-gmail-dupes'){
+      const cleaned=await client.query(`
+        DELETE FROM artflow.orders s
+         WHERE s.archived IS NOT TRUE
+           AND s.sync_source='google_sheet_master'
+           AND left(COALESCE(s.sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')
+           AND EXISTS (
+             SELECT 1 FROM artflow.orders g
+              WHERE g.business_id=s.business_id
+                AND g.archived IS NOT TRUE
+                AND g.sync_source LIKE 'gmail%'
+                AND g.platform=s.platform
+                AND g.sale_date=s.sale_date
+                AND lower(COALESCE(g.product_name,''))=lower(COALESCE(s.product_name,''))
+                AND COALESCE(g.quantity,1)=COALESCE(s.quantity,1)
+                AND abs(COALESCE(g.sale_total,0)-COALESCE(s.sale_total,0))<0.01
+           )
+         RETURNING s.platform,s.base44_id
+      `);
+      const byPlatform={};
+      for(const row of cleaned.rows) byPlatform[row.platform]=(byPlatform[row.platform]||0)+1;
+      return res.status(200).json({ok:true,removed:Number(cleaned.rowCount||0),by_platform:byPlatform});
+    }
+
     const rows=await client.query(`
       SELECT business_id,
              platform,
