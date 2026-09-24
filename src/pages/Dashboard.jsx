@@ -480,25 +480,25 @@ export default function Dashboard() {
   }, [marketplaceListings, inventory]);
 
   const actualOrderImage = React.useCallback((order) => {
-    const direct = directImageUrl(order);
-    if (direct) return direct;
-
     const bundleOrder =
       /\bbundle\b/i.test(String(orderTitle(order))) ||
       Number(order?.quantity || 1) > 1;
 
-    return bundleOrder ? "/bundle-placeholder.svg" : "";
+    if (bundleOrder) return "/bundle-placeholder.svg";
+
+    const direct = directImageUrl(order);
+    return direct || "";
   }, []);
 
   const imageForOrder = React.useCallback(
     (order) => {
-      const direct = directImageUrl(order);
-      if (direct) return direct;
-
       const bundleOrder =
         /\bbundle\b/i.test(String(orderTitle(order))) ||
         Number(order?.quantity || 1) > 1;
       if (bundleOrder) return "/bundle-placeholder.svg";
+
+      const direct = directImageUrl(order);
+      if (direct) return direct;
 
       const source = String(order?.source_url || order?.data?.source_url || "").trim();
       if (source && imageSources.listingByUrl.has(source)) {
