@@ -26,6 +26,13 @@ export default function Expenses() {
       credentials: "include",
       cache: "no-store",
     }).catch(() => null);
+    await fetch("/api/yahoo-mail", {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "sync" }),
+    }).catch(() => null);
     await reloadExpenses();
   };
   const [filter, setFilter] = useState("All");
@@ -56,18 +63,46 @@ export default function Expenses() {
   const importForwardedExpenses = async () => {
     setImportingEmail(true);
     try {
-      const response = await fetch("/api/gmail-expense-sync", {
+      const gmailResponse = await fetch("/api/gmail-expense-sync", {
         method: "POST",
         credentials: "include",
         cache: "no-store",
       });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok && response.status !== 409) {
-        throw new Error(data?.error || "Expense sync failed");
+      const gmailData = await gmailResponse.json().catch(() => ({}));
+
+      const yahooResponse = await fetch("/api/yahoo-mail", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "sync" }),
+      });
+      const yahooData = await yahooResponse.json().catch(() => ({}));
+
+      const gmailHardFailure = !gmailResponse.ok && gmailResponse.status !== 409;
+      const yahooHardFailure = !yahooResponse.ok && ![400, 409].includes(yahooResponse.status);
+      if (gmailHardFailure || yahooHardFailure) {
+        throw new Error(
+          gmailHardFailure
+            ? (gmailData?.error || "Gmail expense sync failed")
+            : (yahooData?.error || "Yahoo expense sync failed")
+        );
       }
+
       await reloadExpenses();
-      if (response.ok) toast.success(data?.message || "Expenses are up to date");
-      else toast.info(data?.error || "Reconnect Gmail to resume expense syncing");
+
+      const yahooImported = Number(yahooData?.expenses?.imported || 0);
+      const messages = [
+        gmailResponse.ok ? gmailData?.message : "",
+        yahooImported > 0
+          ? `${yahooImported} Yahoo expense${yahooImported === 1 ? "" : "s"} added to review`
+          : "",
+      ].filter(Boolean);
+
+      if (messages.length) toast.success(messages.join(" · "));
+      else if (!gmailResponse.ok) toast.info(gmailData?.error || "Reconnect Gmail to resume expense syncing");
+      else if (!yahooResponse.ok) toast.info(yahooData?.error || "Reconnect Yahoo to resume expense syncing");
+      else toast.success("Expenses are up to date");
     } catch (e) {
       toast.error("Expense refresh failed", { description: e?.message });
     } finally {
