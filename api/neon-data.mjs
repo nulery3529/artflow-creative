@@ -335,7 +335,11 @@ async function listOrders(client, session) {
        archived,
        sync_source,
        business_id,
-       data
+       CASE
+         WHEN lower(COALESCE(platform,''))='poshmark'
+           THEN jsonb_strip_nulls(jsonb_build_object('poshmark_earnings', data->>'poshmark_earnings'))
+         ELSE '{}'::jsonb
+       END AS data
      FROM deduped_orders
      ORDER BY sale_date DESC NULLS LAST, created_date DESC NULLS LAST
      LIMIT 10000`,
@@ -366,7 +370,10 @@ async function listExpenses(client, session) {
        e.archived,
        COALESCE(e.data->>'sync_source', e.data->>'source') AS sync_source,
        e.business_id,
-       e.data
+       jsonb_strip_nulls(jsonb_build_object(
+         'recurring', e.data->>'recurring',
+         'recurring_series_id', e.data->>'recurring_series_id'
+       )) AS data
      FROM artflow.expenses e
      WHERE e.archived IS NOT TRUE
        AND (
@@ -403,8 +410,7 @@ async function listInventory(client, session) {
        created_by_id,
        created_date,
        updated_date,
-       data->>'image_url' AS image_url,
-       data
+       data->>'image_url' AS image_url
      FROM artflow.inventory_costs
      WHERE business_id = ANY($1::text[])
      ORDER BY created_date DESC NULLS LAST, name NULLS LAST`,
