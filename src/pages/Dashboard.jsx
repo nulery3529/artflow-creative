@@ -479,6 +479,17 @@ export default function Dashboard() {
     return { listingByUrl, listingByKey, inventoryByKey };
   }, [marketplaceListings, inventory]);
 
+  const actualOrderImage = React.useCallback((order) => {
+    const direct = directImageUrl(order);
+    if (direct) return direct;
+
+    const bundleOrder =
+      /\bbundle\b/i.test(String(orderTitle(order))) ||
+      Number(order?.quantity || 1) > 1;
+
+    return bundleOrder ? "/bundle-placeholder.svg" : "";
+  }, []);
+
   const imageForOrder = React.useCallback(
     (order) => {
       const direct = directImageUrl(order);
@@ -720,7 +731,7 @@ export default function Dashboard() {
       .slice(0, 5)
       .map((order) => ({
         ...order,
-        dashboard_image_url: imageForOrder(order),
+        dashboard_image_url: actualOrderImage(order),
       }));
 
     const inventoryPreview = [...inventory]
@@ -795,6 +806,7 @@ export default function Dashboard() {
     inventory,
     currentMonth,
     imageForOrder,
+    actualOrderImage,
   ]);
 
   const refresh = async () => {
