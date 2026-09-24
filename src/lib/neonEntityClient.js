@@ -8,6 +8,19 @@ const ENTITY_OPS = {
   ScheduleEvent: "schedule",
 };
 
+const READ_CACHE_TTL_MS = 60 * 1000;
+const readCache = new Map();
+const inFlightReads = new Map();
+
+function clearReadCache() {
+  readCache.clear();
+  inFlightReads.clear();
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("artflow:data-synced", clearReadCache);
+}
+
 function opFor(entityName) {
   const op = ENTITY_OPS[entityName];
   if (!op) throw new Error(`Unsupported Art Flow entity: ${entityName}`);
@@ -37,11 +50,27 @@ async function request(entityName, options = {}) {
 
 export const neonEntities = {
   async list(entityName) {
-    const data = await request(entityName);
-    if (entityName === "Expense") return data.expenses || [];
-    if (entityName === "InventoryCost") return data.inventory || [];
-    if (entityName === "Order") return data.orders || [];
-    return data.records || [];
+    const key = String(entityName);
+    const now = Date.now();
+    const cached = readCache.get(key);
+    if (cached && now - cached.at < READ_CACHE_TTL_MS) return cached.value;
+
+    if (inFlightReads.has(key)) return inFlightReads.get(key);
+
+    const pending = request(entityName).then((data) => {
+      let value;
+      if (entityName === "Expense") value = data.expenses || [];
+      else if (entityName === "InventoryCost") value = data.inventory || [];
+      else if (entityName === "Order") value = data.orders || [];
+      else value = data.records || [];
+      readCache.set(key, { at: Date.now(), value });
+      return value;
+    }).finally(() => {
+      inFlightReads.delete(key);
+    });
+
+    inFlightReads.set(key, pending);
+    return pending;
   },
 
   async create(entityName, payload) {
