@@ -54,6 +54,8 @@ final class ArtFlowIAPBridge: NSObject, WKScriptMessageHandler {
                 await purchase(productID: productID)
             case "restorePurchases":
                 await restorePurchases()
+            case "manageSubscriptions":
+                await manageSubscriptions()
             default:
                 await send(type: "error", extra: ["message": "Unknown purchase request."])
             }
@@ -141,6 +143,19 @@ final class ArtFlowIAPBridge: NSObject, WKScriptMessageHandler {
             await send(type: "restore-complete", extra: ["entitled": active])
         } catch {
             await send(type: "error", extra: ["message": "Apple could not restore purchases."])
+        }
+    }
+
+    private func manageSubscriptions() async {
+        guard let scene = webView?.window?.windowScene else {
+            await send(type: "error", extra: ["message": "Could not open Apple subscription settings."])
+            return
+        }
+        do {
+            try await AppStore.showManageSubscriptions(in: scene)
+            await send(type: "manage-subscriptions-complete")
+        } catch {
+            await send(type: "error", extra: ["message": "Could not open Apple subscription settings."])
         }
     }
 
