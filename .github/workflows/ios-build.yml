@@ -46,6 +46,8 @@ jobs:
 
           /usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" "$PLIST" | grep -Fx "Art Flow Creative"
           /usr/libexec/PlistBuddy -c "Print :ITSAppUsesNonExemptEncryption" "$PLIST" | grep -Fx "false"
+          /usr/libexec/PlistBuddy -c "Print :NSCameraUsageDescription" "$PLIST" | grep -F "product or inventory photo"
+          /usr/libexec/PlistBuddy -c "Print :NSPhotoLibraryUsageDescription" "$PLIST" | grep -F "product or inventory images"
           /usr/libexec/PlistBuddy -c "Print :ARTFLOW_IAP_PRODUCT_IDS:0" "$PLIST" | grep -Fx "com.artflowcreative.app.monthly"
           /usr/libexec/PlistBuddy -c "Print :ARTFLOW_IAP_PRODUCT_IDS:1" "$PLIST" | grep -Fx "com.artflowcreative.app.yearly"
 
