@@ -123,6 +123,13 @@ export default function ApplePaywall({ products = [], busy = false, error = "" }
             Restore Purchases
           </button>
 
+          <a
+            href="/account"
+            className="w-full h-12 mt-3 rounded-2xl border border-[hsl(var(--border))] bg-background text-foreground font-semibold flex items-center justify-center"
+          >
+            Manage Account
+          </a>
+
           <div className="mt-5 flex items-start gap-2 text-[11px] leading-relaxed text-muted-foreground">
             <ShieldCheck className="w-4 h-4 mt-0.5 shrink-0" />
             <p>
