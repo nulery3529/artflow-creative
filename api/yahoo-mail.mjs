@@ -277,11 +277,23 @@ const YAHOO_EXPENSE_TERMS = [
   'receipt',
   'invoice',
   'order confirmation',
+  'your order',
+  'order receipt',
+  'purchase confirmation',
+  'purchase receipt',
   'payment confirmation',
   'payment receipt',
-  'purchase confirmation',
   'thanks for your order',
   'subscription renewal',
+  'shipping label',
+  'postage',
+  'shipping charge',
+  'seller fee',
+  'selling fee',
+  'transaction fee',
+  'promoted listing',
+  'ad fee',
+  'service fee',
 ];
 
 async function yahooExpenseMessages(email, appPassword, afterUid=0) {
@@ -477,10 +489,15 @@ export async function syncYahooExpenses(client, business) {
   }
 
   const password = decrypt(config.app_password_enc);
+  const expenseParserVersion = 2;
+  const savedParserVersion = Number(config.expense_parser_version || 0);
+  const expenseAfterUid = savedParserVersion >= expenseParserVersion
+    ? Number(config.last_expense_uid || 0)
+    : 0;
   const { messages, remaining, maxUid } = await yahooExpenseMessages(
     email,
     password,
-    Number(config.last_expense_uid || 0)
+    expenseAfterUid
   );
 
   let imported = 0;
@@ -494,9 +511,11 @@ export async function syncYahooExpenses(client, business) {
 
   await saveYahooConfig(client, business, {
     last_expense_uid:maxUid,
+    expense_parser_version:expenseParserVersion,
     last_expense_sync_at:new Date().toISOString(),
     last_expense_checked:messages.length,
     last_expense_imported:imported,
+    last_expense_skipped:skipped,
     last_expense_error:'',
   });
 
@@ -562,6 +581,7 @@ export default async function handler(req, res) {
         last_expense_sync_at: config.last_expense_sync_at || null,
         last_expense_checked: Number(config.last_expense_checked || 0),
         last_expense_imported: Number(config.last_expense_imported || 0),
+        last_expense_skipped: Number(config.last_expense_skipped || 0),
         last_expense_error: clean(config.last_expense_error || ''),
       });
     }
