@@ -20,6 +20,11 @@
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
 
+    <key>NSCameraUsageDescription</key>
+    <string>Art Flow Creative uses the camera only when you choose to take a product or inventory photo.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Art Flow Creative lets you choose product or inventory images from your photo library.</string>
+
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>UIRequiresFullScreen</key>
