@@ -28,6 +28,12 @@ final class ArtFlowWebViewController: UIViewController {
         webView = WKWebView(frame: .zero, configuration: configuration)
         webView.translatesAutoresizingMaskIntoConstraints = false
         webView.navigationDelegate = self
+        webView.uiDelegate = self
+
+        let refreshControl = UIRefreshControl()
+        refreshControl.addTarget(self, action: #selector(refreshWebView), for: .valueChanged)
+        webView.scrollView.refreshControl = refreshControl
+
         view.addSubview(webView)
 
         NSLayoutConstraint.activate([
@@ -44,6 +50,28 @@ final class ArtFlowWebViewController: UIViewController {
         guard let url = URL(string: "https://artflowcreative.com") else { return }
         webView.load(URLRequest(url: url))
     }
+
+    @objc private func refreshWebView() {
+        webView.reload()
+    }
+
+    private func shouldOpenExternally(_ url: URL) -> Bool {
+        guard let scheme = url.scheme?.lowercased() else { return false }
+
+        if ["mailto", "tel", "sms"].contains(scheme) {
+            return true
+        }
+
+        guard ["http", "https"].contains(scheme) else { return false }
+        let host = (url.host ?? "").lowercased()
+
+        return host != "artflowcreative.com"
+            && host != "www.artflowcreative.com"
+    }
+
+    private func openExternal(_ url: URL) {
+        UIApplication.shared.open(url, options: [:], completionHandler: nil)
+    }
 }
 
 extension ArtFlowWebViewController: WKNavigationDelegate {
@@ -52,7 +80,35 @@ extension ArtFlowWebViewController: WKNavigationDelegate {
         decidePolicyFor navigationAction: WKNavigationAction,
         decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
     ) {
+        if navigationAction.navigationType == .linkActivated,
+           let url = navigationAction.request.url,
+           shouldOpenExternally(url) {
+            openExternal(url)
+            decisionHandler(.cancel)
+            return
+        }
+
         decisionHandler(.allow)
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        webView.scrollView.refreshControl?.endRefreshing()
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        didFail navigation: WKNavigation!,
+        withError error: Error
+    ) {
+        webView.scrollView.refreshControl?.endRefreshing()
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        didFailProvisionalNavigation navigation: WKNavigation!,
+        withError error: Error
+    ) {
+        webView.scrollView.refreshControl?.endRefreshing()
     }
 }
 
@@ -118,5 +174,27 @@ extension ArtFlowWebViewController: WKScriptMessageHandler {
         }
 
         present(controller, animated: true)
+    }
+}
+
+
+extension ArtFlowWebViewController: WKUIDelegate {
+    func webView(
+        _ webView: WKWebView,
+        createWebViewWith configuration: WKWebViewConfiguration,
+        for navigationAction: WKNavigationAction,
+        windowFeatures: WKWindowFeatures
+    ) -> WKWebView? {
+        guard navigationAction.targetFrame == nil,
+              let url = navigationAction.request.url else {
+            return nil
+        }
+
+        if shouldOpenExternally(url) {
+            openExternal(url)
+        } else {
+            webView.load(navigationAction.request)
+        }
+        return nil
     }
 }
