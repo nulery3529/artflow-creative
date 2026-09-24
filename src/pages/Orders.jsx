@@ -140,14 +140,14 @@ export default function Orders() {
   };
 
   const imageForOrder = React.useCallback((order) => {
-    const direct = directImageUrl(order);
-    if (direct) return direct;
-
     const bundleOrder =
       /\bbundle\b/i.test(String(order?.product_name || "")) ||
       Number(order?.quantity || 1) > 1;
 
-    return bundleOrder ? "/bundle-placeholder.svg" : "";
+    if (bundleOrder) return "/bundle-placeholder.svg";
+
+    const direct = directImageUrl(order);
+    return direct || "";
   }, []);
 
   const filtered = useMemo(() => {
