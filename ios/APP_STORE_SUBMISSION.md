@@ -51,7 +51,7 @@ artist,business,inventory,orders,expenses,sales,mileage,reports,marketplace,stud
 
 **Marketing URL:** https://artflowcreative.com
 
-**Support URL:** https://artflowcreative.com
+**Support URL:** https://artflowcreative.com/support
 
 **Privacy Policy URL:** https://artflowcreative.com/privacy-policy
 
@@ -162,3 +162,21 @@ The repository includes:
 - **iOS Build Check:** Release compilation for both iOS Simulator and a generic iOS device target using Xcode.
 
 Both gates were passing when this submission pack was prepared.
+
+
+## Suggested App Review walkthrough
+
+Apple can review the core app without connecting a marketplace account:
+
+1. Open Art Flow Creative and create an account with email and password.
+2. On the subscription screen, review the monthly/yearly StoreKit products, introductory offer (when eligible), Terms, Privacy Policy, and Restore Purchases.
+3. After subscription entitlement is active, open Orders, Expenses, Inventory, Mileage, Reports, and Business Planning from the main navigation.
+4. Use Export on a report/order view to test the native iOS share sheet.
+5. Pull down on the main app view to test native pull-to-refresh.
+6. Open Account to review support, connected-account controls, Manage Apple Subscription, and permanent Delete Account.
+7. Gmail and marketplace connections are optional integrations and are not required to create an account or inspect the core business-management experience.
+
+Public review URLs:
+- Support: https://artflowcreative.com/support
+- Privacy Policy: https://artflowcreative.com/privacy-policy
+- Terms of Service: https://artflowcreative.com/terms-of-service
