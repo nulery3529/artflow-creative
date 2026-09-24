@@ -4,6 +4,7 @@ import { syncConnectedEbayOrders } from './ebay-official.mjs';
 import { syncConnectedEtsyOrders } from './etsy-official.mjs';
 
 const { Pool } = pg;
+const PRIMARY_VERCEL_PROJECT_ID = 'prj_DROTZuTXWIqP0aCXDtJ0xMkWAitz';
 const pool = new Pool({
   connectionString: pooledDatabaseUrl(),
   ssl: { rejectUnauthorized: false },
@@ -23,6 +24,9 @@ export default async function handler(req,res){
   res.setHeader('Cache-Control','no-store');
   if(!['GET','POST'].includes(req.method)) return res.status(405).json({error:'Method not allowed'});
   if(!authorized(req)) return res.status(401).json({error:'Unauthorized'});
+  if (process.env.VERCEL_PROJECT_ID && process.env.VERCEL_PROJECT_ID !== PRIMARY_VERCEL_PROJECT_ID) {
+    return res.status(200).json({ ok: true, skipped: 'secondary_vercel_project' });
+  }
 
   const client=await pool.connect();
   const summary={
