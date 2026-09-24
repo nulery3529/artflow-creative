@@ -28,6 +28,11 @@ English (U.S.)
 **Version**
 1.0
 
+**App Price**
+Free download
+
+Paid access is provided through the auto-renewable monthly/yearly in-app subscriptions below.
+
 **Copyright**
 2026 Art Flow Creative
 
