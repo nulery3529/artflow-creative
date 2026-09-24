@@ -14,68 +14,10 @@ import SyncStatus from "@/components/SyncStatus";
 import { PLATFORM_TONE, displayPlatform, displayProductName, orderSourceUrl } from "@/lib/platforms";
 import { useMarketplacePreferences } from "@/lib/useMarketplacePreferences";
 import { toast } from "sonner";
-import { storeAdmin } from "@/lib/storeClient";
 
 const hasRecordedSaleAmount = (order) => {
   const sale = Number(order?.sale_total);
   return Number.isFinite(sale) && sale > 0;
-};
-
-const normalizeTitle = (value = "") =>
-  String(value || "")
-    .toLowerCase()
-    .replace(/[×✕]/g, "x")
-    .replace(/[“”‘’]/g, "")
-    .replace(/\.\.\.+$/g, "")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-
-const imageMatchKey = (value = "") =>
-  normalizeTitle(value)
-    .replace(/\b(of|the|a|an)\b/g, " ")
-    .replace(/\s+/g, "")
-    .trim();
-
-const MATCH_STOP_WORDS = new Set([
-  "the","and","with","for","from","this","that","art","print","prints","framed","frame",
-  "black","white","color","colour","colorful","other","item","items","bundle","set"
-]);
-
-const matchTokens = (value = "") =>
-  normalizeTitle(value)
-    .split(/\s+/)
-    .filter((token) => token.length >= 2 && !MATCH_STOP_WORDS.has(token));
-
-const imageMatchScore = (sourceTitle, candidateTitle) => {
-  const sourceKey = imageMatchKey(sourceTitle);
-  const candidateKey = imageMatchKey(candidateTitle);
-  if (!sourceKey || !candidateKey) return 0;
-  if (sourceKey === candidateKey) return 100;
-  if (
-    sourceKey.length >= 8 &&
-    candidateKey.length >= 8 &&
-    (sourceKey.includes(candidateKey) || candidateKey.includes(sourceKey))
-  ) return 90;
-
-  const sourceTokens = matchTokens(sourceTitle);
-  const candidateTokens = matchTokens(candidateTitle);
-  if (!sourceTokens.length || !candidateTokens.length) return 0;
-
-  let shared = 0;
-  for (const source of sourceTokens) {
-    if (
-      candidateTokens.some((candidate) =>
-        source === candidate ||
-        (source.length >= 4 && candidate.length >= 4 &&
-          (source.startsWith(candidate) || candidate.startsWith(source)))
-      )
-    ) shared += 1;
-  }
-
-  const coverage = shared / Math.min(sourceTokens.length, candidateTokens.length);
-  if (shared >= 3 && coverage >= 0.5) return 80 + coverage * 10;
-  if (shared >= 2 && coverage >= 0.6) return 70 + coverage * 10;
-  return 0;
 };
 
 const directImageUrl = (item = {}) =>
@@ -117,36 +59,8 @@ export default function Orders() {
   // historical sales that are already part of the business ledger.
   const activeOrders = orders;
   const { records: inventoryCosts } = useEntity("InventoryCost", "size");
-  const [marketplaceListings, setMarketplaceListings] = useState([]);
-  const [storeProducts, setStoreProducts] = useState([]);
-
-  const loadMarketplaceListings = React.useCallback(async () => {
-    try {
-      const response = await fetch("/api/neon-data?op=listings", {
-        credentials: "include",
-        cache: "no-store",
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || `Listings ${response.status}`);
-      setMarketplaceListings(Array.isArray(data.listings) ? data.listings : []);
-    } catch (error) {
-      console.error("Failed to load marketplace listing images:", error);
-      setMarketplaceListings([]);
-    }
-  }, []);
-
-  const loadStoreProducts = React.useCallback(async () => {
-    try {
-      const data = await storeAdmin.products();
-      setStoreProducts(Array.isArray(data?.products) ? data.products : []);
-    } catch (error) {
-      console.error("Failed to load saved product images:", error);
-      setStoreProducts([]);
-    }
-  }, []);
-
   const refresh = async () => {
-    await Promise.all([reloadOrders(), loadMarketplaceListings(), loadStoreProducts()]);
+    await reloadOrders();
   };
   const { pathname, search: locationSearch } = useLocation();
   const navigate = useNavigate();
@@ -161,10 +75,8 @@ export default function Orders() {
       setPlatformFilter("All");
       setSearch(new URLSearchParams(locationSearch).get("search") || "");
       reloadOrders();
-      loadMarketplaceListings();
-      loadStoreProducts();
     }
-  }, [pathname, locationSearch, reloadOrders, loadMarketplaceListings, loadStoreProducts]);
+  }, [pathname, locationSearch, reloadOrders]);
   const { isOpen: formOpen, open: openForm, close: closeForm } = useModalRoute();
   const [importingEmail, setImportingEmail] = useState(false);
 
@@ -227,85 +139,16 @@ export default function Orders() {
     setSearch("");
   };
 
-  const imageSources = useMemo(() => {
-    const listingByUrl = new Map();
-    const candidates = [];
+  const imageForOrder = React.useCallback((order) => {
+    const direct = directImageUrl(order);
+    if (direct) return direct;
 
-    for (const listing of marketplaceListings) {
-      const image = directImageUrl(listing);
-      if (!image) continue;
+    const bundleOrder =
+      /\bbundle\b/i.test(String(order?.product_name || "")) ||
+      Number(order?.quantity || 1) > 1;
 
-      const url = String(listing?.listing_url || "").trim();
-      if (url) listingByUrl.set(url, image);
-
-      candidates.push({
-        title: listing?.title || "",
-        image,
-        platform: displayPlatform(listing?.platform),
-        priority: 3,
-      });
-    }
-
-    for (const item of inventoryCosts) {
-      const image = directImageUrl(item);
-      if (!image) continue;
-      candidates.push({
-        title: item?.name || item?.title || "",
-        image,
-        platform: "",
-        priority: 2,
-      });
-    }
-
-    for (const product of storeProducts) {
-      const image = Array.isArray(product?.images) ? product.images.find(Boolean) : "";
-      if (!image) continue;
-      candidates.push({
-        title: product?.name || "",
-        image,
-        platform: "",
-        priority: 4,
-      });
-    }
-
-    return { listingByUrl, candidates };
-  }, [marketplaceListings, inventoryCosts, storeProducts]);
-
-  const imageForOrder = React.useCallback(
-    (order) => {
-      const direct = directImageUrl(order);
-      if (direct) return direct;
-
-      const bundleOrder =
-        /\bbundle\b/i.test(String(order?.product_name || "")) ||
-        Number(order?.quantity || 1) > 1;
-      if (bundleOrder) return "/bundle-placeholder.svg";
-
-      const rawSource = String(order?.source_url || order?.data?.source_url || "").trim();
-      if (rawSource && imageSources.listingByUrl.has(rawSource)) {
-        return imageSources.listingByUrl.get(rawSource);
-      }
-
-      const orderTitle = order?.product_name || "";
-      const platform = displayPlatform(order?.platform);
-      let best = null;
-
-      for (const candidate of imageSources.candidates) {
-        let score = imageMatchScore(orderTitle, candidate.title);
-        if (!score) continue;
-
-        if (candidate.platform && candidate.platform === platform) score += 8;
-        score += candidate.priority || 0;
-
-        if (!best || score > best.score) {
-          best = { score, image: candidate.image };
-        }
-      }
-
-      return best?.score >= 74 ? best.image : "";
-    },
-    [imageSources]
-  );
+    return bundleOrder ? "/bundle-placeholder.svg" : "";
+  }, []);
 
   const filtered = useMemo(() => {
     return activeOrders
