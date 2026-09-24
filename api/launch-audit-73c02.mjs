@@ -59,6 +59,26 @@ export default async function handler(req,res){
        ORDER BY copies DESC
        LIMIT 100
     `);
-    return res.status(200).json({ok:true,rows:rows.rows,dupes:dupes.rows});
+    const overlaps=await client.query(`
+      SELECT s.platform,
+             count(*)::int AS sheet_rows_with_gmail_match
+        FROM artflow.orders s
+       WHERE s.archived IS NOT TRUE
+         AND s.sync_source='google_sheet_master'
+         AND left(COALESCE(s.sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')
+         AND EXISTS (
+           SELECT 1 FROM artflow.orders g
+            WHERE g.business_id=s.business_id
+              AND g.archived IS NOT TRUE
+              AND g.platform=s.platform
+              AND g.sync_source LIKE 'gmail%'
+              AND g.sale_date=s.sale_date
+              AND abs(COALESCE(g.sale_total,0)-COALESCE(s.sale_total,0))<0.01
+              AND COALESCE(g.quantity,1)=COALESCE(s.quantity,1)
+         )
+       GROUP BY s.platform
+       ORDER BY s.platform
+    `);
+    return res.status(200).json({ok:true,rows:rows.rows,dupes:dupes.rows,overlaps:overlaps.rows});
   }finally{client.release();}
 }
