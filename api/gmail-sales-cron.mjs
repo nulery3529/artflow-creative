@@ -11,6 +11,8 @@ import {
   syncGmailAccount,
 } from './_gmail-sales-core.mjs';
 
+const PRIMARY_VERCEL_PROJECT_ID = 'prj_DROTZuTXWIqP0aCXDtJ0xMkWAitz';
+
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (!['GET', 'POST'].includes(req.method)) return res.status(405).json({ error: 'Method not allowed' });
@@ -22,6 +24,9 @@ export default async function handler(req, res) {
   const vercelSchedule = String(req.headers['x-vercel-cron-schedule'] || '');
   const authorized = secret ? provided === secret : vercelSchedule === '0 * * * *';
   if (!authorized) return res.status(401).json({ error: 'Unauthorized' });
+  if (process.env.VERCEL_PROJECT_ID && process.env.VERCEL_PROJECT_ID !== PRIMARY_VERCEL_PROJECT_ID) {
+    return res.status(200).json({ ok: true, skipped: 'secondary_vercel_project' });
+  }
 
   const client = await pool.connect();
   const summary = { accounts: 0, matched: 0, scanned: 0, parsed: 0, imported: 0, reconnectRequired: 0, rateLimited: 0, failed: 0 };
