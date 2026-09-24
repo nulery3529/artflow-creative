@@ -144,6 +144,15 @@ export default function IndependentLogin() {
         </a>
       </Button>
 
+      {appleEnabled && (
+        <Button asChild className="w-full h-12 rounded-2xl font-semibold text-base mt-3 bg-black text-white hover:bg-black/90">
+          <a href={`/api/auth/apple-login?returnTo=${encodeURIComponent(safeReturnTo())}`}>
+            <AppleIcon className="w-5 h-5 mr-2" />
+            Continue with Apple
+          </a>
+        </Button>
+      )}
+
       <div className="flex items-center gap-3 my-5" aria-hidden="true">
         <span className="h-px flex-1 bg-border" />
         <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">or</span>
