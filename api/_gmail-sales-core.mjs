@@ -220,6 +220,10 @@ function depopRows(subject, text) {
 
 function ebayRows(subject, text) {
   const normalizedSubject = clean(subject).replace(/^(?:(?:fwd?|fw):\s*)+/i, '');
+  const listingNoise =
+    /\b(?:your listing|listing (?:created|live|active|ended|renewed|updated|published|removed)|item listed|listed item|watcher|watching|listing views?|listing activity|listing performance|offer received|send offer|price drop|sell similar|relist|draft listing|promote your listing)\b/i.test(`${normalizedSubject}\n${text || ''}`);
+  if (listingNoise) return [];
+
   const oldSale = normalizedSubject.match(/You made the sale for\s+(.+?)(?:!|$)/i);
   const paymentSale = normalizedSubject.match(/The payment from\s+(.+?)\s+is confirmed:\s*(.+)$/i)
     || normalizedSubject.match(/Payment from\s+(.+?)\s+(?:is\s+)?confirmed:\s*(.+)$/i);
