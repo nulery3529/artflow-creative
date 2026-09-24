@@ -634,6 +634,15 @@ export async function syncYahooExpenses(client, business) {
 }
 
 export async function syncYahooMailbox(client, business) {
+  await client.query(`
+    DELETE FROM artflow.orders
+    WHERE business_id=$1
+      AND sync_source='yahoo_direct_sales'
+      AND created_date >= date_trunc('day', now())
+      AND COALESCE(order_id,'')=''
+      AND COALESCE(buyer,'')=''
+  `, [business.base44_id]).catch(() => {});
+
   const config = yahooConfig(business);
   const email = normalize(config.email);
   if (!config.connected || !email || !config.app_password_enc) {
