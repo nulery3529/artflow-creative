@@ -33,3 +33,24 @@ Before submission:
 3. Configure the 7-day free trial.
 4. Test monthly purchase, yearly purchase, cancellation, pending purchase, expiration, and Restore Purchases with StoreKit/Sandbox.
 5. Submit both subscription products with the first app version.
+
+
+## Sign in with Apple
+
+The app now supports Better Auth's Apple provider conditionally. The Apple button stays hidden until all required credentials are present, so current Google/email login is unchanged.
+
+Apple Developer setup:
+- Primary App ID / iOS bundle ID: `com.artflowcreative.app`
+- Create a Sign in with Apple Service ID (recommended identifier: `com.artflowcreative.app.signin`)
+- Domain: `artflowcreative.com`
+- Return URL: `https://artflowcreative.com/api/auth/callback/apple`
+- Create a Sign in with Apple key and download its `.p8` private key.
+
+Production environment variables required:
+- `APPLE_CLIENT_ID` — the Service ID used for web sign-in
+- `APPLE_TEAM_ID`
+- `APPLE_KEY_ID`
+- `APPLE_PRIVATE_KEY` — full contents of the downloaded .p8 key
+- `APPLE_APP_BUNDLE_IDENTIFIER=com.artflowcreative.app`
+
+When all four credentials are present, Art Flow automatically exposes **Continue with Apple** on both login experiences. The backend generates Apple's client-secret JWT dynamically and accepts the native bundle identifier as the app audience.
