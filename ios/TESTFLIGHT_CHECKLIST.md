@@ -45,6 +45,8 @@ Test a brand-new email/password account:
 
 After Apple credentials are configured:
 - Continue with Apple appears.
+- Tapping Continue with Apple opens Apple's native AuthenticationServices sheet, not an Apple login page embedded in the Art Flow WebView.
+- Native Apple sheet appears and can be canceled cleanly.
 - Apple sign-in succeeds.
 - A new Apple user reaches the correct Art Flow workspace.
 - Signing in again returns to the same account.
@@ -54,7 +56,8 @@ After Apple credentials are configured:
 
 ## Google / Gmail
 
-- Continue with Google still works.
+- Continue with Google still works on the website.
+- Google login is not shown inside the native iOS wrapper.
 - Gmail connection requests read-only Gmail access only.
 - Gmail sales sync completes.
 - Gmail expense sync completes.
