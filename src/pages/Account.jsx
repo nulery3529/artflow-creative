@@ -8,7 +8,6 @@ import { artflowAuthClient } from "@/lib/artflowAuthClient";
 import { useAuth } from "@/lib/AuthContext";
 import BusinessManager from "@/components/BusinessManager";
 import ThemeSettings from "@/components/ThemeSettings";
-import MarketplaceTrackingCard from "@/components/MarketplaceTrackingCard";
 import GmailSyncCard from "@/components/GmailSyncCard";
 import YahooInboxCard from "@/components/YahooInboxCard";
 import { isAppleApp, manageAppleSubscriptions } from "@/lib/appleSubscription";
@@ -92,8 +91,6 @@ export default function Account() {
       <GmailSyncCard />
 
       <YahooInboxCard />
-
-      <MarketplaceTrackingCard />
 
       <ThemeSettings />
 
