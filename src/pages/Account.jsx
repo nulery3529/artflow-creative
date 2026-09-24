@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
-import { Trash2, AlertTriangle, LifeBuoy, Mail, CreditCard } from "lucide-react";
+import { Trash2, AlertTriangle, LifeBuoy, Mail } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { motion, AnimatePresence } from "framer-motion";
 import { artflowAuthClient } from "@/lib/artflowAuthClient";
@@ -13,6 +13,7 @@ import GmailSyncCard from "@/components/GmailSyncCard";
 import YahooInboxCard from "@/components/YahooInboxCard";
 import EbayConnectionBlock from "@/components/marketplace/EbayConnectionBlock";
 import { isAppleApp, manageAppleSubscriptions } from "@/lib/appleSubscription";
+import SubscriptionPlansCard from "@/components/SubscriptionPlansCard";
 
 export default function Account() {
   const navigate = useNavigate();
@@ -99,21 +100,7 @@ export default function Account() {
 
       <ThemeSettings />
 
-      {appleApp && (
-        <section className="bg-card rounded-3xl p-5 border border-[hsl(var(--border))]">
-          <h2 className="font-heading text-lg mb-1 flex items-center gap-2"><CreditCard className="w-5 h-5" /> Apple Subscription</h2>
-          <p className="text-sm text-muted-foreground mb-4">
-            View your subscription status, change plans, or turn off automatic renewal in Apple's subscription settings.
-          </p>
-          <button
-            type="button"
-            onClick={openAppleSubscriptions}
-            className="w-full min-h-12 px-4 rounded-2xl bg-muted text-foreground font-semibold active:scale-[0.98] transition-transform"
-          >
-            Manage Apple Subscription
-          </button>
-        </section>
-      )}
+      <SubscriptionPlansCard />
 
       <section className="bg-card rounded-3xl p-5 border border-[hsl(var(--border))]">
         <h2 className="font-heading text-lg mb-1 flex items-center gap-2"><LifeBuoy className="w-5 h-5" /> Support</h2>
