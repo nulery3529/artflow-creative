@@ -276,6 +276,11 @@ export default function Orders() {
       const direct = directImageUrl(order);
       if (direct) return direct;
 
+      const bundleOrder =
+        /\bbundle\b/i.test(String(order?.product_name || "")) ||
+        Number(order?.quantity || 1) > 1;
+      if (bundleOrder) return "/bundle-placeholder.svg";
+
       const rawSource = String(order?.source_url || order?.data?.source_url || "").trim();
       if (rawSource && imageSources.listingByUrl.has(rawSource)) {
         return imageSources.listingByUrl.get(rawSource);
