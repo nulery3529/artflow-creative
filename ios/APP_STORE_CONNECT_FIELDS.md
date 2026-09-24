@@ -225,3 +225,18 @@ Before submission we still need real values for:
 5. Dedicated App Review demo-account credentials.
 
 Do not put placeholder values into App Store Connect.
+
+
+## Field-limit validation
+
+Validated against the current App Store Connect limits:
+- App name: 17 / 30 characters
+- Subtitle: 26 / 30 characters
+- Promotional text: 150 / 170 characters
+- Keywords: 82 / 100 bytes (ASCII)
+- Monthly display name: 16 / 30 characters
+- Monthly description: 37 / 45 characters
+- Yearly display name: 15 / 30 characters
+- Yearly description: 36 / 45 characters
+
+The version-1.0 “What’s New” field is intentionally omitted because Apple does not make that field available for an app’s first version.
