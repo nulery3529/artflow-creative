@@ -3,11 +3,21 @@ import crypto from 'node:crypto';
 import { pooledDatabaseUrl } from './_db.mjs';
 
 const { Pool } = pg;
-const pool = new Pool({
-  connectionString: pooledDatabaseUrl(),
-  ssl: { rejectUnauthorized: false },
-  max: 1,
-});
+
+function databasePoolConfig() {
+  const url = new URL(pooledDatabaseUrl());
+  return {
+    host: url.hostname,
+    port: Number(url.port || 5432),
+    database: decodeURIComponent(url.pathname.replace(/^\//, '')),
+    user: decodeURIComponent(url.username),
+    password: decodeURIComponent(url.password),
+    ssl: { rejectUnauthorized: false },
+    max: 1,
+  };
+}
+
+const pool = new Pool(databasePoolConfig());
 
 const ENDPOINT = 'https://artflowcreative.com/api/ebay-account-deletion';
 const PUBLIC_KEY_TTL_MS = 60 * 60 * 1000;
