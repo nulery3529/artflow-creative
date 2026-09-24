@@ -115,6 +115,29 @@ export default async function handler(req,res){
        GROUP BY s.platform
        ORDER BY s.platform
     `);
-    return res.status(200).json({ok:true,rows:rows.rows,dupes:dupes.rows,overlaps:overlaps.rows});
+    const uniqueOverlaps=await client.query(`
+      WITH sheet AS (
+        SELECT business_id,platform,sale_date,round(COALESCE(sale_total,0)::numeric,2) AS sale_total,COALESCE(quantity,1) AS quantity,count(*)::int AS c
+          FROM artflow.orders
+         WHERE archived IS NOT TRUE
+           AND sync_source='google_sheet_master'
+           AND left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')
+         GROUP BY business_id,platform,sale_date,round(COALESCE(sale_total,0)::numeric,2),COALESCE(quantity,1)
+      ), gmail AS (
+        SELECT business_id,platform,sale_date,round(COALESCE(sale_total,0)::numeric,2) AS sale_total,COALESCE(quantity,1) AS quantity,count(*)::int AS c
+          FROM artflow.orders
+         WHERE archived IS NOT TRUE
+           AND sync_source LIKE 'gmail%'
+           AND left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')
+         GROUP BY business_id,platform,sale_date,round(COALESCE(sale_total,0)::numeric,2),COALESCE(quantity,1)
+      )
+      SELECT s.platform,count(*)::int AS one_to_one_keys
+        FROM sheet s
+        JOIN gmail g USING (business_id,platform,sale_date,sale_total,quantity)
+       WHERE s.c=1 AND g.c=1
+       GROUP BY s.platform
+       ORDER BY s.platform
+    `);
+    return res.status(200).json({ok:true,rows:rows.rows,dupes:dupes.rows,overlaps:overlaps.rows,unique_overlaps:uniqueOverlaps.rows});
   }finally{client.release();}
 }
