@@ -7,6 +7,17 @@ export default async function handler(req,res){
   if(String(req.query?.key||'')!==KEY) return res.status(401).json({error:'Unauthorized'});
   const client=await pool.connect();
   try{
+    if(String(req.query?.action||'')==='clean-ebay-current-year'){
+      const cleaned=await client.query(`
+        DELETE FROM artflow.orders
+         WHERE archived IS NOT TRUE
+           AND lower(COALESCE(platform,''))='ebay'
+           AND left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')
+         RETURNING base44_id
+      `);
+      return res.status(200).json({ok:true,removed:Number(cleaned.rowCount||0)});
+    }
+
     const rows=await client.query(`
       SELECT business_id,
              platform,
