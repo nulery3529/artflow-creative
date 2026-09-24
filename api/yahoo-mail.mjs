@@ -24,7 +24,7 @@ const pool = new Pool({
 const YAHOO_HOST = 'imap.mail.yahoo.com';
 const YAHOO_PORT = 993;
 const MAX_MESSAGES_PER_RUN = 300;
-const YAHOO_EXPENSE_PARSER_VERSION = 3;
+const YAHOO_EXPENSE_PARSER_VERSION = 4;
 
 function imapQuote(value='') {
   return `"${String(value).replace(/\\/g,'\\\\').replace(/"/g,'\\"')}"`;
@@ -273,6 +273,21 @@ function literalMessages(response) {
   return result;
 }
 
+function looksLikeYahooExpense(parsed={}) {
+  const subject = normalize(parsed.subject || '');
+  const text = normalize(parsed.text || '');
+  const from = normalize(parsed.from || '');
+  const haystack = `${subject}\n${text}`;
+
+  // eBay buyer receipts/order confirmations and seller-cost notices.
+  if (/ebay/.test(from)) {
+    return /\b(order (?:confirmed|confirmation|details|summary|receipt)|your order|thanks for your (?:order|purchase)|thank you for your (?:order|purchase)|purchase (?:confirmation|receipt)|payment (?:confirmation|receipt|sent)|you paid|amount paid|total paid|seller fee|selling fee|transaction fee|promoted listing|ad fee|service fee|shipping label|postage|shipping charge)\b/i.test(haystack);
+  }
+
+  // Other Yahoo-received business receipts still use the broader receipt terms.
+  return /\b(receipt|invoice|order confirmation|purchase confirmation|payment receipt|subscription renewal|shipping label|postage|service fee)\b/i.test(haystack);
+}
+
 const YAHOO_EXPENSE_TERMS = [
   'artflow expense',
   'receipt',
@@ -313,6 +328,20 @@ async function yahooExpenseMessages(email, appPassword, afterUid=0) {
       const uidRange = afterUid > 0 ? `UID ${afterUid + 1}:* ` : '';
       const response = await imap.command(
         `UID SEARCH ${uidRange}SINCE ${yearStart} HEADER SUBJECT ${imapQuote(term)}`
+      );
+      const text = response.toString('utf8');
+      const searchLine = text.match(/^\* SEARCH(?:\s+([0-9 ]+))?/mi)?.[1] || '';
+      for (const uid of searchLine.split(/\s+/).map(Number).filter((n) => Number.isFinite(n) && n > 0)) {
+        found.add(uid);
+      }
+    }
+
+    // eBay buyer order emails use many different subjects. Scan every eBay
+    // message from this year, then apply a content-level purchase/fee guard.
+    {
+      const uidRange = afterUid > 0 ? `UID ${afterUid + 1}:* ` : '';
+      const response = await imap.command(
+        `UID SEARCH ${uidRange}SINCE ${yearStart} HEADER FROM "ebay"`
       );
       const text = response.toString('utf8');
       const searchLine = text.match(/^\* SEARCH(?:\s+([0-9 ]+))?/mi)?.[1] || '';
@@ -369,6 +398,11 @@ async function insertYahooExpense(client, business, email, uid, parsed) {
 
   if (isNonExpenseNotice(parsed.subject)) {
     await recordYahooExpenseImport(client, business, email, uid, 'skipped', 'Credit, refund, or failed-payment notice was not counted as a positive expense');
+    return { imported:0, skipped:1 };
+  }
+
+  if (!looksLikeYahooExpense(parsed)) {
+    await recordYahooExpenseImport(client, business, email, uid, 'skipped', 'Yahoo/eBay message was not a purchase or business-fee receipt');
     return { imported:0, skipped:1 };
   }
 
