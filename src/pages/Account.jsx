@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
-import { Trash2, AlertTriangle, LifeBuoy, Mail } from "lucide-react";
+import { Trash2, AlertTriangle, LifeBuoy, Mail, CreditCard } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { motion, AnimatePresence } from "framer-motion";
 import { artflowAuthClient } from "@/lib/artflowAuthClient";
@@ -12,6 +12,7 @@ import MarketplaceTrackingCard from "@/components/MarketplaceTrackingCard";
 import GmailSyncCard from "@/components/GmailSyncCard";
 import YahooInboxCard from "@/components/YahooInboxCard";
 import EbayConnectionBlock from "@/components/marketplace/EbayConnectionBlock";
+import { isAppleApp, manageAppleSubscriptions } from "@/lib/appleSubscription";
 
 export default function Account() {
   const navigate = useNavigate();
@@ -20,6 +21,13 @@ export default function Account() {
   const [confirmText, setConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
   const { toast } = useToast();
+  const appleApp = isAppleApp();
+
+  const openAppleSubscriptions = () => {
+    if (!manageAppleSubscriptions()) {
+      window.location.assign("https://apps.apple.com/account/subscriptions");
+    }
+  };
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("welcome") === "1") {
@@ -91,6 +99,22 @@ export default function Account() {
 
       <ThemeSettings />
 
+      {appleApp && (
+        <section className="bg-card rounded-3xl p-5 border border-[hsl(var(--border))]">
+          <h2 className="font-heading text-lg mb-1 flex items-center gap-2"><CreditCard className="w-5 h-5" /> Apple Subscription</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            View your subscription status, change plans, or turn off automatic renewal in Apple's subscription settings.
+          </p>
+          <button
+            type="button"
+            onClick={openAppleSubscriptions}
+            className="w-full min-h-12 px-4 rounded-2xl bg-muted text-foreground font-semibold active:scale-[0.98] transition-transform"
+          >
+            Manage Apple Subscription
+          </button>
+        </section>
+      )}
+
       <section className="bg-card rounded-3xl p-5 border border-[hsl(var(--border))]">
         <h2 className="font-heading text-lg mb-1 flex items-center gap-2"><LifeBuoy className="w-5 h-5" /> Support</h2>
         <p className="text-sm text-muted-foreground mb-4">
@@ -152,10 +176,25 @@ export default function Account() {
             >
               <div className="w-12 h-1.5 rounded-full bg-[hsl(var(--border))] mx-auto mb-5" />
               <h3 className="font-heading text-2xl mb-2">Delete account?</h3>
-              <p className="text-sm text-muted-foreground mb-5">
+              <p className="text-sm text-muted-foreground mb-3">
                 This will permanently remove your Art Flow account and associated business data. Type{" "}
                 <span className="font-semibold text-foreground">DELETE</span> to confirm.
               </p>
+              {appleApp && (
+                <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+                  <p className="font-semibold">Apple subscriptions are billed separately.</p>
+                  <p className="mt-1 text-xs leading-relaxed">
+                    Deleting your Art Flow account does not cancel an Apple subscription. You can manage or cancel it before deleting your account.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={openAppleSubscriptions}
+                    className="mt-3 w-full h-10 rounded-xl bg-amber-100 font-semibold"
+                  >
+                    Manage Apple Subscription
+                  </button>
+                </div>
+              )}
               <input
                 value={confirmText}
                 onChange={(e) => setConfirmText(e.target.value)}
