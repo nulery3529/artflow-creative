@@ -86,7 +86,9 @@ export default async function handler(req,res){
     const dupes=await client.query(`
       SELECT business_id,platform,sale_date,lower(COALESCE(product_name,'')) AS product_name,
              round(COALESCE(sale_total,0)::numeric,2) AS sale_total,
-             count(*)::int AS copies
+             count(*)::int AS copies,
+             array_agg(COALESCE(sync_source,'') ORDER BY sync_source) AS sync_sources,
+             array_agg(COALESCE(source_email_id,'') ORDER BY sync_source) AS source_email_ids
         FROM artflow.orders
        WHERE archived IS NOT TRUE
          AND left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')
