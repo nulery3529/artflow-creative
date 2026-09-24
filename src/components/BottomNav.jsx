@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/drawer";
 
 const primary = [
-  { label: "Home", to: "/", icon: Home },
+  { label: "Home", to: "/dashboard", icon: Home },
   { label: "Orders", to: "/orders", icon: ShoppingBag },
   { label: "Inventory", to: "/inventory", icon: Package },
   { label: "Expenses", to: "/expenses", icon: Receipt },
@@ -46,7 +46,7 @@ export default function BottomNav() {
   const [lastTap, setLastTap] = useState({});
 
   const isActive = (to) =>
-    to === "/" ? pathname === "/" : pathname === to || pathname.startsWith(to + "/");
+    to === "/dashboard" ? pathname === "/dashboard" : pathname === to || pathname.startsWith(to + "/");
   const moreActive = more.some((m) => isActive(m.to));
 
   const handleTab = (to) => {
