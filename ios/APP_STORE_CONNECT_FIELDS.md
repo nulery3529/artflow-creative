@@ -240,3 +240,46 @@ Validated against the current App Store Connect limits:
 - Yearly description: 36 / 45 characters
 
 The version-1.0 “What’s New” field is intentionally omitted because Apple does not make that field available for an app’s first version.
+
+
+## Export compliance
+
+Current native audit:
+- `ITSAppUsesNonExemptEncryption = false`
+- No custom native cryptography implementation was found.
+- No CryptoKit/CommonCrypto/OpenSSL/libsodium/AES/ChaCha implementation was found in the iOS source.
+- Art Flow relies on platform/network encryption such as HTTPS/TLS.
+
+App Store Connect answer should remain consistent with the built `Info.plist`. If a future native dependency adds non-exempt encryption, re-run this determination before submitting that version.
+
+## European Union Digital Services Act (DSA)
+
+Apple requires the developer account to declare whether the developer is a **trader** for EU App Store distribution.
+
+This is a legal/business-status self-assessment and must be answered by the account holder; do not guess or use placeholder information.
+
+If Art Flow is distributed in the EU and the developer declares trader status, Apple requires verified trader contact information for display on the EU App Store product page, including:
+- address;
+- phone number;
+- email address.
+
+If the app is not distributed in the EU, Apple still requires a trader-status declaration, but the EU product-page display requirement does not apply to a non-EU distribution.
+
+Before submission decide:
+1. Whether version 1.0 will be distributed in EU territories.
+2. The Apple Developer account's trader-status answer.
+3. If trader + EU distribution: the verified address, telephone number, and email Apple will display.
+
+Do not enter invented contact details.
+
+## Content rights
+
+Art Flow is a business-management tool that stores user-entered product/business records and optional marketplace/email-derived data.
+
+For App Store Connect content-rights questions:
+- do not claim ownership of third-party marketplace brands or customer content;
+- confirm that any marketing screenshots use Art Flow-owned/demo artwork and sample data;
+- do not include real buyer/customer data in screenshots;
+- ensure the app only displays/imports content the user is authorized to access through their own connected accounts.
+
+If App Store Connect asks whether the app contains, shows, or accesses third-party content, answer based on the final submitted experience and connected marketplace/storefront features rather than treating Art Flow's own UI as third-party content.
