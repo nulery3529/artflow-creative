@@ -17,6 +17,11 @@ export default function IndependentLogin() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleEnabled, setAppleEnabled] = useState(false);
+  const nativeIOS = typeof window !== "undefined" && (
+    window.ArtFlowNative?.platform === "ios"
+    || document.documentElement?.dataset?.artflowPlatform === "ios"
+  );
+  const showGoogleLogin = !nativeIOS || appleEnabled;
 
   const finish = () => {
     window.location.replace(safeReturnTo());
@@ -123,7 +128,13 @@ export default function IndependentLogin() {
     <AuthLayout
       icon={LogIn}
       title="Welcome back"
-      subtitle={appleEnabled ? "Continue with Apple, Google, or your Art Flow Creative email and password" : "Continue with Google or use your Art Flow Creative email and password"}
+      subtitle={
+        appleEnabled
+          ? "Continue with Apple, Google, or your Art Flow Creative email and password"
+          : nativeIOS
+            ? "Sign in with your Art Flow Creative email and password"
+            : "Continue with Google or use your Art Flow Creative email and password"
+      }
       footer={
         <>
           New to Art Flow?{" "}
@@ -137,12 +148,14 @@ export default function IndependentLogin() {
         </div>
       )}
 
-      <Button asChild variant="outline" className="w-full h-12 rounded-2xl font-semibold text-base bg-background text-foreground">
-        <a href={`/api/auth/google-login?returnTo=${encodeURIComponent(safeReturnTo())}`}>
-          <GoogleIcon className="w-5 h-5 mr-2" />
-          Continue with Google
-        </a>
-      </Button>
+      {showGoogleLogin && (
+        <Button asChild variant="outline" className="w-full h-12 rounded-2xl font-semibold text-base bg-background text-foreground">
+          <a href={`/api/auth/google-login?returnTo=${encodeURIComponent(safeReturnTo())}`}>
+            <GoogleIcon className="w-5 h-5 mr-2" />
+            Continue with Google
+          </a>
+        </Button>
+      )}
 
       {appleEnabled && (
         <Button asChild className="w-full h-12 rounded-2xl font-semibold text-base mt-3 bg-black text-white hover:bg-black/90">
@@ -153,11 +166,13 @@ export default function IndependentLogin() {
         </Button>
       )}
 
+      {(showGoogleLogin || appleEnabled) && (
       <div className="flex items-center gap-3 my-5" aria-hidden="true">
         <span className="h-px flex-1 bg-border" />
         <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">or</span>
         <span className="h-px flex-1 bg-border" />
       </div>
+      )}
 
       <form action="/api/auth/login-form" method="POST" className="space-y-4">
         <input type="hidden" name="returnTo" value={safeReturnTo()} />
@@ -189,7 +204,13 @@ export default function IndependentLogin() {
       </form>
 
       <p className="text-center text-xs text-muted-foreground mt-6 leading-relaxed">
-        {appleEnabled ? "Apple or Google sign-in opens your Art Flow account. New users can also create an email-and-password account." : "Google sign-in opens your existing Art Flow account. New users can create an email-and-password account below."}
+        {
+          appleEnabled
+            ? "Apple or Google sign-in opens your Art Flow account. New users can also create an email-and-password account."
+            : nativeIOS
+              ? "Sign in with your Art Flow Creative email and password. Apple sign-in will appear automatically when the Apple provider is enabled."
+              : "Google sign-in opens your existing Art Flow account. New users can create an email-and-password account below."
+        }
       </p>
       <p className="text-center text-sm text-muted-foreground mt-4">
         Having trouble signing in?{" "}
