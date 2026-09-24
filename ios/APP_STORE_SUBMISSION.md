@@ -84,6 +84,7 @@ Art Flow Creative is a business-management app for independent artists.
 A reviewer can create an account directly in the app with email and password. Sign in with Google is intentionally not presented as the only third-party login option in the native iOS app. Sign in with Apple appears automatically when the Apple provider is configured.
 
 The iOS app includes native Apple integrations in addition to the hosted business interface:
+- Native Sign in with Apple via AuthenticationServices; the Apple ID token is verified by Better Auth and establishes the Art Flow session in the app WebView
 - StoreKit 2 subscription purchases and entitlement checks
 - Native iOS share sheet for Sales and Expense CSV exports (Files, AirDrop, Mail, Messages, and other installed share targets)
 - Native pull-to-refresh for the main app view
@@ -185,3 +186,13 @@ Public review URLs:
 - Support: https://artflowcreative.com/support
 - Privacy Policy: https://artflowcreative.com/privacy-policy
 - Terms of Service: https://artflowcreative.com/terms-of-service
+
+
+### Native authentication behavior
+
+In the iOS wrapper:
+- Continue with Apple uses Apple's native `ASAuthorizationAppleIDProvider` flow.
+- The native Apple ID token is sent to Art Flow's Better Auth social sign-in endpoint from the existing Art Flow WebView so the resulting session cookie belongs to that WebView session.
+- Google login is intentionally hidden in the native iOS wrapper to avoid third-party OAuth inside an embedded WebView.
+- Email/password login remains available.
+- On the public website, Google login remains available and Apple can use the normal web provider flow.
