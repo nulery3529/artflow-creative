@@ -29,9 +29,13 @@ jobs:
           ICON="ios/ArtFlowCreative/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
           PLIST="ios/ArtFlowCreative/Info.plist"
           PROJECT="ios/ArtFlowCreative.xcodeproj/project.pbxproj"
+          PRIVACY="ios/ArtFlowCreative/PrivacyInfo.xcprivacy"
 
           test -f "$ICON"
           test -f "$PLIST"
+          test -f "$PRIVACY"
+          plutil -lint "$PRIVACY"
+          grep -F "PrivacyInfo.xcprivacy in Resources" "$PROJECT"
 
           WIDTH="$(sips -g pixelWidth "$ICON" | awk '/pixelWidth/ {print $2}')"
           HEIGHT="$(sips -g pixelHeight "$ICON" | awk '/pixelHeight/ {print $2}')"
