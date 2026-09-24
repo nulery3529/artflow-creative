@@ -21,7 +21,7 @@ final class ArtFlowWebViewController: UIViewController {
 
         let configuration = WKWebViewConfiguration()
         configuration.userContentController = contentController
-        configuration.websiteDataStore = .default()
+        configuration.websiteDataStore = .default()\n        configuration.applicationNameForUserAgent = "ArtFlowCreativeNative/1.0"
 
         webView = WKWebView(frame: .zero, configuration: configuration)
         webView.translatesAutoresizingMaskIntoConstraints = false
