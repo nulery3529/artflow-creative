@@ -35,7 +35,7 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-xl font-semibold mb-2">Marketplace and third-party integrations</h2>
             <p>
-              Art Flow Creative may let you connect services such as Google Gmail, Etsy, eBay, Depop, Vinted, and Poshmark. Connections are optional. When you authorize a connection, you permit Art Flow Creative to access your connected account only to provide the functionality you requested. You remain responsible for following each marketplace's own rules and policies, and third-party services are governed by their own terms.
+              Art Flow Creative may let you connect services such as Google Gmail, Yahoo Mail, Etsy, eBay, Depop, Vinted, and Poshmark. Connections are optional. When you authorize a connection, you permit Art Flow Creative to access your connected account only to provide the functionality you requested. You remain responsible for following each marketplace's own rules and policies, and third-party services are governed by their own terms.
             </p>
             <p className="mt-2">
               Marketplaces do not all support identical capabilities. Where direct API access is unavailable — for example for some Vinted, Depop, or Poshmark features — Art Flow Creative relies on reports, email imports, or manual entry, which may be less complete than direct sync. Order, listing, and inventory synchronization may also be delayed or incomplete due to provider outages, rate limits, or restrictions outside our control.
@@ -101,7 +101,7 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-xl font-semibold mb-2">Suspension and termination</h2>
             <p>
-              You may stop using the service at any time. Access may be suspended or terminated for misuse, security risks, unlawful activity, or material violations of these terms. Where available, you may request deletion of your account and associated data.
+              You may stop using the service at any time. Access may be suspended or terminated for misuse, security risks, unlawful activity, or material violations of these terms. You can permanently delete your Art Flow account and associated owned business data from the app's Account screen. Deleting an Art Flow account does not cancel an Apple subscription; Apple subscriptions must be managed or canceled separately through Apple's subscription settings.
             </p>
           </section>
 
