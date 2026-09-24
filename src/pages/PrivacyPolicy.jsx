@@ -29,7 +29,8 @@ export default function PrivacyPolicy() {
             <p>Depending on the features you use, Art Flow Creative may process:</p>
             <ul className="list-disc pl-6 space-y-1 mt-2">
               <li>Account and profile information, such as your name and email address.</li>
-              <li>Business information you enter, such as products, listings, orders, inventory, and expenses.</li>
+              <li>Business information you enter, such as products, listings, orders, inventory, expenses, mileage, notes, business plans, and product images.</li>
+              <li>Storefront customer information you choose to collect through your Art Flow store, such as customer name, email, phone number, shipping address, and order details.</li>
               <li>Marketplace connection information for services you choose to connect.</li>
               <li>Google account authorization information created when you approve a Google connection.</li>
               <li>Email metadata and content, only when you explicitly authorize Gmail access or inbound email processing.</li>
@@ -43,7 +44,7 @@ export default function PrivacyPolicy() {
             <ul className="list-disc pl-6 space-y-1">
               <li>Syncing marketplace orders, listings, and inventory for the connections you authorize.</li>
               <li>Creating reports and business calculations you request.</li>
-              <li>Performing Google Sheets or Google Drive functions you explicitly request, such as updating a linked spreadsheet.</li>
+              <li>Reading supported marketplace-sale and business-receipt emails when you explicitly connect Gmail with read-only permission.</li>
               <li>Authenticating you and handling password resets.</li>
               <li>Ingesting emails, orders, and expenses when you authorize that processing.</li>
               <li>Security, fraud prevention, and error monitoring.</li>
@@ -53,7 +54,7 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-xl font-semibold mb-2">How integrations work</h2>
             <p>
-              Art Flow Creative connects to third-party services — including Google Gmail, Etsy, eBay, Depop, Vinted, Poshmark, Resend, and Neon PostgreSQL — to provide the features you request. Those services process data under their own privacy policies. Art Flow does not sell your data, and advertisers do not receive your private conversations or your business data through this app. Google user data is used only to provide the features you authorize, and you can disconnect any integration at any time from the app or from the third party's own settings.
+              Art Flow Creative connects to third-party services — including Google Gmail, Yahoo Mail, eBay, Etsy, Depop, Vinted, Poshmark, Resend, Stripe, and Neon PostgreSQL — to provide the features you request. Those services process data under their own privacy policies. Art Flow does not sell your business data and does not use connected-service data for advertising. Google user data is used only to provide the features you authorize. You can disconnect supported integrations from the app or revoke access from the third party's own settings.
             </p>
           </section>
 
@@ -65,9 +66,16 @@ export default function PrivacyPolicy() {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold mb-2">Data retention and deletion</h2>
+            <h2 className="text-xl font-semibold mb-2">Payments and subscriptions</h2>
             <p>
-              Business records are retained while your account is active or as needed to provide the service. Signed-in users can permanently delete their Art Flow account and associated business data from Account → Delete Account. You may also contact us at the email below for privacy or deletion questions. Certain limited records may be retained when required for legal, security, fraud-prevention, or accounting obligations.
+              Apple in-app subscriptions are processed by Apple. Storefront card payments are processed by the configured payment provider, such as Stripe. Art Flow may retain transaction status, amount, order, and provider-reference information needed to operate the service, but the current Art Flow database does not store full payment-card numbers. Payment providers process payment information under their own privacy policies.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold mb-2">Data retention and your choices</h2>
+            <p>
+              Business records are retained while your account is active or as needed to provide the service. Signed-in users can permanently delete their Art Flow account and associated owned business data from Account → Delete Account. Shared workspaces remain available to other linked users, but the deleting user's access is removed. Deleting an Art Flow account does not automatically cancel an Apple subscription; Apple subscriptions can be managed or canceled through Apple's subscription settings. You may also disconnect supported integrations or revoke third-party access from the provider's own settings. Contact us at the email below for privacy or deletion questions. Certain limited records may be retained when required for legal, security, fraud-prevention, or accounting obligations.
             </p>
           </section>
 
