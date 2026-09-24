@@ -393,6 +393,52 @@ function marketplaceSourceUrl(platform = '', html = '') {
   return candidates[0]?.url || '';
 }
 
+function marketplaceImageUrl(platform = '', html = '', title = '') {
+  if (!html) return '';
+
+  const key = (value = '') => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const titleKey = key(title);
+  const candidates = [];
+
+  for (const match of String(html).matchAll(/<img\b[^>]*>/gi)) {
+    const tag = match[0];
+    const srcRaw = tag.match(/\bsrc\s*=\s*["']([^"']+)["']/i)?.[1] || '';
+    const alt = decodeHtmlUrl(tag.match(/\balt\s*=\s*["']([^"']*)["']/i)?.[1] || '');
+    let src = decodeHtmlUrl(srcRaw);
+    if (!src) continue;
+    if (src.startsWith('//')) src = `https:${src}`;
+    if (!/^https:\/\//i.test(src)) continue;
+
+    const lower = src.toLowerCase();
+    const width = Number(tag.match(/\bwidth\s*=\s*["']?(\d+)/i)?.[1] || 0);
+    const height = Number(tag.match(/\bheight\s*=\s*["']?(\d+)/i)?.[1] || 0);
+
+    if (
+      /email[_-]?track|tracking|spacer|pixel|transparent|vinted_logo|logo\.(?:png|jpg|jpeg|gif|webp)/i.test(lower)
+      || (width > 0 && width <= 2)
+      || (height > 0 && height <= 2)
+    ) continue;
+
+    let score = 0;
+    const altKey = key(alt);
+    if (titleKey && altKey) {
+      if (altKey === titleKey) score += 40;
+      else if (altKey.includes(titleKey) || titleKey.includes(altKey)) score += 28;
+    }
+
+    if (platform === 'Vinted' && /(?:^|\.)vinted\.net|(?:^|\.)vinted\.com/i.test(new URL(src).hostname)) score += 12;
+    if (platform === 'Poshmark' && /poshmark|cloudfront|cloudinary/i.test(lower)) score += 10;
+    if (platform === 'Depop' && /depop|cloudfront|cloudinary/i.test(lower)) score += 10;
+    if (/\b(?:150x210|200x|300x|item|product|listing)\b/i.test(lower)) score += 4;
+    if (width >= 40 || height >= 40) score += 2;
+
+    candidates.push({ src, score });
+  }
+
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates[0]?.src || '';
+}
+
 function headerValue(message, name) {
   const headers = message?.payload?.headers || [];
   return clean(headers.find((header) => String(header?.name || '').toLowerCase() === name.toLowerCase())?.value || '');
@@ -528,7 +574,9 @@ async function insertRows(client, businessId, messageId, receivedAt, rows) {
         source: 'gmail_direct_sales',
         gmail_message_id: messageId,
         source_link_parser_version: 1,
+        source_image_parser_version: 1,
         ...(row.source_url ? { source_url: row.source_url } : {}),
+        ...(row.image_url ? { image_url: row.image_url } : {}),
         ...(row.platform === 'Poshmark' ? { poshmark_parser_version: 4 } : {}),
       }),
       row.product_name,
@@ -636,7 +684,7 @@ async function archivePoshmarkCancellation(client, businessId, messageId, subjec
 // Sync one Gmail mailbox into the given business workspace. Returns the counts
 // the callers aggregate for their status responses. Permission problems are
 // reported via reconnectRequired instead of throwing; other errors bubble up.
-export async function syncGmailAccount(client, business, accessToken) {
+export async function syncGmailAccount(client, business, accessToken, { force = false } = {}) {
   const result = { matched: 0, scanned: 0, parsed: 0, imported: 0, canceled: 0, reconnectRequired: false, throttled: false, gmailAddress: '' };
   if (!business?.base44_id) return result;
 
@@ -657,7 +705,7 @@ export async function syncGmailAccount(client, business, accessToken) {
   const syncState = business?.data?.gmail_sales_sync || {};
   const previous = syncState?.[gmailAddress] || {};
   const lastAt = previous?.last_at ? new Date(previous.last_at).getTime() : 0;
-  if (lastAt && Date.now() - lastAt < 5 * 60 * 1000) {
+  if (!force && lastAt && Date.now() - lastAt < 5 * 60 * 1000) {
     result.matched = 1;
     result.throttled = true;
     return result;
@@ -680,11 +728,16 @@ export async function syncGmailAccount(client, business, accessToken) {
       FROM artflow.orders
      WHERE business_id=$1
        AND sync_source='gmail_direct_sales'
-       AND platform='Poshmark'
        AND COALESCE(source_email_id,'')<>''
        AND (
-         COALESCE(sale_total,0)=0
-         OR COALESCE(data->>'poshmark_parser_version','') <> '4'
+         COALESCE(data->>'source_image_parser_version','') <> '1'
+         OR (
+           platform='Poshmark'
+           AND (
+             COALESCE(sale_total,0)=0
+             OR COALESCE(data->>'poshmark_parser_version','') <> '4'
+           )
+         )
        )
      ORDER BY 1
   `, [business.base44_id]);
@@ -694,7 +747,7 @@ export async function syncGmailAccount(client, business, accessToken) {
 
   // If a full repair batch is already known, skip the expensive mailbox list
   // queries on this run. The next automatic/manual sync continues the backlog.
-  const messageIds = repairMessageIds.length >= 200
+  const messageIds = !force && repairMessageIds.length >= 200
     ? []
     : await listMessageIds(accessToken);
 
@@ -714,6 +767,7 @@ export async function syncGmailAccount(client, business, accessToken) {
             OR COALESCE(data->>'poshmark_parser_version','') = '4'
           )
           AND COALESCE(data->>'source_link_parser_version','') = '1'
+          AND COALESCE(data->>'source_image_parser_version','') = '1'
         )
         UNION
         SELECT data->>'cancellation_email_id' AS message_id
@@ -731,7 +785,7 @@ export async function syncGmailAccount(client, business, accessToken) {
   const pendingMessageIds = Array.from(new Set([
     ...repairMessageIds,
     ...messageIds.filter((messageId) => !completedIds.has(messageId)),
-  ])).slice(0, 200);
+  ])).slice(0, force ? 600 : 200);
   result.scanned = pendingMessageIds.length;
   for (let index = 0; index < pendingMessageIds.length; index += 10) {
     const batchIds = pendingMessageIds.slice(index, index + 10);
@@ -778,10 +832,13 @@ export async function syncGmailAccount(client, business, accessToken) {
       for (const row of rows) {
         if (row.platform === 'Poshmark' && /^[a-f0-9]{24}$/i.test(clean(row.order_id))) {
           row.source_url = `https://poshmark.com/order/sales/${clean(row.order_id)}`;
-          continue;
+        } else {
+          const sourceUrl = marketplaceSourceUrl(row.platform, html);
+          if (sourceUrl) row.source_url = sourceUrl;
         }
-        const sourceUrl = marketplaceSourceUrl(row.platform, html);
-        if (sourceUrl) row.source_url = sourceUrl;
+
+        const imageUrl = marketplaceImageUrl(row.platform, html, row.product_name);
+        if (imageUrl) row.image_url = imageUrl;
       }
       result.parsed += rows.length;
       const receivedAt = Number(message?.internalDate)
