@@ -24,7 +24,7 @@ const pool = new Pool({
 const YAHOO_HOST = 'imap.mail.yahoo.com';
 const YAHOO_PORT = 993;
 const MAX_MESSAGES_PER_RUN = 300;
-const YAHOO_EXPENSE_PARSER_VERSION = 8;
+const YAHOO_EXPENSE_PARSER_VERSION = 9;
 let yahooExpenseDiagnosticCount = 0;
 let yahooNoTotalDiagnosticCount = 0;
 
@@ -291,7 +291,7 @@ function looksLikeYahooExpense(parsed={}) {
   // Messages sent through eBay's member-to-member relay are conversations,
   // not transaction receipts. They often say "purchase" or "order" but do not
   // contain the actual buyer payment total.
-  if (/@members\.ebay\.com\b/i.test(from)) return false;
+  if (/@members\.ebay\.[a-z.]+\b/i.test(from)) return false;
 
   // eBay buyer receipts/order confirmations and seller-cost notices.
   if (/ebay/.test(from)) {
@@ -407,7 +407,7 @@ async function recordYahooExpenseImport(client, business, email, uid, status, de
 async function insertYahooExpense(client, business, email, uid, parsed) {
   const messageKey = `yahoo:${email}:${uid}`;
 
-  if (/@members\.ebay\.com\b/i.test(String(parsed.from || ''))) {
+  if (/@members\.ebay\.[a-z.]+\b/i.test(String(parsed.from || ''))) {
     await recordYahooExpenseImport(client, business, email, uid, 'skipped', 'eBay member message was not counted as an expense');
     return { imported:0, skipped:1 };
   }
@@ -440,11 +440,15 @@ async function insertYahooExpense(client, business, email, uid, parsed) {
   if (!amount) {
     if (yahooExpenseDiagnosticCount < 8 && /ebay/i.test(parsed.from)) {
       yahooExpenseDiagnosticCount += 1;
+      const bodyText = String(parsed.text || '');
+      const hints = [...bodyText.matchAll(/.{0,100}(?:order\s*total|total\s*paid|amount\s*paid|you\s*paid|payment\s*total|grand\s*total|\btotal\b|USD|US\s*\$|\$\s*[\d,.]+).{0,160}/gi)]
+        .slice(0, 12)
+        .map((match) => clean(match[0]).replace(/\s+/g, ' '));
       console.log('Yahoo eBay amount diagnostic', JSON.stringify({
         uid,
         subject: parsed.subject,
         from: parsed.from,
-        sample: String(parsed.text || '').slice(0, 1200),
+        hints,
       }));
     }
     await recordYahooExpenseImport(client, business, email, uid, 'skipped', 'Yahoo receipt did not contain a recognizable purchase total');
