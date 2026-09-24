@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import pg from "pg";
 import { pooledDatabaseUrl } from "../_db.mjs";
+import { importPKCS8, SignJWT } from "jose";
 
 const { Pool } = pg;
 
@@ -47,6 +48,26 @@ if (!looksLikeGoogleClientId(googleClientId) && looksLikeGoogleClientId(googleCl
 // client ID was deleted and causes Google's unauthorized_client response.
 if (process.env.VERCEL_ENV === "production") {
   googleClientId = ARTFLOW_GOOGLE_CLIENT_ID;
+}
+
+const appleClientId = cleanEnvValue(process.env.APPLE_CLIENT_ID);
+const appleTeamId = cleanEnvValue(process.env.APPLE_TEAM_ID);
+const appleKeyId = cleanEnvValue(process.env.APPLE_KEY_ID);
+const applePrivateKey = cleanEnvValue(process.env.APPLE_PRIVATE_KEY).replace(/\\n/g, "\n");
+const appleBundleId = cleanEnvValue(process.env.APPLE_APP_BUNDLE_IDENTIFIER) || "com.artflowcreative.app";
+const appleConfigured = Boolean(appleClientId && appleTeamId && appleKeyId && applePrivateKey);
+
+async function generateAppleClientSecret() {
+  const key = await importPKCS8(applePrivateKey, "ES256");
+  const now = Math.floor(Date.now() / 1000);
+  return new SignJWT({})
+    .setProtectedHeader({ alg: "ES256", kid: appleKeyId })
+    .setIssuer(appleTeamId)
+    .setSubject(appleClientId)
+    .setAudience("https://appleid.apple.com")
+    .setIssuedAt(now)
+    .setExpirationTime(now + 180 * 24 * 60 * 60)
+    .sign(key);
 }
 
 const vercelProductionURL = process.env.VERCEL_PROJECT_PRODUCTION_URL
@@ -134,26 +155,35 @@ export const auth = betterAuth({
       allowDifferentEmails: true,
     },
   },
-  socialProviders: googleClientId && googleClientSecret ? {
-    google: {
-      clientId: googleClientId,
-      clientSecret: googleClientSecret,
-      // Allow Google sign-in to create/link the auth identity. Art Flow's
-      // workspace resolver attaches a signed-in email to its existing business
-      // instead of requiring a pre-linked Better Auth account first.
-      disableSignUp: false,
-      accessType: "offline",
-      // Google is connected only for Gmail sales and expense syncing.
-      // Art Flow no longer requests Google Drive or Google Sheets access.
-      scope: [
-        "https://www.googleapis.com/auth/gmail.readonly",
-      ],
-      // Google may omit a refresh token on repeat authorizations unless consent
-      // is requested again. ArtFlow depends on a refresh token for background
-      // syncing when the user's browser is closed.
-      prompt: "select_account consent",
-    },
-  } : {},
+  socialProviders: {
+    ...(googleClientId && googleClientSecret ? {
+      google: {
+        clientId: googleClientId,
+        clientSecret: googleClientSecret,
+        // Allow Google sign-in to create/link the auth identity. Art Flow's
+        // workspace resolver attaches a signed-in email to its existing business
+        // instead of requiring a pre-linked Better Auth account first.
+        disableSignUp: false,
+        accessType: "offline",
+        // Google is connected only for Gmail sales and expense syncing.
+        // Art Flow no longer requests Google Drive or Google Sheets access.
+        scope: [
+          "https://www.googleapis.com/auth/gmail.readonly",
+        ],
+        // Google may omit a refresh token on repeat authorizations unless consent
+        // is requested again. ArtFlow depends on a refresh token for background
+        // syncing when the user's browser is closed.
+        prompt: "select_account consent",
+      },
+    } : {}),
+    ...(appleConfigured ? {
+      apple: async () => ({
+        clientId: appleClientId,
+        clientSecret: await generateAppleClientSecret(),
+        appBundleIdentifier: appleBundleId,
+      }),
+    } : {}),
+  },
   trustedOrigins: [
     baseURL,
     vercelProductionURL,
