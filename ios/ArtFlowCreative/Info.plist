@@ -55,8 +55,11 @@
         </dict>
     </dict>
 
-    <!-- Replace these entries with the real auto-renewable subscription product IDs from App Store Connect. -->
+    <!-- These IDs must match the auto-renewable subscriptions created in App Store Connect. -->
     <key>ARTFLOW_IAP_PRODUCT_IDS</key>
-    <array/>
+    <array>
+        <string>com.artflowcreative.app.monthly</string>
+        <string>com.artflowcreative.app.yearly</string>
+    </array>
 </dict>
 </plist>
