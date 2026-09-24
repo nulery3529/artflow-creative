@@ -604,10 +604,8 @@ export default async function handler(req, res) {
       );
       business.data = next;
 
-      const [salesResult, expenseResult] = await Promise.all([
-        syncYahooMailbox(client, business),
-        syncYahooExpenses(client, business),
-      ]);
+      const salesResult = await syncYahooMailbox(client, business);
+      const expenseResult = await syncYahooExpenses(client, business);
       return res.status(200).json({
         ok:true,
         ...salesResult,
@@ -621,10 +619,8 @@ export default async function handler(req, res) {
 
     if (action === 'sync') {
       try {
-        const [result, expenses] = await Promise.all([
-          syncYahooMailbox(client, business),
-          syncYahooExpenses(client, business),
-        ]);
+        const result = await syncYahooMailbox(client, business);
+        const expenses = await syncYahooExpenses(client, business);
         return res.status(200).json({
           ok:true,
           ...result,
