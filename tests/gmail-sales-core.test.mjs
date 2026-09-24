@@ -188,3 +188,66 @@ test('Gmail sync includes Poshmark cancellation messages', () => {
     GMAIL_QUERIES.some((query) => /poshmark/i.test(query) && /Please do not ship/i.test(query) && /canceled/i.test(query))
   );
 });
+
+
+test('parses the current Vinted bundle sale email format', () => {
+  const rows = parseSaleEmail(
+    'Team Vinted <no-reply@vinted.com>',
+    'You sold an item on Vinted',
+    [
+      'Hello natashaulery,',
+      'cgulley5 has bought',
+      '2',
+      'Bundle 2 items',
+      '$12.00',
+      'We will transfer the buyer\'s payment to your Vinted Wallet once the order is completed.',
+    ].join('\n')
+  );
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].platform, 'Vinted');
+  assert.equal(rows[0].buyer, 'cgulley5');
+  assert.equal(rows[0].quantity, 2);
+  assert.equal(rows[0].product_name, 'Bundle of 2 items');
+  assert.equal(rows[0].sale_total, 12);
+  assert.equal(rows[0].unit_price, 6);
+});
+
+test('parses the current Depop multi-item sale confirmation format', () => {
+  const rows = parseSaleEmail(
+    'Depop <sold@alerts.depop.com>',
+    'Your USPS shipping label and sale confirmation for @battybonesx.',
+    [
+      "You've made a sale!",
+      'Order details',
+      '8x8 Black Framed Black Cat & Crescent...',
+      '$8.28',
+      '8x8 Black Framed Celestial Black Cat Art...',
+      '$8.10',
+      'Ship to',
+      'China Lund',
+      'Buyer',
+      'battybonesx',
+      'Payment details',
+      'Subtotal',
+      '$16.38',
+    ].join('\n')
+  );
+
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].platform, 'Depop');
+  assert.equal(rows[0].buyer, 'battybonesx');
+  assert.equal(rows[0].sale_total, 8.28);
+  assert.equal(rows[1].sale_total, 8.10);
+  assert.equal(rows.reduce((sum,row)=>sum+row.sale_total,0), 16.38);
+});
+
+test('ignores eBay listing activity that is not a completed sale', () => {
+  const rows = parseSaleEmail(
+    'eBay <ebay@ebay.com>',
+    'Your listing is live',
+    'Your listing is active. Listing price $29.99. Send an offer to interested buyers.'
+  );
+
+  assert.deepEqual(rows, []);
+});
