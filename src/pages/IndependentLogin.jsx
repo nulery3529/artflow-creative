@@ -20,7 +20,7 @@ export default function IndependentLogin() {
     window.ArtFlowNative?.platform === "ios"
     || document.documentElement?.dataset?.artflowPlatform === "ios"
   );
-  const showGoogleLogin = !nativeIOS || appleEnabled;
+  const showGoogleLogin = !nativeIOS;
 
   const finish = () => {
     window.location.replace(safeReturnTo());
@@ -128,10 +128,12 @@ export default function IndependentLogin() {
       icon={LogIn}
       title="Welcome back"
       subtitle={
-        appleEnabled
-          ? "Continue with Apple, Google, or your Art Flow Creative email and password"
-          : nativeIOS
-            ? "Sign in with your Art Flow Creative email and password"
+        nativeIOS
+          ? appleEnabled
+            ? "Continue with Apple or use your Art Flow Creative email and password"
+            : "Sign in with your Art Flow Creative email and password"
+          : appleEnabled
+            ? "Continue with Apple, Google, or your Art Flow Creative email and password"
             : "Continue with Google or use your Art Flow Creative email and password"
       }
       footer={
@@ -213,10 +215,12 @@ export default function IndependentLogin() {
 
       <p className="text-center text-xs text-muted-foreground mt-6 leading-relaxed">
         {
-          appleEnabled
-            ? "Apple or Google sign-in opens your Art Flow account. New users can also create an email-and-password account."
-            : nativeIOS
-              ? "Sign in with your Art Flow Creative email and password. Apple sign-in will appear automatically when the Apple provider is enabled."
+          nativeIOS
+            ? appleEnabled
+              ? "Apple sign-in opens your Art Flow account. You can also use your Art Flow Creative email and password."
+              : "Sign in with your Art Flow Creative email and password. Apple sign-in will appear automatically when the Apple provider is enabled."
+            : appleEnabled
+              ? "Apple or Google sign-in opens your Art Flow account. New users can also create an email-and-password account."
               : "Google sign-in opens your existing Art Flow account. New users can create an email-and-password account below."
         }
       </p>
