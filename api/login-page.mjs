@@ -44,7 +44,8 @@ function htmlPage({ error = "", returnTo = "/", nativeIOS = false } = {}) {
     button,.google { width:100%; height:48px; border:0; border-radius:14px; font-size:16px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; text-decoration:none; }
     button { margin-top:18px; background:#8d5cb2; color:white; }
     .google { background:#f6f2f8; color:#211727; margin-bottom:10px; }
-    .apple { background:#000; color:#fff; margin-bottom:18px; }
+    .apple { background:#fff; color:#000; margin-bottom:18px; font-size:20px; font-weight:500; }
+    .apple img { width:28px; height:28px; margin-right:8px; flex:0 0 auto; }
     .sep { display:flex; align-items:center; gap:12px; color:#9e8ca7; font-size:12px; margin:8px 0 2px; }
     .sep:before,.sep:after { content:""; height:1px; background:#4a3354; flex:1; }
     .links { margin-top:18px; text-align:center; font-size:13px; color:#baa9c3; line-height:1.7; }
@@ -57,7 +58,7 @@ function htmlPage({ error = "", returnTo = "/", nativeIOS = false } = {}) {
     <p class="sub">Log in to your Art Flow Creative account.</p>
     ${message ? `<div class="error" role="alert">${message}</div>` : ""}
     ${showGoogle ? `<a class="google" href="/api/auth/google-login?returnTo=${encodeURIComponent(returnTo)}">Continue with Google</a>` : ""}
-    ${appleConfigured ? `<a class="google apple" href="/api/auth/apple-login?returnTo=${encodeURIComponent(returnTo)}">Continue with Apple</a>` : ""}
+    ${appleConfigured ? `<a class="google apple" href="/api/auth/apple-login?returnTo=${encodeURIComponent(returnTo)}"><img src="https://appleid.cdn-apple.com/appleid/button/logo?color=white&border=false&size=30&scale=2" alt="" aria-hidden="true" />Continue with Apple</a>` : ""}
     ${(showGoogle || appleConfigured) ? `<div class="sep">OR</div>` : ""}
     <form action="/api/auth/login-form" method="POST" autocomplete="on">
       <input type="hidden" name="returnTo" value="${returnTo.replace(/"/g, "&quot;")}" />
