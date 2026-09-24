@@ -24,6 +24,7 @@
 		A20000000000000000000006 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A20000000000000000000007 /* ArtFlowCreative.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ArtFlowCreative.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20000000000000000000008 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		A20000000000000000000009 /* ArtFlowCreative.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ArtFlowCreative.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -55,6 +56,7 @@
 				A20000000000000000000005 /* Assets.xcassets */,
 				A20000000000000000000006 /* Info.plist */,
 				A20000000000000000000008 /* PrivacyInfo.xcprivacy */,
+				A20000000000000000000009 /* ArtFlowCreative.entitlements */,
 			);
 			path = ArtFlowCreative;
 			sourceTree = "<group>";
@@ -175,6 +177,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ArtFlowCreative/ArtFlowCreative.entitlements;
+				CODE_SIGN_ENTITLEMENTS = ArtFlowCreative/ArtFlowCreative.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = NO;
