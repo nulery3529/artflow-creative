@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { LogIn, Mail, Lock } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
-import AppleIcon from "@/components/AppleIcon";
 import { artflowAuthClient } from "@/lib/artflowAuthClient";
 import { safeReturnTo } from "@/lib/authReturnTo";
 
@@ -158,9 +157,18 @@ export default function IndependentLogin() {
       )}
 
       {appleEnabled && (
-        <Button asChild className="w-full h-12 rounded-2xl font-semibold text-base mt-3 bg-black text-white hover:bg-black/90">
+        <Button
+          asChild
+          variant="outline"
+          className="w-full h-12 rounded-2xl mt-3 bg-white text-black border-white hover:bg-white/95 hover:text-black text-[20px] font-medium"
+        >
           <a href={`/api/auth/apple-login?returnTo=${encodeURIComponent(safeReturnTo())}`}>
-            <AppleIcon className="w-5 h-5 mr-2" />
+            <img
+              src="https://appleid.cdn-apple.com/appleid/button/logo?color=white&border=false&size=30&scale=2"
+              alt=""
+              aria-hidden="true"
+              className="w-7 h-7 mr-2 shrink-0"
+            />
             Continue with Apple
           </a>
         </Button>
