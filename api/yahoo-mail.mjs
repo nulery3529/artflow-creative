@@ -292,6 +292,8 @@ const YAHOO_EXPENSE_TERMS = [
   'artflow expense',
   'receipt',
   'invoice',
+  'order',
+  'purchase',
   'order confirmation',
   'order confirmed',
   'order details',
@@ -561,6 +563,14 @@ export async function syncYahooExpenses(client, business) {
     last_expense_skipped:skipped,
     last_expense_error:'',
   });
+
+  console.log('Yahoo expense sync summary', JSON.stringify({
+    checked: messages.length,
+    imported,
+    skipped,
+    remaining,
+    parser_version: YAHOO_EXPENSE_PARSER_VERSION,
+  }));
 
   return { connected:true, checked:messages.length, imported, skipped, remaining };
 }
