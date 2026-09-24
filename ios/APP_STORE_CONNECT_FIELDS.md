@@ -156,6 +156,9 @@ If Apple needs additional information, contact help@artflowcreative.com.
 **Group reference name**
 Art Flow Creative Subscriptions
 
+**Subscription Level**
+Put Monthly and Yearly at the same level because they provide identical Art Flow access and differ only by duration.
+
 ## Monthly Subscription
 
 **Product ID**
@@ -175,6 +178,8 @@ $9.99/month
 
 **Introductory offer**
 7-day free trial
+
+Apple permits an introductory offer on each product, but each customer can redeem only one introductory offer within this subscription group.
 
 **Review Notes**
 Unlocks the full Art Flow Creative business-management experience. The app reads localized product price/period and introductory-offer eligibility from StoreKit. Restore Purchases is available on the subscription screen.
@@ -198,6 +203,8 @@ $79.99/year
 
 **Introductory offer**
 7-day free trial
+
+Apple permits an introductory offer on each product, but each customer can redeem only one introductory offer within this subscription group.
 
 **Review Notes**
 Unlocks the same full Art Flow Creative business-management experience as the monthly product, billed yearly. The app reads localized product price/period and introductory-offer eligibility from StoreKit. Restore Purchases is available on the subscription screen.
