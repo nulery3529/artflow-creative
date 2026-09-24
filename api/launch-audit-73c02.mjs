@@ -18,6 +18,21 @@ export default async function handler(req,res){
       return res.status(200).json({ok:true,removed:Number(cleaned.rowCount||0)});
     }
 
+    if(String(req.query?.action||'')==='fix-poshmark-cancels'){
+      const ids=['6aa45ffa0826402f6551ab6f','6a712189875d6500024b50ad','6a473f610d155f6b21af7a31'];
+      const fixed=await client.query(`
+        UPDATE artflow.orders
+           SET archived=true,
+               updated_date=now(),
+               data=COALESCE(data,'{}'::jsonb)||jsonb_build_object('poshmark_canceled',true,'launch_cleanup',true)
+         WHERE platform='Poshmark'
+           AND order_id = ANY($1::text[])
+           AND archived IS NOT TRUE
+         RETURNING order_id
+      `,[ids]);
+      return res.status(200).json({ok:true,archived:Number(fixed.rowCount||0),order_ids:fixed.rows.map(r=>r.order_id)});
+    }
+
     const rows=await client.query(`
       SELECT business_id,
              platform,
