@@ -93,8 +93,8 @@ export default function ApplePaywall({ products = [], busy = false, error = "" }
                   <div className="font-semibold">{plan.displayName || periodLabel(plan.period)}</div>
                   <div className="text-xs text-muted-foreground">
                     {plan.introPaymentMode === "freeTrial" && plan.introPeriod
-                      ? `${plan.introPeriod} free trial, then renews ${/year|annual/.test(plan.period) ? "yearly" : /month/.test(plan.period) ? "monthly" : "automatically"} until canceled`
-                      : `Renews ${/year|annual/.test(plan.period) ? "yearly" : /month/.test(plan.period) ? "monthly" : "automatically"} until canceled`}
+                      ? `${plan.introPeriod} free, then ${plan.displayPrice || "Apple price"} ${/year|annual/.test(plan.period) ? "per year" : /month/.test(plan.period) ? "per month" : "per subscription period"} until canceled`
+                      : `${plan.displayPrice || "Apple price"} ${/year|annual/.test(plan.period) ? "per year" : /month/.test(plan.period) ? "per month" : "per subscription period"}, auto-renews until canceled`}
                   </div>
                 </div>
                 <div className="font-heading text-lg flex items-center gap-2">
