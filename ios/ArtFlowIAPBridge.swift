@@ -196,7 +196,7 @@ final class ArtFlowIAPBridge: NSObject, WKScriptMessageHandler {
         case .freeTrial: return "freeTrial"
         case .payAsYouGo: return "payAsYouGo"
         case .payUpFront: return "payUpFront"
-        @unknown default: return "unknown"
+        default: return "unknown"
         }
     }
 
