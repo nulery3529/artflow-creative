@@ -171,15 +171,17 @@ export default function Orders() {
   const importEmailSales = async () => {
     setImportingEmail(true);
     try {
-      const runSync = async (url) => {
+      const runSync = async (url, body = null) => {
         const response = await fetch(url, {
           method: "POST",
           credentials: "include",
           cache: "no-store",
+          headers: body ? { "Content-Type": "application/json" } : undefined,
+          body: body ? JSON.stringify(body) : undefined,
         });
         return { response, data: await response.json().catch(() => ({})) };
       };
-      const gmail = await runSync("/api/gmail-sales-sync");
+      const gmail = await runSync("/api/gmail-sales-sync", { force: true });
       if (!gmail.response.ok && gmail.response.status !== 409) {
         throw new Error(gmail.data?.error || "Sales sync failed");
       }
