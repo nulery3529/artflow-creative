@@ -69,18 +69,21 @@ final class ArtFlowIAPBridge: NSObject, WKScriptMessageHandler {
     private func sendProducts() async {
         do {
             let loaded = try await loadProducts()
-            let payload: [[String: Any]] = loaded.map { product in
+            var payload: [[String: Any]] = []
+            for product in loaded {
                 var item: [String: Any] = [
                     "id": product.id,
                     "displayName": product.displayName,
                     "displayPrice": product.displayPrice,
                     "period": periodString(product.subscription?.subscriptionPeriod)
                 ]
-                if let offer = product.subscription?.introductoryOffer {
+                if let subscription = product.subscription,
+                   let offer = subscription.introductoryOffer,
+                   await subscription.isEligibleForIntroOffer {
                     item["introPeriod"] = periodString(offer.period)
                     item["introPaymentMode"] = paymentModeString(offer.paymentMode)
                 }
-                return item
+                payload.append(item)
             }
             await send(type: "products", extra: ["products": payload])
         } catch {
