@@ -7,14 +7,14 @@ function safeReturnPath(value = "/") {
   return text;
 }
 
-function htmlPage({ error = "", returnTo = "/" } = {}) {
+function htmlPage({ error = "", returnTo = "/", nativeIOS = false } = {}) {
   const appleConfigured = Boolean(
     String(process.env.APPLE_CLIENT_ID || "").trim()
     && String(process.env.APPLE_TEAM_ID || "").trim()
     && String(process.env.APPLE_KEY_ID || "").trim()
     && String(process.env.APPLE_PRIVATE_KEY || "").trim()
   );
-  const message = error === "invalid_credentials"
+  const showGoogle = !nativeIOS || appleConfigured;\n  const message = error === "invalid_credentials"
     ? "Email or password is incorrect."
     : error === "google_sign_in_failed"
       ? "Google sign-in did not finish. Please try again."
@@ -55,9 +55,9 @@ function htmlPage({ error = "", returnTo = "/" } = {}) {
     <h1>Welcome back</h1>
     <p class="sub">Log in to your Art Flow Creative account.</p>
     ${message ? `<div class="error" role="alert">${message}</div>` : ""}
-    <a class="google" href="/api/auth/google-login?returnTo=${encodeURIComponent(returnTo)}">Continue with Google</a>
+    ${showGoogle ? `<a class="google" href="/api/auth/google-login?returnTo=${encodeURIComponent(returnTo)}">Continue with Google</a>` : ""}
     ${appleConfigured ? `<a class="google apple" href="/api/auth/apple-login?returnTo=${encodeURIComponent(returnTo)}">Continue with Apple</a>` : ""}
-    <div class="sep">OR</div>
+    ${(showGoogle || appleConfigured) ? `<div class="sep">OR</div>` : ""}
     <form action="/api/auth/login-form" method="POST" autocomplete="on">
       <input type="hidden" name="returnTo" value="${returnTo.replace(/"/g, "&quot;")}" />
       <label for="email">Email</label>
@@ -83,7 +83,7 @@ export default async function handler(req, res) {
 
   const url = new URL(req.url, "http://localhost");
   const returnTo = safeReturnPath(url.searchParams.get("returnTo") || "/");
-  const error = String(url.searchParams.get("error") || "");
+  const error = String(url.searchParams.get("error") || "");\n  const userAgent = String(req.headers["user-agent"] || "");\n  const nativeIOS = /ArtFlowCreativeNative\\/1\\.0/i.test(userAgent);
 
   try {
     const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
@@ -96,5 +96,5 @@ export default async function handler(req, res) {
 
   res.statusCode = 200;
   res.setHeader("Content-Type", "text/html; charset=utf-8");
-  return res.end(htmlPage({ error, returnTo }));
+  return res.end(htmlPage({ error, returnTo, nativeIOS }));
 }
