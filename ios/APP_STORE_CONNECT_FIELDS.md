@@ -19,6 +19,12 @@ Productivity
 **Bundle ID**
 com.artflowcreative.app
 
+**SKU**
+artflowcreative-ios-001
+
+**Primary Language**
+English (U.S.)
+
 **Version**
 1.0
 
