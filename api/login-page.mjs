@@ -14,7 +14,7 @@ function htmlPage({ error = "", returnTo = "/", nativeIOS = false } = {}) {
     && String(process.env.APPLE_KEY_ID || "").trim()
     && String(process.env.APPLE_PRIVATE_KEY || "").trim()
   );
-  const showGoogle = !nativeIOS || appleConfigured;
+  const showGoogle = !nativeIOS;
   const message = error === "invalid_credentials"
     ? "Email or password is incorrect."
     : error === "google_sign_in_failed"
