@@ -87,10 +87,17 @@ final class ArtFlowIAPBridge: NSObject, WKScriptMessageHandler {
         await send(type: "purchase-started")
 
         do {
-            let product = products[productID] ?? try await Product.products(for: [productID]).first
-            guard let product else {
-                await send(type: "error", extra: ["message": "This subscription is not available."])
-                return
+            let product: Product
+            if let cached = products[productID] {
+                product = cached
+            } else {
+                let loaded = try await Product.products(for: [productID])
+                guard let first = loaded.first else {
+                    await send(type: "error", extra: ["message": "This subscription is not available."])
+                    return
+                }
+                product = first
+                products[productID] = first
             }
 
             let result = try await product.purchase()
