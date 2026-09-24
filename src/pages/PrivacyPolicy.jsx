@@ -14,7 +14,7 @@ export default function PrivacyPolicy() {
         <div className="mb-8">
           <Link to="/login" className="text-sm text-primary hover:underline">Art Flow Creative</Link>
           <h1 className="mt-3 text-3xl font-bold tracking-tight">Privacy Policy</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Last updated: September 11, 2026</p>
+          <p className="mt-2 text-sm text-muted-foreground">Last updated: September 24, 2026</p>
         </div>
 
         <div className="space-y-7 text-sm leading-7">
@@ -67,7 +67,7 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-xl font-semibold mb-2">Data retention and deletion</h2>
             <p>
-              Business records are retained while your account is active or as needed to provide the service. You may request deletion of your account or associated data at any time by contacting us at the email below.
+              Business records are retained while your account is active or as needed to provide the service. Signed-in users can permanently delete their Art Flow account and associated business data from Account → Delete Account. You may also contact us at the email below for privacy or deletion questions. Certain limited records may be retained when required for legal, security, fraud-prevention, or accounting obligations.
             </p>
           </section>
 
