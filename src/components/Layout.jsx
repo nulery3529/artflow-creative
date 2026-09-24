@@ -30,7 +30,7 @@ import { useAuth } from "@/lib/AuthContext";
 import SyncStatus from "@/components/SyncStatus";
 
 const tabs = [
-  { path: "/", Comp: Dashboard },
+  { path: "/dashboard", Comp: Dashboard },
   { path: "/orders", Comp: Orders },
   { path: "/inventory", Comp: Inventory },
   { path: "/expenses", Comp: Expenses },
@@ -39,7 +39,7 @@ const tabs = [
 const tabPaths = new Set(tabs.map((item) => item.path));
 
 const navItems = [
-  { label: "Dashboard", to: "/", icon: LayoutDashboard },
+  { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
   { label: "Orders", to: "/orders", icon: ShoppingCart },
   { label: "Expenses", to: "/expenses", icon: Receipt },
   { label: "Inventory", to: "/inventory", icon: Package },
@@ -65,7 +65,7 @@ export default function Layout() {
       .split(/\s+/)[0] || "Artist";
 
   const isActive = (to) => {
-    if (to === "/") return pathname === "/";
+    if (to === "/dashboard") return pathname === "/dashboard";
     return pathname === to || pathname.startsWith(`${to}/`);
   };
 
@@ -82,7 +82,7 @@ export default function Layout() {
 
           <button
             type="button"
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/dashboard")}
             className="flex items-center gap-3 px-5 py-5 text-left"
           >
             <Logo size={42} />
