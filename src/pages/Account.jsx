@@ -36,6 +36,16 @@ export default function Account() {
     if (!user?.id) return;
     setDeleting(true);
     try {
+      const cleanupResponse = await fetch("/api/account-data-delete", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+      });
+      const cleanup = await cleanupResponse.json().catch(() => ({}));
+      if (!cleanupResponse.ok) {
+        throw new Error(cleanup?.error || "Could not delete your Art Flow data");
+      }
+
       const result = await artflowAuthClient.deleteUser();
       if (result?.error) throw new Error(result.error.message || "Could not delete account");
       window.location.replace("/register");
@@ -113,7 +123,7 @@ export default function Account() {
           <AlertTriangle className="w-5 h-5" /> Danger zone
         </h2>
         <p className="text-sm text-muted-foreground mt-1 mb-4">
-          Permanently delete your Art Flow login account. This cannot be undone.
+          Permanently delete your Art Flow account and associated business data. Shared workspaces stay available to other linked users, but your access is removed.
         </p>
         <button
           onClick={() => setConfirmOpen(true)}
@@ -143,7 +153,7 @@ export default function Account() {
               <div className="w-12 h-1.5 rounded-full bg-[hsl(var(--border))] mx-auto mb-5" />
               <h3 className="font-heading text-2xl mb-2">Delete account?</h3>
               <p className="text-sm text-muted-foreground mb-5">
-                This will permanently remove your Art Flow login account. Type{" "}
+                This will permanently remove your Art Flow account and associated business data. Type{" "}
                 <span className="font-semibold text-foreground">DELETE</span> to confirm.
               </p>
               <input
