@@ -63,6 +63,26 @@ const orderTitle = (order) =>
       "Art Order"
   ).trim();
 
+const imageMatchKey = (value = "") =>
+  String(value || "")
+    .toLowerCase()
+    .replace(/^\s*[0-9]+(?:\.[0-9]+)?\s*x\s*[0-9]+(?:\.[0-9]+)?\s*[-–—|:]?\s*/i, "")
+    .replace(/\b(of|the|a|an)\b/gi, "")
+    .replace(/[^a-z0-9]+/g, "");
+
+const directImageUrl = (item = {}) =>
+  item?.image_url ||
+  item?.product_image_url ||
+  item?.marketplace_image_url ||
+  item?.thumbnail_url ||
+  item?.photo_url ||
+  item?.data?.image_url ||
+  item?.data?.product_image_url ||
+  item?.data?.marketplace_image_url ||
+  item?.data?.thumbnail_url ||
+  item?.data?.photo_url ||
+  "";
+
 const orderDate = (order) =>
   order?.sale_date ||
   order?.created_date ||
@@ -74,6 +94,29 @@ const expenseDate = (expense) =>
   expense?.created_date ||
   expense?.created_at ||
   "";
+
+function DashboardThumbnail({ src, alt = "", fallback = "Art" }) {
+  const [failed, setFailed] = useState(false);
+  const usable = Boolean(src) && !failed;
+
+  return (
+    <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-purple-100/70 dark:border-white/10 bg-gradient-to-br from-purple-100 via-pink-50 to-cyan-50 flex items-center justify-center">
+      {usable ? (
+        <img
+          src={src}
+          alt={alt}
+          loading="lazy"
+          className="w-full h-full object-cover"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <span className="text-[9px] font-semibold text-purple-600/80 px-1 text-center">
+          {fallback}
+        </span>
+      )}
+    </div>
+  );
+}
 
 function Card({ children, className = "" }) {
   return (
@@ -349,6 +392,12 @@ export default function Dashboard() {
   } = useEntity("Expense", "-created_date", 10000);
   const expenses = allExpenses.filter(isApprovedExpense);
 
+  const {
+    records: inventory = [],
+    loading: inventoryLoading,
+    reload: reloadInventory,
+  } = useEntity("InventoryCost", "-created_date", 1000);
+
   const { user } = useAuth();
   const [serverMetrics, setServerMetrics] = useState(null);
   const [metricsLoading, setMetricsLoading] = useState(true);
@@ -378,12 +427,31 @@ export default function Dashboard() {
     return () => window.removeEventListener("artflow:data-synced", onSynced);
   }, [loadServerMetrics]);
 
-  const loading = ordersLoading || expensesLoading || metricsLoading;
+  const loading = ordersLoading || expensesLoading || inventoryLoading || metricsLoading;
   const currentMonth = currentMonthKey();
 
   // Marketplace preferences control which connections Art Flow syncs. They
   // must never hide a real sale that is already in the business ledger.
   const activeOrders = orders;
+
+  const inventoryImageByKey = useMemo(() => {
+    const map = new Map();
+    for (const item of inventory) {
+      const key = imageMatchKey(item?.name || item?.title);
+      const image = directImageUrl(item);
+      if (key && image && !map.has(key)) map.set(key, image);
+    }
+    return map;
+  }, [inventory]);
+
+  const imageForOrder = React.useCallback(
+    (order) => {
+      const direct = directImageUrl(order);
+      if (direct) return direct;
+      return inventoryImageByKey.get(imageMatchKey(orderTitle(order))) || "";
+    },
+    [inventoryImageByKey]
+  );
 
   const dashboard = useMemo(() => {
     const uniqueOrderIds = new Set(
@@ -556,6 +624,7 @@ export default function Dashboard() {
         name,
         sales: 0,
         quantity: 0,
+        image_url: imageForOrder(order),
       };
 
       existing.sales += numberValue(
@@ -565,6 +634,10 @@ export default function Dashboard() {
       existing.quantity += numberValue(
         order?.quantity || 1
       );
+
+      if (!existing.image_url) {
+        existing.image_url = imageForOrder(order);
+      }
 
       listingMap.set(name, existing);
     }
@@ -581,7 +654,20 @@ export default function Dashboard() {
           new Date(orderDate(b) || 0) -
           new Date(orderDate(a) || 0)
       )
-      .slice(0, 5);
+      .slice(0, 5)
+      .map((order) => ({
+        ...order,
+        dashboard_image_url: imageForOrder(order),
+      }));
+
+    const inventoryPreview = [...inventory]
+      .filter((item) => item?.name || item?.title)
+      .sort((a, b) => {
+        const imageDiff = Number(Boolean(directImageUrl(b))) - Number(Boolean(directImageUrl(a)));
+        if (imageDiff) return imageDiff;
+        return new Date(b?.updated_date || b?.created_date || 0) - new Date(a?.updated_date || a?.created_date || 0);
+      })
+      .slice(0, 4);
 
     const recentExpenses = [...expenses]
       .sort(
@@ -637,12 +723,15 @@ export default function Dashboard() {
       salesHistory,
       topListings,
       recentOrders,
+      inventoryPreview,
       activities,
     };
   }, [
     activeOrders,
     expenses,
+    inventory,
     currentMonth,
+    imageForOrder,
   ]);
 
   const refresh = async () => {
@@ -684,6 +773,7 @@ export default function Dashboard() {
       await Promise.all([
         reloadOrders?.(),
         reloadExpenses?.(),
+        reloadInventory?.(),
         loadServerMetrics(),
       ]);
 
@@ -933,8 +1023,14 @@ export default function Dashboard() {
                       orderIdentity(order) ||
                       `${index}`
                     }
-                    className="grid grid-cols-[1fr_auto] sm:grid-cols-[1.5fr_.7fr_.7fr_auto] gap-3 items-center px-5 lg:px-6 py-4 border-b last:border-b-0 border-purple-100/50 dark:border-white/5"
+                    className="grid grid-cols-[auto_1fr_auto] sm:grid-cols-[auto_1.5fr_.7fr_.7fr_auto] gap-3 items-center px-5 lg:px-6 py-4 border-b last:border-b-0 border-purple-100/50 dark:border-white/5"
                   >
+                    <DashboardThumbnail
+                      src={order.dashboard_image_url}
+                      alt={orderTitle(order)}
+                      fallback="Order"
+                    />
+
                     <div className="min-w-0">
                       <p className="text-xs font-semibold truncate">
                         {orderTitle(order)}
@@ -1061,6 +1157,62 @@ export default function Dashboard() {
         </Card>
       </section>
 
+      {/* INVENTORY PREVIEW */}
+      <Card className="p-5 lg:p-6">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 className="text-sm font-semibold">Inventory Preview</h2>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Your saved products and artwork
+            </p>
+          </div>
+          <Link
+            to="/inventory"
+            className="text-[10px] font-semibold text-purple-600 flex items-center gap-1"
+          >
+            View inventory
+            <ArrowUpRight className="w-3 h-3" />
+          </Link>
+        </div>
+
+        {!dashboard.inventoryPreview.length ? (
+          <EmptyState text="Add inventory images to see them here" />
+        ) : (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {dashboard.inventoryPreview.map((item) => (
+              <Link
+                key={item.id || item.name}
+                to="/inventory"
+                className="group rounded-2xl border border-purple-100/70 dark:border-white/5 bg-purple-50/40 dark:bg-white/5 overflow-hidden"
+              >
+                <div className="aspect-[4/3] bg-gradient-to-br from-purple-100 via-pink-50 to-cyan-50 overflow-hidden">
+                  {directImageUrl(item) ? (
+                    <img
+                      src={directImageUrl(item)}
+                      alt={item.name || "Inventory item"}
+                      loading="lazy"
+                      className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Package className="w-6 h-6 text-purple-400" />
+                    </div>
+                  )}
+                </div>
+                <div className="p-3">
+                  <p className="text-xs font-semibold truncate">
+                    {item.name || item.title}
+                  </p>
+                  <p className="text-[9px] text-muted-foreground mt-1">
+                    {numberValue(item.quantity_on_hand)} in stock
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </Card>
+
       {/* TOP LISTINGS + ACTIVITY + QUICK ACTIONS */}
       <section className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
         <Card className="p-5 lg:p-6">
@@ -1088,9 +1240,11 @@ export default function Dashboard() {
                     key={listing.name}
                     className="flex items-center gap-3 rounded-2xl bg-purple-50/55 dark:bg-white/5 p-3"
                   >
-                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-200 via-pink-100 to-cyan-100 flex items-center justify-center text-xs font-semibold text-purple-700">
-                      {index + 1}
-                    </div>
+                    <DashboardThumbnail
+                      src={listing.image_url}
+                      alt={listing.name}
+                      fallback={String(index + 1)}
+                    />
 
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-semibold truncate">
