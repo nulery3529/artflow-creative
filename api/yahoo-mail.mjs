@@ -25,8 +25,6 @@ const YAHOO_HOST = 'imap.mail.yahoo.com';
 const YAHOO_PORT = 993;
 const MAX_MESSAGES_PER_RUN = 300;
 const YAHOO_EXPENSE_PARSER_VERSION = 11;
-let yahooExpenseDiagnosticCount = 0;
-let yahooNoTotalDiagnosticCount = 0;
 
 function imapQuote(value='') {
   return `"${String(value).replace(/\\/g,'\\\\').replace(/"/g,'\\"')}"`;
@@ -444,19 +442,6 @@ async function insertYahooExpense(client, business, email, uid, parsed) {
     amount = Number(String(labelledAmount).replace(/,/g, '')) || 0;
   }
   if (!amount) {
-    if (yahooExpenseDiagnosticCount < 8 && /ebay/i.test(parsed.from)) {
-      yahooExpenseDiagnosticCount += 1;
-      const bodyText = String(parsed.text || '');
-      const hints = [...bodyText.matchAll(/.{0,100}(?:order\s*total|total\s*paid|amount\s*paid|you\s*paid|payment\s*total|grand\s*total|\btotal\b|USD|US\s*\$|\$\s*[\d,.]+).{0,160}/gi)]
-        .slice(0, 12)
-        .map((match) => clean(match[0]).replace(/\s+/g, ' '));
-      console.log('Yahoo eBay amount diagnostic', JSON.stringify({
-        uid,
-        subject: parsed.subject,
-        from: parsed.from,
-        hints,
-      }));
-    }
     await recordYahooExpenseImport(client, business, email, uid, 'skipped', 'Yahoo receipt did not contain a recognizable purchase total');
     return { imported:0, skipped:1 };
   }
