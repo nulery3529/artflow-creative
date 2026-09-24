@@ -85,13 +85,13 @@ function parseMoney(value = '') {
 export function extractTotal(text = '') {
   const normalized = String(text || '').replace(/\u00a0/g, ' ');
   const patterns = [
-    /(?:order\s+total|grand\s+total|payment\s+total|purchase\s+total)\s*[:\-]?\s*(?:USD\s*)?\$\s*([\d,]+\.\d{2})/i,
-    /(?:amount\s+(?:paid|charged)|total\s+(?:paid|charged)|you\s+(?:paid|were\s+charged))\s*[:\-]?\s*(?:USD\s*)?\$\s*([\d,]+\.\d{2})/i,
+    /(?:order\s+total|grand\s+total|payment\s+total|purchase\s+total)\s*[:\-]?\s*(?:US(?:D)?\s*)?\$\s*([\d,]+\.\d{2})/i,
+    /(?:amount\s+(?:paid|charged)|total\s+(?:paid|charged)|you\s+(?:paid|were\s+charged))\s*[:\-]?\s*(?:US(?:D)?\s*)?\$\s*([\d,]+\.\d{2})/i,
     /(?:order\s+total|grand\s+total|payment\s+total|purchase\s+total)\s*[:\-]?\s*USD\s*([\d,]+\.\d{2})/i,
-    /(?:seller\s+fees?|selling\s+fees?|total\s+fees?|transaction\s+fees?|service\s+fees?|ad\s+fees?|promoted\s+listing\s+fees?)\s*[:\-]?\s*(?:USD\s*)?\$\s*([\d,]+\.\d{2})/i,
-    /(?:shipping\s+label(?:\s+cost)?|postage|shipping\s+charge|label\s+cost)\s*[:\-]?\s*(?:USD\s*)?\$\s*([\d,]+\.\d{2})/i,
-    /(?:fee|fees|postage|shipping)\s+(?:charged|paid)\s*[:\-]?\s*(?:USD\s*)?\$\s*([\d,]+\.\d{2})/i,
-    /(?:^|\n)\s*total\s*[:\-]?\s*(?:USD\s*)?\$\s*([\d,]+\.\d{2})\b/im,
+    /(?:seller\s+fees?|selling\s+fees?|total\s+fees?|transaction\s+fees?|service\s+fees?|ad\s+fees?|promoted\s+listing\s+fees?)\s*[:\-]?\s*(?:US(?:D)?\s*)?\$\s*([\d,]+\.\d{2})/i,
+    /(?:shipping\s+label(?:\s+cost)?|postage|shipping\s+charge|label\s+cost)\s*[:\-]?\s*(?:US(?:D)?\s*)?\$\s*([\d,]+\.\d{2})/i,
+    /(?:fee|fees|postage|shipping)\s+(?:charged|paid)\s*[:\-]?\s*(?:US(?:D)?\s*)?\$\s*([\d,]+\.\d{2})/i,
+    /(?:^|\n)\s*total\s*[:\-]?\s*(?:US(?:D)?\s*)?\$\s*([\d,]+\.\d{2})\b/im,
     /(?:^|\n)\s*total\s*[:\-]?\s*USD\s*([\d,]+\.\d{2})\b/im,
     /(?:^|\n)\s*total\s*[:\-]?\s*([\d,]+\.\d{2})\s*USD\b/im,
     /(?:^|\n)\s*(?:amount|charged|paid)\s*[:\-]?\s*\$\s*([\d,]+\.\d{2})\b/im,
