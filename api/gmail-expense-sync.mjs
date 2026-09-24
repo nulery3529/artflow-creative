@@ -324,10 +324,26 @@ async function insertExpense(client, business, message, gmailAddress) {
 export async function syncExpenseAccount(client, business, accessToken) {
   const profileData = await googleJson(accessToken, 'https://gmail.googleapis.com/gmail/v1/users/me/profile');
   const gmailAddress = normalize(profileData?.emailAddress || '');
-  if (!gmailAddress) return { matched: 0, scanned: 0, imported: 0, skipped: 0 };
+  if (!gmailAddress) return { matched: 0, scanned: 0, imported: 0, skipped: 0, throttled: false };
+
+  const syncState = business?.data?.gmail_expense_sync || {};
+  const previous = syncState?.[gmailAddress] || {};
+  const lastAt = previous?.last_at ? new Date(previous.last_at).getTime() : 0;
+  if (lastAt && Date.now() - lastAt < 5 * 60 * 1000) {
+    return { matched: 1, scanned: 0, imported: 0, skipped: 0, throttled: true, gmailAddress };
+  }
 
   await approveGmailEmail(client, business, gmailAddress);
-  const messageIds = await listMessageIds(accessToken);
+
+  let messageIds = [];
+  try {
+    messageIds = await listMessageIds(accessToken);
+  } catch (error) {
+    if (error?.code === 'GMAIL_RATE_LIMIT') {
+      return { matched: 1, scanned: 0, imported: 0, skipped: 0, throttled: true, gmailAddress };
+    }
+    throw error;
+  }
   let imported = 0;
   let skipped = 0;
   let processed = 0;
@@ -339,13 +355,37 @@ export async function syncExpenseAccount(client, business, accessToken) {
     `,[business.base44_id,messageId]);
     if (alreadyProcessed.rowCount) continue;
     if (processed >= 50) break;
-    const message = await readMessage(accessToken, messageId);
+    let message;
+    try {
+      message = await readMessage(accessToken, messageId);
+    } catch (error) {
+      if (error?.code === 'GMAIL_RATE_LIMIT') break;
+      throw error;
+    }
     processed += 1;
     const result = await insertExpense(client, business, message, gmailAddress);
     imported += result.imported;
     skipped += result.skipped;
   }
-  return { matched: 1, scanned: processed, imported, skipped, gmailAddress };
+  const nextBusinessData = {
+    ...(business.data || {}),
+    gmail_expense_sync: {
+      ...((business.data || {}).gmail_expense_sync || {}),
+      [gmailAddress]: {
+        last_at: new Date().toISOString(),
+        last_scanned: processed,
+        last_imported: imported,
+        last_skipped: skipped,
+      },
+    },
+  };
+  await client.query(
+    `UPDATE artflow.businesses SET data=$2::jsonb, updated_date=now() WHERE base44_id=$1`,
+    [business.base44_id, JSON.stringify(nextBusinessData)]
+  ).catch(() => {});
+  business.data = nextBusinessData;
+
+  return { matched: 1, scanned: processed, imported, skipped, throttled: false, gmailAddress };
 }
 
 export default async function handler(req, res) {
