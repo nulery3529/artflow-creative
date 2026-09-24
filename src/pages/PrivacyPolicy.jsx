@@ -5,7 +5,7 @@ export default function PrivacyPolicy() {
   useEffect(() => {
     document.title = "Privacy Policy | Art Flow Creative";
     const meta = document.querySelector('meta[name="description"]');
-    if (meta) meta.setAttribute("content", "How Art Flow Creative collects, uses, and protects your business data, including Google and marketplace integrations.");
+    if (meta) meta.setAttribute("content", "How Art Flow Creative collects, uses, and protects your business data, including Gmail and marketplace integrations.");
   }, []);
 
   return (
@@ -53,14 +53,14 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-xl font-semibold mb-2">How integrations work</h2>
             <p>
-              Art Flow Creative connects to third-party services — including Google (Gmail, Drive, Sheets), Etsy, eBay, Depop, Vinted, Poshmark, Resend, and Neon PostgreSQL — to provide the features you request. Those services process data under their own privacy policies. Art Flow does not sell your data, and advertisers do not receive your private conversations or your business data through this app. Google user data is used only to provide the features you authorize, and you can disconnect any integration at any time from the app or from the third party's own settings.
+              Art Flow Creative connects to third-party services — including Google Gmail, Etsy, eBay, Depop, Vinted, Poshmark, Resend, and Neon PostgreSQL — to provide the features you request. Those services process data under their own privacy policies. Art Flow does not sell your data, and advertisers do not receive your private conversations or your business data through this app. Google user data is used only to provide the features you authorize, and you can disconnect any integration at any time from the app or from the third party's own settings.
             </p>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold mb-2">Google API data</h2>
             <p>
-              Art Flow Creative may request access to Gmail, Google Drive, or Google Sheets only when you authorize those features. Google data is used solely to provide the Art Flow functionality you requested — for example, reading marketplace, order, or expense messages you choose to import; creating or updating spreadsheets you link; and working with files you explicitly connect. We do not use Google user data for advertising and we do not sell Google user data. Art Flow Creative's use and transfer of information received from Google APIs adheres to the Google API Services User Data Policy, including its Limited Use requirements. You can review or revoke Art Flow Creative's access at any time in your Google account settings.
+              Art Flow Creative may request read-only access to Gmail only when you explicitly connect a Gmail inbox. Google data is used solely to provide the Art Flow functionality you requested — for example, reading marketplace sale messages and business receipt or expense emails you choose to import. We do not use Google user data for advertising and we do not sell Google user data. Art Flow Creative's use and transfer of information received from Google APIs adheres to the Google API Services User Data Policy, including its Limited Use requirements. You can review or revoke Art Flow Creative's access at any time in your Google account settings.
             </p>
           </section>
 
