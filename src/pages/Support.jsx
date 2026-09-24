@@ -39,7 +39,7 @@ export default function Support() {
           <section>
             <h2 className="text-xl font-semibold mb-2">Account and data deletion</h2>
             <p>
-              Signed-in users can request account deletion from the Account screen. If you cannot access your account, use the App Store support contact and include the email address associated with the account so the request can be verified.
+              Signed-in users can permanently delete their Art Flow account and associated owned business data from Account → Delete Account. Shared workspaces stay available to other linked users, but the deleting user's access is removed. Deleting an Art Flow account does not cancel an Apple subscription; Apple subscriptions must be managed separately through Apple's subscription settings. If you cannot access your account, email support from the address associated with the account so the request can be verified.
             </p>
           </section>
 
