@@ -5,19 +5,19 @@
   "crons": [
     {
       "path": "/api/gmail-sales-cron",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 * * * *"
     },
     {
       "path": "/api/marketplace-orders-cron",
-      "schedule": "*/15 * * * *"
+      "schedule": "10 * * * *"
     },
     {
       "path": "/api/yahoo-mail-cron",
-      "schedule": "5-59/15 * * * *"
+      "schedule": "20 * * * *"
     },
     {
       "path": "/api/gmail-expense-cron",
-      "schedule": "*/15 * * * *"
+      "schedule": "30 * * * *"
     }
   ],
   "outputDirectory": "dist",
