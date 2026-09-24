@@ -54,8 +54,26 @@ export default async function handler(req, res) {
         summary.expense_imported += Number(expenses.imported || 0);
         summary.expense_remaining += Number(expenses.remaining || 0);
       } catch (error) {
-        summary.failed += 1;
-        console.warn('Yahoo background sync failed', business.base44_id, error?.message || error);
+        const message = String(error?.message || 'Yahoo background sync failed');
+        const authRejected = /Yahoo rejected this credential|AUTHENTICATIONFAILED|LOGIN failed|invalid credentials/i.test(message);
+        if (authRejected) {
+          const nextData = {
+            ...(business.data || {}),
+            yahoo_mail: {
+              ...(business.data?.yahoo_mail || {}),
+              connected: false,
+              last_error: message,
+              disconnected_at: new Date().toISOString(),
+            },
+          };
+          await client.query(
+            `UPDATE artflow.businesses SET data=$2::jsonb, updated_date=now() WHERE base44_id=$1`,
+            [business.base44_id, JSON.stringify(nextData)]
+          ).catch(() => {});
+        } else {
+          summary.failed += 1;
+        }
+        console.warn('Yahoo background sync failed', business.base44_id, message);
       }
     }
 
