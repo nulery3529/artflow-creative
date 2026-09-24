@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { LogIn, Mail, Lock } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
+import AppleIcon from "@/components/AppleIcon";
 import { artflowAuthClient } from "@/lib/artflowAuthClient";
 import { safeReturnTo } from "@/lib/authReturnTo";
 
@@ -15,6 +16,7 @@ export default function IndependentLogin() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleEnabled, setAppleEnabled] = useState(false);
 
   const finish = () => {
     window.location.replace(safeReturnTo());
@@ -86,11 +88,19 @@ export default function IndependentLogin() {
     const params = new URLSearchParams(window.location.search);
     const serverError = params.get("error");
     if (serverError) {
-      setError(serverError === "google_sign_in_failed"
-        ? "Google sign-in did not finish. Please try again."
-        : "Could not sign in. Please try again.");
-      return;
+      setError(
+        serverError === "google_sign_in_failed"
+          ? "Google sign-in did not finish. Please try again."
+          : serverError === "apple_sign_in_failed"
+            ? "Apple sign-in did not finish. Please try again."
+            : "Could not sign in. Please try again."
+      );
     }
+
+    fetch("/api/auth-providers", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : {})
+      .then((providers) => setAppleEnabled(Boolean(providers?.apple)))
+      .catch(() => setAppleEnabled(false));
 
     // A valid Better Auth cookie can survive a deploy or a manual visit to
     // /login. Do not trap an already-authenticated user on the login form.
@@ -113,7 +123,7 @@ export default function IndependentLogin() {
     <AuthLayout
       icon={LogIn}
       title="Welcome back"
-      subtitle="Continue with Google or use your Art Flow Creative email and password"
+      subtitle={appleEnabled ? "Continue with Apple, Google, or your Art Flow Creative email and password" : "Continue with Google or use your Art Flow Creative email and password"}
       footer={
         <>
           New to Art Flow?{" "}
@@ -170,7 +180,7 @@ export default function IndependentLogin() {
       </form>
 
       <p className="text-center text-xs text-muted-foreground mt-6 leading-relaxed">
-        Google sign-in opens your existing Art Flow account. New users can create an email-and-password account below.
+        {appleEnabled ? "Apple or Google sign-in opens your Art Flow account. New users can also create an email-and-password account." : "Google sign-in opens your existing Art Flow account. New users can create an email-and-password account below."}
       </p>
       <p className="text-center text-sm text-muted-foreground mt-4">
         Having trouble signing in?{" "}
