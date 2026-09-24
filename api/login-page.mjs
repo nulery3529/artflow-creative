@@ -8,11 +8,19 @@ function safeReturnPath(value = "/") {
 }
 
 function htmlPage({ error = "", returnTo = "/" } = {}) {
+  const appleConfigured = Boolean(
+    String(process.env.APPLE_CLIENT_ID || "").trim()
+    && String(process.env.APPLE_TEAM_ID || "").trim()
+    && String(process.env.APPLE_KEY_ID || "").trim()
+    && String(process.env.APPLE_PRIVATE_KEY || "").trim()
+  );
   const message = error === "invalid_credentials"
     ? "Email or password is incorrect."
     : error === "google_sign_in_failed"
       ? "Google sign-in did not finish. Please try again."
-      : "";
+      : error === "apple_sign_in_failed"
+        ? "Apple sign-in did not finish. Please try again."
+        : "";
 
   return `<!doctype html>
 <html lang="en">
@@ -34,7 +42,8 @@ function htmlPage({ error = "", returnTo = "/" } = {}) {
     input:focus { border-color:#a875cf; box-shadow:0 0 0 3px rgba(168,117,207,.18); }
     button,.google { width:100%; height:48px; border:0; border-radius:14px; font-size:16px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; text-decoration:none; }
     button { margin-top:18px; background:#8d5cb2; color:white; }
-    .google { background:#f6f2f8; color:#211727; margin-bottom:18px; }
+    .google { background:#f6f2f8; color:#211727; margin-bottom:10px; }
+    .apple { background:#000; color:#fff; margin-bottom:18px; }
     .sep { display:flex; align-items:center; gap:12px; color:#9e8ca7; font-size:12px; margin:8px 0 2px; }
     .sep:before,.sep:after { content:""; height:1px; background:#4a3354; flex:1; }
     .links { margin-top:18px; text-align:center; font-size:13px; color:#baa9c3; line-height:1.7; }
@@ -47,6 +56,7 @@ function htmlPage({ error = "", returnTo = "/" } = {}) {
     <p class="sub">Log in to your Art Flow Creative account.</p>
     ${message ? `<div class="error" role="alert">${message}</div>` : ""}
     <a class="google" href="/api/auth/google-login?returnTo=${encodeURIComponent(returnTo)}">Continue with Google</a>
+    ${appleConfigured ? `<a class="google apple" href="/api/auth/apple-login?returnTo=${encodeURIComponent(returnTo)}">Continue with Apple</a>` : ""}
     <div class="sep">OR</div>
     <form action="/api/auth/login-form" method="POST" autocomplete="on">
       <input type="hidden" name="returnTo" value="${returnTo.replace(/"/g, "&quot;")}" />
