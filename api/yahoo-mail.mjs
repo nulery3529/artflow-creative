@@ -24,7 +24,7 @@ const pool = new Pool({
 const YAHOO_HOST = 'imap.mail.yahoo.com';
 const YAHOO_PORT = 993;
 const MAX_MESSAGES_PER_RUN = 300;
-const YAHOO_EXPENSE_PARSER_VERSION = 7;
+const YAHOO_EXPENSE_PARSER_VERSION = 8;
 let yahooExpenseDiagnosticCount = 0;
 let yahooNoTotalDiagnosticCount = 0;
 
@@ -288,6 +288,11 @@ function looksLikeYahooExpense(parsed={}) {
   const from = normalize(parsed.from || '');
   const haystack = `${subject}\n${text}`;
 
+  // Messages sent through eBay's member-to-member relay are conversations,
+  // not transaction receipts. They often say "purchase" or "order" but do not
+  // contain the actual buyer payment total.
+  if (/@members\.ebay\.com\b/i.test(from)) return false;
+
   // eBay buyer receipts/order confirmations and seller-cost notices.
   if (/ebay/.test(from)) {
     return /\b(order (?:confirmed|confirmation|details|summary|receipt)|your order|thanks for your (?:order|purchase)|thank you for your (?:order|purchase)|purchase (?:confirmation|receipt)|payment (?:confirmation|receipt|sent)|you paid|amount paid|total paid|seller fee|selling fee|transaction fee|promoted listing|ad fee|service fee|shipping label|postage|shipping charge)\b/i.test(haystack);
@@ -401,6 +406,12 @@ async function recordYahooExpenseImport(client, business, email, uid, status, de
 
 async function insertYahooExpense(client, business, email, uid, parsed) {
   const messageKey = `yahoo:${email}:${uid}`;
+
+  if (/@members\.ebay\.com\b/i.test(String(parsed.from || ''))) {
+    await recordYahooExpenseImport(client, business, email, uid, 'skipped', 'eBay member message was not counted as an expense');
+    return { imported:0, skipped:1 };
+  }
+
   const saleRows = parseSaleEmail(parsed.from, parsed.subject, parsed.text, /ebay/i.test(parsed.from));
   if (saleRows.length) {
     await recordYahooExpenseImport(client, business, email, uid, 'skipped', 'Marketplace sale message was not counted as an expense');
