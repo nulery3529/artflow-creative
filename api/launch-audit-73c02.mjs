@@ -33,6 +33,18 @@ export default async function handler(req,res){
       return res.status(200).json({ok:true,archived:Number(fixed.rowCount||0),order_ids:fixed.rows.map(r=>r.order_id)});
     }
 
+    if(String(req.query?.action||'')==='clean-poshmark-repair'){
+      const cleaned=await client.query(`
+        DELETE FROM artflow.orders
+         WHERE archived IS NOT TRUE
+           AND platform='Poshmark'
+           AND sync_source LIKE 'gmail_repair_%'
+           AND left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')
+         RETURNING base44_id,order_id,sale_total
+      `);
+      return res.status(200).json({ok:true,removed:Number(cleaned.rowCount||0)});
+    }
+
     const rows=await client.query(`
       SELECT business_id,
              platform,
