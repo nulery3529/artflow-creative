@@ -83,7 +83,12 @@ Art Flow Creative is a business-management app for independent artists.
 
 A reviewer can create an account directly in the app with email and password. Sign in with Google is intentionally not presented as the only third-party login option in the native iOS app. Sign in with Apple appears automatically when the Apple provider is configured.
 
-The iOS subscription screen uses StoreKit for purchases. It supports:
+The iOS app includes native Apple integrations in addition to the hosted business interface:
+- StoreKit 2 subscription purchases and entitlement checks
+- Native iOS share sheet for Sales and Expense CSV exports (Files, AirDrop, Mail, Messages, and other installed share targets)
+- Light native haptic feedback when an export is handed to the iOS share sheet
+
+The iOS subscription screen supports:
 - monthly and yearly auto-renewable subscriptions
 - eligible introductory free trials
 - Restore Purchases
