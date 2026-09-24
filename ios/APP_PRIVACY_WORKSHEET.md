@@ -176,3 +176,49 @@ Verify:
    - whether linked to identity;
    - whether used for tracking.
 7. Publish updated privacy responses if the app’s data practices change later.
+
+
+## Bundled privacy manifest
+
+The iOS target now includes `ArtFlowCreative/PrivacyInfo.xcprivacy`.
+
+It declares:
+- Tracking: **No**
+- Tracking domains: none
+- Required-reason APIs: none currently used
+- Collected data purpose: **App Functionality**
+- Used for tracking: **No** for every declared data type
+- Linked to user: **Yes** for the declared account/business data
+
+Declared collected-data categories:
+- Name
+- Email Address
+- Phone Number
+- Physical Address
+- Other Financial Info
+- Emails or Text Messages
+- Photos or Videos
+- Other User Content
+- User ID
+- Purchase History
+
+These declarations are intentionally conservative and reflect the current app/storefront/inbox functionality.
+
+The App Store Connect privacy questionnaire should match these declarations unless the production data flow changes before submission.
+
+## Native SDK/privacy-manifest audit
+
+The current Xcode target contains the Art Flow Swift source plus Apple system frameworks such as UIKit, WebKit, and StoreKit. No third-party native SDK binary from Apple's “SDKs that require a privacy manifest and signature” list was found in the Xcode target.
+
+The web application uses server/web dependencies separately; re-audit this section if a native analytics, advertising, crash-reporting, authentication, payments, or cross-platform SDK is later added to the iOS target.
+
+## Required-reason API audit
+
+Repository search found no current direct use of:
+- UserDefaults / NSUserDefaults
+- system uptime APIs
+- disk-space APIs
+- file timestamp APIs
+- other currently audited required-reason API calls in the Art Flow native Swift files
+
+The iOS preflight validates that `PrivacyInfo.xcprivacy` exists, is valid XML, and is included in the app target resources.
