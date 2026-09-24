@@ -7,7 +7,7 @@ function safeReturnPath(value = "/") {
   return text;
 }
 
-function htmlPage({ error = "", returnTo = "/", nativeIOS = false } = {}) {
+function htmlPage({ error = "", returnTo = "/dashboard", nativeIOS = false } = {}) {
   const appleConfigured = Boolean(
     String(process.env.APPLE_CLIENT_ID || "").trim()
     && String(process.env.APPLE_TEAM_ID || "").trim()
@@ -84,7 +84,7 @@ export default async function handler(req, res) {
   res.setHeader("Expires", "0");
 
   const url = new URL(req.url, "http://localhost");
-  const returnTo = safeReturnPath(url.searchParams.get("returnTo") || "/");
+  const returnTo = safeReturnPath(url.searchParams.get("returnTo") || "/dashboard");
   const error = String(url.searchParams.get("error") || "");
   const userAgent = String(req.headers["user-agent"] || "");
   const nativeIOS = userAgent.includes("ArtFlowCreativeNative/1.0");
