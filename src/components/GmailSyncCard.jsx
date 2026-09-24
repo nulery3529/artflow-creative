@@ -186,7 +186,7 @@ export default function GmailSyncCard() {
           )}
           <button
             type="button"
-            onClick={() => syncNow()
+            onClick={() => syncNow()}
             disabled={syncing}
             className="w-full h-12 rounded-2xl bg-muted text-foreground font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
           >
