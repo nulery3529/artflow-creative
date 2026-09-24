@@ -651,6 +651,14 @@ export default async function handler(req, res) {
       try {
         const result = await syncYahooMailbox(client, business);
         const expenses = await syncYahooExpenses(client, business);
+        console.log('Yahoo sync summary', JSON.stringify({
+          sales_checked: Number(result.checked || 0),
+          sales_saved: Number(result.saved || 0),
+          expense_checked: Number(expenses.checked || 0),
+          expense_imported: Number(expenses.imported || 0),
+          expense_skipped: Number(expenses.skipped || 0),
+          expense_remaining: Number(expenses.remaining || 0),
+        }));
         return res.status(200).json({
           ok:true,
           ...result,
