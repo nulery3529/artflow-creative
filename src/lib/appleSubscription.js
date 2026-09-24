@@ -38,6 +38,10 @@ export function restoreApplePurchases() {
   return postApplePurchaseMessage("restorePurchases");
 }
 
+export function manageAppleSubscriptions() {
+  return postApplePurchaseMessage("manageSubscriptions");
+}
+
 export function subscribeToAppleSubscription(callback) {
   if (typeof window === "undefined") return () => {};
 
