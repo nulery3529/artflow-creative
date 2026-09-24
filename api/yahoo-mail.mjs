@@ -573,6 +573,17 @@ async function saveYahooConfig(client, business, patch) {
 }
 
 export async function syncYahooExpenses(client, business) {
+  // Remove old Yahoo false positives that were listing/activity notifications,
+  // not actual business expenses. Keep fee-related records intact.
+  await client.query(`
+    DELETE FROM artflow.expenses
+    WHERE business_id=$1
+      AND COALESCE(data->>'source','')='yahoo_expense_sync'
+      AND COALESCE(data->>'status','pending')='pending'
+      AND COALESCE(data->>'description','') !~* '\\b(fee|fees|postage|shipping label|service charge|transaction charge)\\b'
+      AND COALESCE(data->>'description','') ~* '\\b(your listing|listing (created|live|active|ended|renewed|updated|published|removed)|item listed|watcher|listing views?|listing activity|listing performance|offer received|send offer|price drop|sell similar|relist|draft listing|promote your listing)\\b'
+  `, [business.base44_id]).catch(() => {});
+
   const config = yahooConfig(business);
   const email = normalize(config.email);
   if (!config.connected || !email || !config.app_password_enc) {
