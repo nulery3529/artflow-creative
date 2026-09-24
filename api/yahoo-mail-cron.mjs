@@ -13,7 +13,7 @@ function authorized(req) {
   const secret = process.env.CRON_SECRET;
   const provided = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   const vercelSchedule = String(req.headers['x-vercel-cron-schedule'] || '');
-  return secret ? provided === secret : vercelSchedule === "5-59/15 * * * *";
+  return secret ? provided === secret : vercelSchedule === "20 * * * *";
 }
 
 export default async function handler(req, res) {
