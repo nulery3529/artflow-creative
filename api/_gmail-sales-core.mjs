@@ -194,27 +194,54 @@ function depopRows(subject, text) {
   const buyer = clean(subject.match(/sale confirmation for\s+@([^\.\s]+)/i)?.[1] || '');
   const block = text.match(/Order details\s*\n([\s\S]*?)\n\s*Ship to\b/i)?.[1] || '';
   if (!block) return [];
+
   const lines = block.split('\n').map(clean).filter(Boolean);
-  const rows = [];
+  const items = [];
+
   for (let i = 0; i < lines.length - 1; i += 1) {
     if (/^\$[\d,.]+$/.test(lines[i + 1]) && !/^\$/.test(lines[i])) {
       const title = lines[i];
       const price = Number(lines[i + 1].slice(1).replace(/,/g, '')) || 0;
       if (!title || !price) continue;
-      rows.push({
-        platform: 'Depop',
-        product_name: title,
-        quantity: 1,
-        size: sizeFromTitle(title),
-        sale_total: price,
-        unit_price: price,
-        buyer,
-        order_id: '',
-      });
+      items.push({ title, price });
       i += 1;
     }
   }
-  return rows;
+
+  if (!items.length) return [];
+
+  if (items.length > 1) {
+    const subtotalText = text.match(/\bSubtotal\s*\n?\s*\$([\d,.]+)/i)?.[1] || '';
+    const summed = items.reduce((sum, item) => sum + item.price, 0);
+    const saleTotal = Number(String(subtotalText).replace(/,/g, '')) || Number(summed.toFixed(2));
+    const quantity = items.length;
+
+    return [{
+      platform: 'Depop',
+      product_name: `Bundle of ${quantity} items`,
+      quantity,
+      size: 'Other',
+      sale_total: saleTotal,
+      unit_price: Number((saleTotal / quantity).toFixed(2)),
+      buyer,
+      order_id: '',
+      depop_bundle: true,
+      bundle_item_count: quantity,
+      bundle_item_titles: items.map((item) => item.title),
+    }];
+  }
+
+  const item = items[0];
+  return [{
+    platform: 'Depop',
+    product_name: item.title,
+    quantity: 1,
+    size: sizeFromTitle(item.title),
+    sale_total: item.price,
+    unit_price: item.price,
+    buyer,
+    order_id: '',
+  }];
 }
 
 
@@ -577,6 +604,11 @@ async function insertRows(client, businessId, messageId, receivedAt, rows) {
         source_image_parser_version: 1,
         ...(row.source_url ? { source_url: row.source_url } : {}),
         ...(row.image_url ? { image_url: row.image_url } : {}),
+        ...(row.depop_bundle ? {
+          depop_bundle: true,
+          bundle_item_count: row.bundle_item_count || row.quantity || 1,
+          bundle_item_titles: Array.isArray(row.bundle_item_titles) ? row.bundle_item_titles : [],
+        } : {}),
         ...(row.platform === 'Poshmark' ? { poshmark_parser_version: 4 } : {}),
       }),
       row.product_name,
@@ -681,6 +713,30 @@ async function archivePoshmarkCancellation(client, businessId, messageId, subjec
   return Number(result.rowCount || 0);
 }
 
+async function archiveLegacyDepopBundleRows(client, businessId, messageId, rows) {
+  const bundle = rows.length === 1 && rows[0]?.platform === 'Depop' && rows[0]?.depop_bundle;
+  if (!bundle) return 0;
+
+  const result = await client.query(
+    `UPDATE artflow.orders
+        SET archived=true,
+            updated_date=now(),
+            data=COALESCE(data,'{}'::jsonb) || jsonb_build_object(
+              'replaced_by_depop_bundle', true,
+              'bundle_message_id', $2::text
+            )
+      WHERE business_id=$1
+        AND platform='Depop'
+        AND archived IS NOT TRUE
+        AND split_part(COALESCE(source_email_id,''), ':', 1)=$2
+        AND COALESCE(source_email_id,'')<>$2
+      RETURNING base44_id`,
+    [businessId, messageId]
+  );
+
+  return Number(result.rowCount || 0);
+}
+
 // Sync one Gmail mailbox into the given business workspace. Returns the counts
 // the callers aggregate for their status responses. Permission problems are
 // reported via reconnectRequired instead of throwing; other errors bubble up.
@@ -737,6 +793,10 @@ export async function syncGmailAccount(client, business, accessToken, { force = 
              COALESCE(sale_total,0)=0
              OR COALESCE(data->>'poshmark_parser_version','') <> '4'
            )
+         )
+         OR (
+           platform='Depop'
+           AND source_email_id LIKE '%:%'
          )
        )
      ORDER BY 1
@@ -837,13 +897,17 @@ export async function syncGmailAccount(client, business, accessToken, { force = 
           if (sourceUrl) row.source_url = sourceUrl;
         }
 
-        const imageUrl = marketplaceImageUrl(row.platform, html, row.product_name);
-        if (imageUrl) row.image_url = imageUrl;
+        if (!row.depop_bundle) {
+          const imageUrl = marketplaceImageUrl(row.platform, html, row.product_name);
+          if (imageUrl) row.image_url = imageUrl;
+        }
       }
       result.parsed += rows.length;
       const receivedAt = Number(message?.internalDate)
         ? new Date(Number(message.internalDate)).toISOString()
         : headerValue(message, 'Date') || new Date().toISOString();
+
+      await archiveLegacyDepopBundleRows(client, business.base44_id, messageId, rows);
       const saved = await insertRows(client, business.base44_id, messageId, receivedAt, rows);
       result.imported += saved.length;
     }
