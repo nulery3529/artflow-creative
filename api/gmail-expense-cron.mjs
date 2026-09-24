@@ -12,15 +12,11 @@ import { syncExpenseAccount } from './gmail-expense-sync.mjs';
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (!['GET', 'POST'].includes(req.method)) return res.status(405).json({ error: 'Method not allowed' });
-
-  // Vercel Cron includes Authorization: Bearer $CRON_SECRET when CRON_SECRET
-  // is configured. Keep the endpoint protected whenever that secret exists.
   const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const url = new URL(req.url, 'http://localhost');
-    const provided = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '') || url.searchParams.get('key') || '';
-    if (provided !== secret) return res.status(401).json({ error: 'Unauthorized' });
-  }
+  const provided = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  const vercelSchedule = String(req.headers['x-vercel-cron-schedule'] || '');
+  const authorized = secret ? provided === secret : vercelSchedule === "*/15 * * * *";
+  if (!authorized) return res.status(401).json({ error: 'Unauthorized' });
 
   const client = await pool.connect();
   const summary = {
