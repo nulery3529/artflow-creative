@@ -200,6 +200,51 @@ async function directGoogleFormSignIn(req, res) {
   }
 }
 
+
+async function directAppleFormSignIn(req, res) {
+  try {
+    const url = new URL(req.url, "http://localhost");
+    const returnTo = safeReturnPath(url.searchParams.get("returnTo") || "/");
+    const response = await auth.api.signInSocial({
+      body: {
+        provider: "apple",
+        callbackURL: `https://artflowcreative.com${returnTo}`,
+        errorCallbackURL: "https://artflowcreative.com/login?error=apple_sign_in_failed",
+        disableRedirect: false,
+      },
+      headers: fromNodeHeaders(req.headers),
+      asResponse: true,
+    });
+
+    response.headers.forEach((value, key) => {
+      if (key.toLowerCase() !== "set-cookie" && key.toLowerCase() !== "content-length") {
+        res.setHeader(key, value);
+      }
+    });
+    const setCookies = typeof response.headers.getSetCookie === "function"
+      ? response.headers.getSetCookie()
+      : [];
+    if (setCookies.length) res.setHeader("set-cookie", setCookies);
+
+    const payload = await response.clone().json().catch(() => null);
+    const target = response.headers.get("location") || payload?.url || "";
+    if (target) {
+      res.statusCode = 303;
+      res.setHeader("Location", target);
+      return res.end();
+    }
+
+    res.statusCode = response.status;
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return res.end(buffer);
+  } catch (error) {
+    console.error("Art Flow Apple form sign-in failed", error?.stack || error?.message || error);
+    res.statusCode = 303;
+    res.setHeader("Location", "/login?error=apple_sign_in_failed");
+    return res.end();
+  }
+}
+
 export default async function handler(req, res) {
   let authPath = "";
   try {
@@ -233,6 +278,9 @@ export default async function handler(req, res) {
   }
   if (req.method === "GET" && authPath === "google-login") {
     return directGoogleFormSignIn(req, res);
+  }
+  if (req.method === "GET" && authPath === "apple-login") {
+    return directAppleFormSignIn(req, res);
   }
   return nodeHandler(req, res);
 }
