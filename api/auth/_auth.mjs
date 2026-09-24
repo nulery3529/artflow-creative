@@ -149,7 +149,7 @@ export const auth = betterAuth({
   account: {
     accountLinking: {
       enabled: true,
-      trustedProviders: ["email-password", "google"],
+      trustedProviders: ["email-password", "google", "apple"],
       // Google is used as a linked Gmail inbox connection, not as the primary
       // Art Flow login. Allow a user to attach more than one Gmail address.
       allowDifferentEmails: true,
