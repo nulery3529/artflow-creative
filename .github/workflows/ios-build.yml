@@ -49,6 +49,8 @@ jobs:
           fi
 
           /usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" "$PLIST" | grep -Fx "Art Flow Creative"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$PLIST" | grep -Fx '$(MARKETING_VERSION)'
+          /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$PLIST" | grep -Fx '$(CURRENT_PROJECT_VERSION)'
           /usr/libexec/PlistBuddy -c "Print :ITSAppUsesNonExemptEncryption" "$PLIST" | grep -Fx "false"
           /usr/libexec/PlistBuddy -c "Print :NSCameraUsageDescription" "$PLIST" | grep -F "product or inventory photo"
           /usr/libexec/PlistBuddy -c "Print :NSPhotoLibraryUsageDescription" "$PLIST" | grep -F "product or inventory images"
