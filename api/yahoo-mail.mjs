@@ -24,7 +24,8 @@ const pool = new Pool({
 const YAHOO_HOST = 'imap.mail.yahoo.com';
 const YAHOO_PORT = 993;
 const MAX_MESSAGES_PER_RUN = 300;
-const YAHOO_EXPENSE_PARSER_VERSION = 6;
+const YAHOO_EXPENSE_PARSER_VERSION = 7;
+let yahooExpenseDiagnosticCount = 0;
 let yahooNoTotalDiagnosticCount = 0;
 
 function imapQuote(value='') {
@@ -426,6 +427,15 @@ async function insertYahooExpense(client, business, email, uid, parsed) {
     amount = Number(String(ebayAmount).replace(/,/g, '')) || 0;
   }
   if (!amount) {
+    if (yahooExpenseDiagnosticCount < 8 && /ebay/i.test(parsed.from)) {
+      yahooExpenseDiagnosticCount += 1;
+      console.log('Yahoo eBay amount diagnostic', JSON.stringify({
+        uid,
+        subject: parsed.subject,
+        from: parsed.from,
+        sample: String(parsed.text || '').slice(0, 1200),
+      }));
+    }
     await recordYahooExpenseImport(client, business, email, uid, 'skipped', 'Yahoo receipt did not contain a recognizable purchase total');
     return { imported:0, skipped:1 };
   }
