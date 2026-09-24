@@ -69,13 +69,18 @@ final class ArtFlowIAPBridge: NSObject, WKScriptMessageHandler {
     private func sendProducts() async {
         do {
             let loaded = try await loadProducts()
-            let payload = loaded.map { product in
-                [
+            let payload: [[String: Any]] = loaded.map { product in
+                var item: [String: Any] = [
                     "id": product.id,
                     "displayName": product.displayName,
                     "displayPrice": product.displayPrice,
                     "period": periodString(product.subscription?.subscriptionPeriod)
                 ]
+                if let offer = product.subscription?.introductoryOffer {
+                    item["introPeriod"] = periodString(offer.period)
+                    item["introPaymentMode"] = paymentModeString(offer.paymentMode)
+                }
+                return item
             }
             await send(type: "products", extra: ["products": payload])
         } catch {
@@ -166,6 +171,15 @@ final class ArtFlowIAPBridge: NSObject, WKScriptMessageHandler {
         @unknown default: unit = "period"
         }
         return period.value == 1 ? unit : "\(period.value) \(unit)s"
+    }
+
+    private func paymentModeString(_ mode: Product.SubscriptionOffer.PaymentMode) -> String {
+        switch mode {
+        case .freeTrial: return "freeTrial"
+        case .payAsYouGo: return "payAsYouGo"
+        case .payUpFront: return "payUpFront"
+        @unknown default: return "unknown"
+        }
     }
 
     private func send(type: String, extra: [String: Any] = [:]) async {
