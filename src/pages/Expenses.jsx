@@ -112,12 +112,15 @@ export default function Expenses() {
 
       await reloadExpenses();
 
+      const yahooChecked = Number(yahooData?.expenses?.checked || 0);
       const yahooImported = Number(yahooData?.expenses?.imported || 0);
+      const yahooSkipped = Number(yahooData?.expenses?.skipped || 0);
+      const yahooMessage = yahooResponse.ok
+        ? `Yahoo checked ${yahooChecked} message${yahooChecked === 1 ? "" : "s"} · ${yahooImported} imported · ${yahooSkipped} skipped`
+        : "";
       const messages = [
         gmailResponse.ok ? gmailData?.message : "",
-        yahooImported > 0
-          ? `${yahooImported} Yahoo expense${yahooImported === 1 ? "" : "s"} added to review`
-          : "",
+        yahooMessage,
       ].filter(Boolean);
 
       if (messages.length) toast.success(messages.join(" · "));
