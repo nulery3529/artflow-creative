@@ -14,7 +14,7 @@ export default function TermsOfService() {
         <div className="mb-8">
           <Link to="/login" className="text-sm text-primary hover:underline">Art Flow Creative</Link>
           <h1 className="mt-3 text-3xl font-bold tracking-tight">Terms of Service</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Last updated: September 11, 2026</p>
+          <p className="mt-2 text-sm text-muted-foreground">Last updated: September 24, 2026</p>
         </div>
 
         <div className="space-y-7 text-sm leading-7">
@@ -43,9 +43,12 @@ export default function TermsOfService() {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold mb-2">Fees</h2>
+            <h2 className="text-xl font-semibold mb-2">Subscriptions and fees</h2>
             <p>
-              Art Flow Creative is currently provided without charge. Paid plans or fees may be introduced later; if so, you will be informed before any charge applies.
+              Some Art Flow Creative features require a paid subscription. The available plan, localized price, billing period, and any eligible introductory offer are shown before purchase. On iOS, subscriptions are purchased through Apple's in-app purchase system and are charged to your Apple Account.
+            </p>
+            <p className="mt-2">
+              Auto-renewable subscriptions continue until canceled. If an introductory free trial is offered and you are eligible, the subscription converts to the displayed paid plan when the trial ends unless you cancel before renewal. You can manage or cancel an Apple subscription in your Apple Account subscription settings. Restoring an eligible prior purchase is available from the Art Flow subscription screen.
             </p>
           </section>
 
