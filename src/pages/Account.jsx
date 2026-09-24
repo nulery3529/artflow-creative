@@ -40,7 +40,11 @@ export default function Account() {
       if (result?.error) throw new Error(result.error.message || "Could not delete account");
       window.location.replace("/register");
     } catch (e) {
-      toast.error("Could not delete account", { description: e.message });
+      toast({
+        title: "Could not delete account",
+        description: e?.message || "Please try again.",
+        variant: "destructive",
+      });
       setDeleting(false);
     }
   };
