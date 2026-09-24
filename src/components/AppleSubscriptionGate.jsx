@@ -82,6 +82,9 @@ export default function AppleSubscriptionGate({ children }) {
 
   if (!appleApp) return children;
 
+  const path = typeof window !== "undefined" ? window.location.pathname.replace(/\/+$/, "") || "/" : "/";
+  if (path === "/account") return children;
+
   if (state.loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
