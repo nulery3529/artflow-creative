@@ -159,7 +159,12 @@ The codebase is prepared, but these items must be completed in Apple-controlled 
 The repository includes:
 
 - **Launch QA:** install, tests, lint, and production web build on Node 24.
-- **iOS Build Check:** Release compilation for both iOS Simulator and a generic iOS device target using Xcode.
+- **iOS Build Check:** Release compilation for both iOS Simulator and a generic iOS device target on GitHub's `macos-26` runner.
+
+Latest verified submission-valid native build:
+- Xcode 26.6 (build 17F113)
+- iOS Simulator Release build: passed
+- generic iOS device Release build: passed
 
 Both gates were passing when this submission pack was prepared.
 
