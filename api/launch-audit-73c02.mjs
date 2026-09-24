@@ -69,6 +69,45 @@ export default async function handler(req,res){
       return res.status(200).json({ok:true,removed:Number(cleaned.rowCount||0),by_platform:byPlatform});
     }
 
+    if(String(req.query?.action||'')==='clean-unique-sheet-gmail-dupes'){
+      const cleaned=await client.query(`
+        WITH sheet_keys AS (
+          SELECT business_id,platform,sale_date,round(COALESCE(sale_total,0)::numeric,2) AS sale_total,
+                 COALESCE(quantity,1) AS quantity,count(*)::int AS c
+            FROM artflow.orders
+           WHERE archived IS NOT TRUE
+             AND sync_source='google_sheet_master'
+             AND left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')
+           GROUP BY business_id,platform,sale_date,round(COALESCE(sale_total,0)::numeric,2),COALESCE(quantity,1)
+        ), gmail_keys AS (
+          SELECT business_id,platform,sale_date,round(COALESCE(sale_total,0)::numeric,2) AS sale_total,
+                 COALESCE(quantity,1) AS quantity,count(*)::int AS c
+            FROM artflow.orders
+           WHERE archived IS NOT TRUE
+             AND sync_source LIKE 'gmail%'
+             AND left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY')
+           GROUP BY business_id,platform,sale_date,round(COALESCE(sale_total,0)::numeric,2),COALESCE(quantity,1)
+        ), unique_keys AS (
+          SELECT s.business_id,s.platform,s.sale_date,s.sale_total,s.quantity
+            FROM sheet_keys s
+            JOIN gmail_keys g USING (business_id,platform,sale_date,sale_total,quantity)
+           WHERE s.c=1 AND g.c=1
+        )
+        DELETE FROM artflow.orders o
+         USING unique_keys k
+         WHERE o.business_id=k.business_id
+           AND o.platform=k.platform
+           AND o.sale_date=k.sale_date
+           AND round(COALESCE(o.sale_total,0)::numeric,2)=k.sale_total
+           AND COALESCE(o.quantity,1)=k.quantity
+           AND o.sync_source='google_sheet_master'
+         RETURNING o.platform,o.base44_id
+      `);
+      const byPlatform={};
+      for(const row of cleaned.rows) byPlatform[row.platform]=(byPlatform[row.platform]||0)+1;
+      return res.status(200).json({ok:true,removed:Number(cleaned.rowCount||0),by_platform:byPlatform});
+    }
+
     const rows=await client.query(`
       SELECT business_id,
              platform,
