@@ -14,18 +14,69 @@ import SyncStatus from "@/components/SyncStatus";
 import { PLATFORM_TONE, displayPlatform, displayProductName, orderSourceUrl } from "@/lib/platforms";
 import { useMarketplacePreferences } from "@/lib/useMarketplacePreferences";
 import { toast } from "sonner";
+import { storeAdmin } from "@/lib/storeClient";
 
 const hasRecordedSaleAmount = (order) => {
   const sale = Number(order?.sale_total);
   return Number.isFinite(sale) && sale > 0;
 };
 
-const imageMatchKey = (value = "") =>
+const normalizeTitle = (value = "") =>
   String(value || "")
     .toLowerCase()
-    .replace(/^\s*[0-9]+(?:\.[0-9]+)?\s*x\s*[0-9]+(?:\.[0-9]+)?\s*[-–—|:]?\s*/i, "")
-    .replace(/\b(of|the|a|an)\b/gi, "")
-    .replace(/[^a-z0-9]+/g, "");
+    .replace(/[×✕]/g, "x")
+    .replace(/[“”‘’]/g, "")
+    .replace(/\.\.\.+$/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+const imageMatchKey = (value = "") =>
+  normalizeTitle(value)
+    .replace(/\b(of|the|a|an)\b/g, " ")
+    .replace(/\s+/g, "")
+    .trim();
+
+const MATCH_STOP_WORDS = new Set([
+  "the","and","with","for","from","this","that","art","print","prints","framed","frame",
+  "black","white","color","colour","colorful","other","item","items","bundle","set"
+]);
+
+const matchTokens = (value = "") =>
+  normalizeTitle(value)
+    .split(/\s+/)
+    .filter((token) => token.length >= 2 && !MATCH_STOP_WORDS.has(token));
+
+const imageMatchScore = (sourceTitle, candidateTitle) => {
+  const sourceKey = imageMatchKey(sourceTitle);
+  const candidateKey = imageMatchKey(candidateTitle);
+  if (!sourceKey || !candidateKey) return 0;
+  if (sourceKey === candidateKey) return 100;
+  if (
+    sourceKey.length >= 8 &&
+    candidateKey.length >= 8 &&
+    (sourceKey.includes(candidateKey) || candidateKey.includes(sourceKey))
+  ) return 90;
+
+  const sourceTokens = matchTokens(sourceTitle);
+  const candidateTokens = matchTokens(candidateTitle);
+  if (!sourceTokens.length || !candidateTokens.length) return 0;
+
+  let shared = 0;
+  for (const source of sourceTokens) {
+    if (
+      candidateTokens.some((candidate) =>
+        source === candidate ||
+        (source.length >= 4 && candidate.length >= 4 &&
+          (source.startsWith(candidate) || candidate.startsWith(source)))
+      )
+    ) shared += 1;
+  }
+
+  const coverage = shared / Math.min(sourceTokens.length, candidateTokens.length);
+  if (shared >= 3 && coverage >= 0.5) return 80 + coverage * 10;
+  if (shared >= 2 && coverage >= 0.6) return 70 + coverage * 10;
+  return 0;
+};
 
 const directImageUrl = (item = {}) =>
   item?.image_url ||
@@ -67,6 +118,7 @@ export default function Orders() {
   const activeOrders = orders;
   const { records: inventoryCosts } = useEntity("InventoryCost", "size");
   const [marketplaceListings, setMarketplaceListings] = useState([]);
+  const [storeProducts, setStoreProducts] = useState([]);
 
   const loadMarketplaceListings = React.useCallback(async () => {
     try {
@@ -83,8 +135,18 @@ export default function Orders() {
     }
   }, []);
 
+  const loadStoreProducts = React.useCallback(async () => {
+    try {
+      const data = await storeAdmin.products();
+      setStoreProducts(Array.isArray(data?.products) ? data.products : []);
+    } catch (error) {
+      console.error("Failed to load saved product images:", error);
+      setStoreProducts([]);
+    }
+  }, []);
+
   const refresh = async () => {
-    await Promise.all([reloadOrders(), loadMarketplaceListings()]);
+    await Promise.all([reloadOrders(), loadMarketplaceListings(), loadStoreProducts()]);
   };
   const { pathname, search: locationSearch } = useLocation();
   const navigate = useNavigate();
@@ -100,8 +162,9 @@ export default function Orders() {
       setSearch(new URLSearchParams(locationSearch).get("search") || "");
       reloadOrders();
       loadMarketplaceListings();
+      loadStoreProducts();
     }
-  }, [pathname, locationSearch, reloadOrders, loadMarketplaceListings]);
+  }, [pathname, locationSearch, reloadOrders, loadMarketplaceListings, loadStoreProducts]);
   const { isOpen: formOpen, open: openForm, close: closeForm } = useModalRoute();
   const [importingEmail, setImportingEmail] = useState(false);
 
@@ -164,8 +227,7 @@ export default function Orders() {
 
   const imageSources = useMemo(() => {
     const listingByUrl = new Map();
-    const listingByKey = new Map();
-    const inventoryByKey = new Map();
+    const candidates = [];
 
     for (const listing of marketplaceListings) {
       const image = directImageUrl(listing);
@@ -174,18 +236,38 @@ export default function Orders() {
       const url = String(listing?.listing_url || "").trim();
       if (url) listingByUrl.set(url, image);
 
-      const key = imageMatchKey(listing?.title);
-      if (key && !listingByKey.has(key)) listingByKey.set(key, image);
+      candidates.push({
+        title: listing?.title || "",
+        image,
+        platform: displayPlatform(listing?.platform),
+        priority: 3,
+      });
     }
 
     for (const item of inventoryCosts) {
       const image = directImageUrl(item);
-      const key = imageMatchKey(item?.name || item?.title);
-      if (image && key && !inventoryByKey.has(key)) inventoryByKey.set(key, image);
+      if (!image) continue;
+      candidates.push({
+        title: item?.name || item?.title || "",
+        image,
+        platform: "",
+        priority: 2,
+      });
     }
 
-    return { listingByUrl, listingByKey, inventoryByKey };
-  }, [marketplaceListings, inventoryCosts]);
+    for (const product of storeProducts) {
+      const image = Array.isArray(product?.images) ? product.images.find(Boolean) : "";
+      if (!image) continue;
+      candidates.push({
+        title: product?.name || "",
+        image,
+        platform: "",
+        priority: 4,
+      });
+    }
+
+    return { listingByUrl, candidates };
+  }, [marketplaceListings, inventoryCosts, storeProducts]);
 
   const imageForOrder = React.useCallback(
     (order) => {
@@ -197,24 +279,23 @@ export default function Orders() {
         return imageSources.listingByUrl.get(rawSource);
       }
 
-      const key = imageMatchKey(order?.product_name);
-      if (!key) return "";
+      const orderTitle = order?.product_name || "";
+      const platform = displayPlatform(order?.platform);
+      let best = null;
 
-      if (imageSources.listingByKey.has(key)) return imageSources.listingByKey.get(key);
-      if (imageSources.inventoryByKey.has(key)) return imageSources.inventoryByKey.get(key);
+      for (const candidate of imageSources.candidates) {
+        let score = imageMatchScore(orderTitle, candidate.title);
+        if (!score) continue;
 
-      for (const [candidate, image] of imageSources.listingByKey.entries()) {
-        if (key.length >= 8 && candidate.length >= 8 && (key.includes(candidate) || candidate.includes(key))) {
-          return image;
+        if (candidate.platform && candidate.platform === platform) score += 8;
+        score += candidate.priority || 0;
+
+        if (!best || score > best.score) {
+          best = { score, image: candidate.image };
         }
       }
-      for (const [candidate, image] of imageSources.inventoryByKey.entries()) {
-        if (key.length >= 8 && candidate.length >= 8 && (key.includes(candidate) || candidate.includes(key))) {
-          return image;
-        }
-      }
 
-      return "";
+      return best?.score >= 74 ? best.image : "";
     },
     [imageSources]
   );
