@@ -327,6 +327,13 @@ async function listOrders(client, session) {
        buyer,
        source_email_id,
        data->>'source_url' AS source_url,
+       COALESCE(
+         NULLIF(data->>'image_url',''),
+         NULLIF(data->>'product_image_url',''),
+         NULLIF(data->>'marketplace_image_url',''),
+         NULLIF(data->>'thumbnail_url',''),
+         NULLIF(data->>'photo_url','')
+       ) AS image_url,
        base_item_cost,
        paper_ink_cost,
        packaging_cost,
