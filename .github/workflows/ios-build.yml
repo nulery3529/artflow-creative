@@ -33,3 +33,15 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO \
             build
+
+      - name: Build Art Flow Creative for iOS device
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project ios/ArtFlowCreative.xcodeproj \
+            -scheme ArtFlowCreative \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
