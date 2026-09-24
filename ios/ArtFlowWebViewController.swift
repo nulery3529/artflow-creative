@@ -212,7 +212,7 @@ final class ArtFlowWebViewController: UIViewController {
               body: JSON.stringify({
                 provider: 'apple',
                 idToken: { token: (tokenLiteral) },
-                callbackURL: '/'
+                callbackURL: '/dashboard'
               })
             });
             const payload = await response.json().catch(() => ({}));
@@ -220,7 +220,7 @@ final class ArtFlowWebViewController: UIViewController {
               window.location.replace('/login?error=apple_sign_in_failed');
               return;
             }
-            window.location.replace('/');
+            window.location.replace('/dashboard');
           } catch (_) {
             window.location.replace('/login?error=apple_sign_in_failed');
           }
