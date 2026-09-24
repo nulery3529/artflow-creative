@@ -24,7 +24,7 @@ const pool = new Pool({
 const YAHOO_HOST = 'imap.mail.yahoo.com';
 const YAHOO_PORT = 993;
 const MAX_MESSAGES_PER_RUN = 300;
-const YAHOO_EXPENSE_PARSER_VERSION = 9;
+const YAHOO_EXPENSE_PARSER_VERSION = 10;
 let yahooExpenseDiagnosticCount = 0;
 let yahooNoTotalDiagnosticCount = 0;
 
@@ -288,31 +288,30 @@ function looksLikeYahooExpense(parsed={}) {
   const from = normalize(parsed.from || '');
   const haystack = `${subject}\n${text}`;
 
-  // Messages sent through eBay's member-to-member relay are conversations,
-  // not transaction receipts. They often say "purchase" or "order" but do not
-  // contain the actual buyer payment total.
+  const listingNoise =
+    /\b(?:your listing|listing (?:created|live|active|ended|renewed|updated|published|removed)|item listed|listed item|watcher|watching|listing views?|listing activity|listing performance|offer received|send offer|price drop|sell similar|relist|draft listing|promote your listing)\b/i.test(haystack);
+  if (listingNoise) return false;
+
+  // Messages sent through eBay's member-to-member relay are conversations.
   if (/@members\.ebay\.[a-z.]+\b/i.test(from)) return false;
 
-  // eBay buyer receipts/order confirmations and seller-cost notices.
   if (/ebay/.test(from)) {
-    return /\b(order (?:confirmed|confirmation|details|summary|receipt)|your order|thanks for your (?:order|purchase)|thank you for your (?:order|purchase)|purchase (?:confirmation|receipt)|payment (?:confirmation|receipt|sent)|you paid|amount paid|total paid|seller fee|selling fee|transaction fee|promoted listing|ad fee|service fee|shipping label|postage|shipping charge)\b/i.test(haystack);
+    const buyerReceipt =
+      /\b(?:your order is confirmed|order confirmation|order receipt|purchase confirmation|purchase receipt|payment confirmation|payment receipt|you paid|amount paid|total paid|thanks for your order|thank you for your purchase|thank you for your order)\b/i.test(haystack);
+    const businessCharge =
+      /\b(?:seller fee|selling fee|transaction fee|service fee|ad fee|promoted listing fee|shipping label|postage|shipping charge)\b/i.test(haystack);
+    return buyerReceipt || businessCharge;
   }
 
-  // Other Yahoo-received business receipts still use the broader receipt terms.
-  return /\b(receipt|invoice|order confirmation|purchase confirmation|payment receipt|subscription renewal|shipping label|postage|service fee)\b/i.test(haystack);
+  return /\b(?:receipt|invoice|order confirmation|purchase confirmation|payment receipt|subscription renewal|shipping label|postage|service fee)\b/i.test(haystack);
 }
 
 const YAHOO_EXPENSE_TERMS = [
   'artflow expense',
   'receipt',
   'invoice',
-  'order',
-  'purchase',
   'order confirmation',
   'order confirmed',
-  'order details',
-  'order summary',
-  'your order',
   'we received your order',
   'thanks for your purchase',
   'thank you for your purchase',
@@ -330,7 +329,7 @@ const YAHOO_EXPENSE_TERMS = [
   'seller fee',
   'selling fee',
   'transaction fee',
-  'promoted listing',
+  'promoted listing fee',
   'ad fee',
   'service fee',
 ];
@@ -406,6 +405,13 @@ async function recordYahooExpenseImport(client, business, email, uid, status, de
 
 async function insertYahooExpense(client, business, email, uid, parsed) {
   const messageKey = `yahoo:${email}:${uid}`;
+
+  const listingNoise =
+    /\b(?:your listing|listing (?:created|live|active|ended|renewed|updated|published|removed)|item listed|listed item|watcher|watching|listing views?|listing activity|listing performance|offer received|send offer|price drop|sell similar|relist|draft listing|promote your listing)\b/i.test(`${parsed.subject || ''}\n${parsed.text || ''}`);
+  if (listingNoise) {
+    await recordYahooExpenseImport(client, business, email, uid, 'skipped', 'Marketplace listing/activity message was not counted as an expense');
+    return { imported:0, skipped:1 };
+  }
 
   if (/@members\.ebay\.[a-z.]+\b/i.test(String(parsed.from || ''))) {
     await recordYahooExpenseImport(client, business, email, uid, 'skipped', 'eBay member message was not counted as an expense');
