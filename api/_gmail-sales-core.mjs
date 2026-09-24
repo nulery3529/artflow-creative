@@ -470,11 +470,12 @@ export async function googleJson(accessToken, url) {
   return response.json();
 }
 
+const GMAIL_YEAR_START = `${new Date().getFullYear()}/01/01`;
 export const GMAIL_QUERIES = [
-  'from:no-reply@vinted.com subject:"You sold an item on Vinted"',
-  'from:poshmark.com "just sold to" "on Poshmark"',
-  'from:poshmark.com subject:"Please do not ship:" "was canceled"',
-  '{from:alerts.depop.com from:ohhey.depop.com} subject:"Sale confirmation for"',
+  `from:no-reply@vinted.com subject:"You sold an item on Vinted" after:${GMAIL_YEAR_START}`,
+  `from:poshmark.com "just sold to" "on Poshmark" after:${GMAIL_YEAR_START}`,
+  `from:poshmark.com subject:"Please do not ship:" "was canceled" after:${GMAIL_YEAR_START}`,
+  `{from:alerts.depop.com from:ohhey.depop.com} subject:"Sale confirmation for" after:${GMAIL_YEAR_START}`,
 ];
 
 async function listMessageIds(accessToken) {
@@ -636,7 +637,7 @@ async function archivePoshmarkCancellation(client, businessId, messageId, subjec
 // the callers aggregate for their status responses. Permission problems are
 // reported via reconnectRequired instead of throwing; other errors bubble up.
 export async function syncGmailAccount(client, business, accessToken) {
-  const result = { matched: 0, scanned: 0, parsed: 0, imported: 0, canceled: 0, reconnectRequired: false, gmailAddress: '' };
+  const result = { matched: 0, scanned: 0, parsed: 0, imported: 0, canceled: 0, reconnectRequired: false, throttled: false, gmailAddress: '' };
   if (!business?.base44_id) return result;
 
   let gmailAddress = '';
@@ -652,6 +653,15 @@ export async function syncGmailAccount(client, business, accessToken) {
   }
   if (!gmailAddress) return result;
   result.gmailAddress = gmailAddress;
+
+  const syncState = business?.data?.gmail_sales_sync || {};
+  const previous = syncState?.[gmailAddress] || {};
+  const lastAt = previous?.last_at ? new Date(previous.last_at).getTime() : 0;
+  if (lastAt && Date.now() - lastAt < 5 * 60 * 1000) {
+    result.matched = 1;
+    result.throttled = true;
+    return result;
+  }
 
   const allowedEmails = approvedSalesEmails(business);
   if (!allowedEmails.has(gmailAddress)) {
@@ -725,7 +735,16 @@ export async function syncGmailAccount(client, business, accessToken) {
   result.scanned = pendingMessageIds.length;
   for (let index = 0; index < pendingMessageIds.length; index += 10) {
     const batchIds = pendingMessageIds.slice(index, index + 10);
-    const messages = await Promise.all(batchIds.map((messageId) => readMessage(accessToken, messageId)));
+    let messages = [];
+    try {
+      messages = await Promise.all(batchIds.map((messageId) => readMessage(accessToken, messageId)));
+    } catch (error) {
+      if (error?.code === 'GMAIL_RATE_LIMIT') {
+        result.throttled = true;
+        break;
+      }
+      throw error;
+    }
     for (let offset = 0; offset < messages.length; offset += 1) {
       const messageId = batchIds[offset];
       const message = messages[offset];
@@ -772,6 +791,26 @@ export async function syncGmailAccount(client, business, accessToken) {
       result.imported += saved.length;
     }
   }
+
+  const nextBusinessData = {
+    ...(business.data || {}),
+    gmail_sales_sync: {
+      ...((business.data || {}).gmail_sales_sync || {}),
+      [gmailAddress]: {
+        last_at: new Date().toISOString(),
+        last_scanned: result.scanned,
+        last_parsed: result.parsed,
+        last_imported: result.imported,
+        last_canceled: result.canceled,
+      },
+    },
+  };
+  await client.query(
+    `UPDATE artflow.businesses SET data=$2::jsonb, updated_date=now() WHERE base44_id=$1`,
+    [business.base44_id, JSON.stringify(nextBusinessData)]
+  ).catch(() => {});
+  business.data = nextBusinessData;
+
   return result;
 }
 
