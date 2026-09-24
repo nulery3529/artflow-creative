@@ -88,7 +88,15 @@ function htmlToText(value='') {
     .replace(/&amp;/gi, '&')
     .replace(/&quot;/gi, '"')
     .replace(/&#39;|&apos;/gi, "'")
-    .replace(/&#36;|&#x24;|&dollar;/gi, '
+    .replace(/&#36;|&#x24;|&dollar;/gi, '$')
+    .replace(/&#(\d+);/g, (_, code) => {
+      try { return String.fromCodePoint(Number(code)); } catch { return ' '; }
+    })
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => {
+      try { return String.fromCodePoint(parseInt(code, 16)); } catch { return ' '; }
+    })
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
     .replace(/[ \t]+/g, ' ')
     .replace(/\n[ \t]+/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
