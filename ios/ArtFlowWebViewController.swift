@@ -4,6 +4,11 @@ import WebKit
 final class ArtFlowWebViewController: UIViewController {
     private var webView: WKWebView!
     private var iapBridge: ArtFlowIAPBridge?
+    private let loadingIndicator = UIActivityIndicatorView(style: .large)
+    private let errorView = UIView()
+    private let errorTitleLabel = UILabel()
+    private let errorMessageLabel = UILabel()
+    private let retryButton = UIButton(type: .system)
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -34,7 +39,9 @@ final class ArtFlowWebViewController: UIViewController {
         refreshControl.addTarget(self, action: #selector(refreshWebView), for: .valueChanged)
         webView.scrollView.refreshControl = refreshControl
 
+        view.backgroundColor = UIColor(red: 0.078, green: 0.059, blue: 0.090, alpha: 1)
         view.addSubview(webView)
+        configureNativeStateViews()
 
         NSLayoutConstraint.activate([
             webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
@@ -48,11 +55,92 @@ final class ArtFlowWebViewController: UIViewController {
         contentController.add(iapBridge!, name: "artflowIAP")
 
         guard let url = URL(string: "https://artflowcreative.com") else { return }
+        loadingIndicator.startAnimating()
         webView.load(URLRequest(url: url))
     }
 
+    private func configureNativeStateViews() {
+        loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
+        loadingIndicator.color = .white
+        loadingIndicator.hidesWhenStopped = true
+        view.addSubview(loadingIndicator)
+
+        errorView.translatesAutoresizingMaskIntoConstraints = false
+        errorView.backgroundColor = UIColor(red: 0.078, green: 0.059, blue: 0.090, alpha: 1)
+        errorView.isHidden = true
+
+        errorTitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        errorTitleLabel.text = "Can’t connect to Art Flow"
+        errorTitleLabel.textColor = .white
+        errorTitleLabel.font = .systemFont(ofSize: 24, weight: .bold)
+        errorTitleLabel.textAlignment = .center
+        errorTitleLabel.numberOfLines = 0
+
+        errorMessageLabel.translatesAutoresizingMaskIntoConstraints = false
+        errorMessageLabel.text = "Check your internet connection and try again."
+        errorMessageLabel.textColor = UIColor.white.withAlphaComponent(0.72)
+        errorMessageLabel.font = .systemFont(ofSize: 16)
+        errorMessageLabel.textAlignment = .center
+        errorMessageLabel.numberOfLines = 0
+
+        retryButton.translatesAutoresizingMaskIntoConstraints = false
+        retryButton.setTitle("Try Again", for: .normal)
+        retryButton.setTitleColor(.white, for: .normal)
+        retryButton.titleLabel?.font = .systemFont(ofSize: 17, weight: .semibold)
+        retryButton.backgroundColor = UIColor(red: 0.35, green: 0.18, blue: 0.43, alpha: 1)
+        retryButton.layer.cornerRadius = 16
+        retryButton.contentEdgeInsets = UIEdgeInsets(top: 13, left: 26, bottom: 13, right: 26)
+        retryButton.addTarget(self, action: #selector(retryLoad), for: .touchUpInside)
+
+        errorView.addSubview(errorTitleLabel)
+        errorView.addSubview(errorMessageLabel)
+        errorView.addSubview(retryButton)
+        view.addSubview(errorView)
+
+        NSLayoutConstraint.activate([
+            loadingIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+
+            errorView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            errorView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            errorView.topAnchor.constraint(equalTo: view.topAnchor),
+            errorView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
+            errorTitleLabel.leadingAnchor.constraint(greaterThanOrEqualTo: errorView.leadingAnchor, constant: 28),
+            errorTitleLabel.trailingAnchor.constraint(lessThanOrEqualTo: errorView.trailingAnchor, constant: -28),
+            errorTitleLabel.centerXAnchor.constraint(equalTo: errorView.centerXAnchor),
+            errorTitleLabel.centerYAnchor.constraint(equalTo: errorView.centerYAnchor, constant: -54),
+
+            errorMessageLabel.topAnchor.constraint(equalTo: errorTitleLabel.bottomAnchor, constant: 14),
+            errorMessageLabel.leadingAnchor.constraint(equalTo: errorView.leadingAnchor, constant: 36),
+            errorMessageLabel.trailingAnchor.constraint(equalTo: errorView.trailingAnchor, constant: -36),
+
+            retryButton.topAnchor.constraint(equalTo: errorMessageLabel.bottomAnchor, constant: 24),
+            retryButton.centerXAnchor.constraint(equalTo: errorView.centerXAnchor),
+        ])
+    }
+
     @objc private func refreshWebView() {
+        errorView.isHidden = true
         webView.reload()
+    }
+
+    @objc private func retryLoad() {
+        errorView.isHidden = true
+        loadingIndicator.startAnimating()
+        guard let url = URL(string: "https://artflowcreative.com") else { return }
+        webView.load(URLRequest(url: url))
+    }
+
+    private func showLoadError(_ error: Error) {
+        let nsError = error as NSError
+        if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
+            return
+        }
+
+        loadingIndicator.stopAnimating()
+        errorView.isHidden = false
+        view.bringSubviewToFront(errorView)
     }
 
     private func shouldOpenExternally(_ url: URL) -> Bool {
@@ -91,8 +179,15 @@ extension ArtFlowWebViewController: WKNavigationDelegate {
         decisionHandler(.allow)
     }
 
+    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        errorView.isHidden = true
+        loadingIndicator.startAnimating()
+    }
+
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         webView.scrollView.refreshControl?.endRefreshing()
+        loadingIndicator.stopAnimating()
+        errorView.isHidden = true
     }
 
     func webView(
@@ -101,6 +196,7 @@ extension ArtFlowWebViewController: WKNavigationDelegate {
         withError error: Error
     ) {
         webView.scrollView.refreshControl?.endRefreshing()
+        showLoadError(error)
     }
 
     func webView(
@@ -109,6 +205,7 @@ extension ArtFlowWebViewController: WKNavigationDelegate {
         withError error: Error
     ) {
         webView.scrollView.refreshControl?.endRefreshing()
+        showLoadError(error)
     }
 }
 
