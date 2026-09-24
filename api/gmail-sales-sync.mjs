@@ -34,6 +34,8 @@ export default async function handler(req, res) {
     const business = await getBusiness(client, profile, session.user);
     if (!business?.base44_id) return res.status(400).json({ error: 'No Art Flow business workspace was found.' });
 
+    const force = req.method === 'POST' && Boolean(req.body?.force);
+
     const accounts = await auth.api.listUserAccounts({ headers: fromNodeHeaders(req.headers) });
     const googleAccounts = (accounts || []).filter((account) => account.providerId === 'google' && account.id);
 
@@ -97,7 +99,7 @@ export default async function handler(req, res) {
     for (const account of googleAccounts) {
       try {
         const accessToken = await accessTokenForAccount(req, account.id);
-        const result = await syncGmailAccount(client, business, accessToken);
+        const result = await syncGmailAccount(client, business, accessToken, { force });
         if (result.reconnectRequired) {
           permissionErrors += 1;
           continue;
