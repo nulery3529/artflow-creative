@@ -30,6 +30,15 @@ export default async function handler(req,res){
         summary.failed+=1;
       }
     }
-    return res.status(200).json({ok:true,...summary});
+    const reasons = await client.query(`
+      SELECT COALESCE(data->>'details','') AS reason, COUNT(*)::int AS count
+      FROM artflow.email_import_messages
+      WHERE import_type='expense'
+        AND platform='Yahoo'
+      GROUP BY COALESCE(data->>'details','')
+      ORDER BY COUNT(*) DESC
+      LIMIT 20
+    `);
+    return res.status(200).json({ok:true,...summary,reasons:reasons.rows});
   } finally { client.release(); }
 }
