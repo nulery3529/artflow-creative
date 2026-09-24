@@ -145,7 +145,7 @@ export default function GmailSyncCard() {
           <div className="rounded-2xl bg-muted/60 p-3">
             <p className="text-sm font-semibold">{accountEmails.length > 1 ? `${accountEmails.length} Gmail inboxes connected` : "Gmail connected"}</p>
             {accountEmails.length > 0 && <p className="text-xs text-foreground mt-1 break-words">{accountEmails.join(" · ")}</p>}
-            <p className="text-xs text-muted-foreground mt-1">Sales and recent receipt/invoice emails are checked automatically in the background every fifteen minutes, even when Art Flow is closed.</p>
+            <p className="text-xs text-muted-foreground mt-1">Sales and recent receipt/invoice emails are checked automatically in the background about once an hour, even when Art Flow is closed. You can also check immediately below.</p>
             {salesInboxes.length > 0 && (
               <div className="mt-3 pt-3 border-t border-[hsl(var(--border))]">
                 <p className="text-xs font-semibold">Saved sales inboxes</p>
