@@ -1,126 +1,170 @@
 import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 
-const StatCard = ({ label, value, sub }) => (
-  <div className="rounded-2xl border border-white/70 bg-white/95 p-3 shadow-sm">
-    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</p>
-    <p className="mt-1 text-lg font-extrabold text-[#2e184f]">{value}</p>
-    <p className="mt-0.5 text-[10px] text-slate-500">{sub}</p>
-  </div>
-);
-
-const MarketplaceRow = ({ name, value, width }) => (
-  <div className="space-y-1">
-    <div className="flex items-center justify-between gap-2 text-[10px]">
-      <span className="font-semibold text-slate-700">{name}</span>
-      <span className="font-bold text-[#4f2d7f]">{value}</span>
-    </div>
-    <div className="h-1.5 overflow-hidden rounded-full bg-[#eee8f6]">
-      <div className="h-full rounded-full bg-gradient-to-r from-[#6d45a1] to-[#a786cf]" style={{ width }} />
-    </div>
-  </div>
-);
-
-const OrderThumb = ({ label, tone }) => (
-  <div className="flex min-w-0 items-center gap-2 rounded-xl border border-[#eee8f6] bg-white p-2">
-    <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg text-[9px] font-extrabold text-white ${tone}`}>
-      {label === "Bundle" ? "BUNDLE" : "ART"}
-    </div>
-    <div className="min-w-0">
-      <p className="truncate text-[10px] font-bold text-slate-800">{label}</p>
-      <p className="text-[9px] text-slate-500">Recent order</p>
-    </div>
-  </div>
-);
-
-function DashboardPreview() {
+const MiniArt = ({ variant = 1 }) => {
+  const classes = {
+    1: "from-[#23162f] via-[#6c3d7c] to-[#d59ac0]",
+    2: "from-[#e6bfd0] via-[#c77a9a] to-[#6e355a]",
+    3: "from-[#4d3839] via-[#8d6b56] to-[#d3ad8d]",
+    4: "from-[#4b3159] via-[#87608f] to-[#c8a8cf]",
+  };
   return (
-    <div className="relative mx-auto w-full max-w-[690px] pb-8 pt-4">
-      <div className="relative overflow-hidden rounded-[28px] border-[9px] border-[#2c183d] bg-[#f7f3fb] shadow-[0_28px_70px_rgba(46,24,79,0.28)]">
-        <div className="flex h-7 items-center justify-between bg-[#2c183d] px-3">
-          <div className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-white/25" />
-            <span className="h-2 w-2 rounded-full bg-white/25" />
-            <span className="h-2 w-2 rounded-full bg-white/25" />
+    <div className={`relative h-11 w-11 overflow-hidden rounded-xl bg-gradient-to-br ${classes[variant] || classes[1]}`}>
+      <div className="absolute left-1.5 top-1.5 h-2.5 w-2.5 rounded-full border border-white/70" />
+      <div className="absolute bottom-1.5 right-1.5 h-5 w-5 rotate-12 rounded-sm border border-white/50 bg-white/10" />
+      <div className="absolute bottom-2 left-2 h-0.5 w-7 rotate-[-20deg] bg-white/65" />
+    </div>
+  );
+};
+
+const Metric = ({ label, value, accent }) => (
+  <div className="rounded-2xl border border-white/70 bg-white/95 px-3 py-3 shadow-sm">
+    <p className="text-[9px] font-bold uppercase tracking-[0.13em] text-slate-500">{label}</p>
+    <p className={`mt-1 text-[15px] font-black ${accent || "text-[#3c205b]"}`}>{value}</p>
+  </div>
+);
+
+const OrderRow = ({ variant, title, platform, amount }) => (
+  <div className="flex items-center gap-2 rounded-2xl border border-[#eee8f5] bg-white p-2">
+    <MiniArt variant={variant} />
+    <div className="min-w-0 flex-1">
+      <p className="truncate text-[9px] font-extrabold text-[#261631]">{title}</p>
+      <p className="mt-0.5 text-[8px] text-slate-500">{platform}</p>
+    </div>
+    <span className="text-[9px] font-black text-[#6d3f92]">{amount}</span>
+  </div>
+);
+
+function DesktopDashboard() {
+  return (
+    <div className="overflow-hidden rounded-[18px] bg-[#f7f4f9]">
+      <div className="grid min-h-[370px] grid-cols-[92px_1fr]">
+        <aside className="bg-[#4a236f] px-3 py-4 text-white">
+          <div className="mb-5 flex items-center gap-2">
+            <img src="/artflow-icon.svg" alt="" className="h-7 w-7 rounded-lg bg-white p-1" />
+            <span className="text-[7px] font-extrabold leading-tight">Art Flow<br />Creative</span>
           </div>
-          <span className="text-[8px] font-semibold tracking-wide text-white/70">ART FLOW CREATIVE</span>
+          {["Dashboard", "Orders", "Inventory", "Expenses", "Reports", "Account"].map((item, i) => (
+            <div key={item} className={`mb-1 rounded-lg px-2 py-2 text-[7px] font-bold ${i === 0 ? "bg-white/15 text-white" : "text-white/65"}`}>
+              {item}
+            </div>
+          ))}
+        </aside>
+
+        <section className="p-4">
+          <div className="mb-3 flex items-start justify-between">
+            <div>
+              <h3 className="text-[17px] font-black text-[#25142f]">Good morning!</h3>
+              <p className="mt-0.5 text-[8px] text-slate-500">Here’s your business at a glance.</p>
+            </div>
+            <div className="rounded-full bg-white px-2 py-1 text-[7px] font-bold text-[#5b337c] shadow-sm">Syncing ✓</div>
+          </div>
+
+          <div className="grid grid-cols-4 gap-2">
+            <Metric label="Sales" value="$1,284" />
+            <Metric label="Orders" value="48" />
+            <Metric label="Expenses" value="$316" accent="text-[#a15068]" />
+            <Metric label="Profit" value="$968" accent="text-[#2f7a63]" />
+          </div>
+
+          <div className="mt-3 grid grid-cols-[1.1fr_.9fr] gap-3">
+            <div className="rounded-2xl bg-[#2c1937] p-3 text-white shadow-sm">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-[9px] font-extrabold">Marketplace Performance</p>
+                <span className="text-[7px] text-white/60">This month</span>
+              </div>
+              {[
+                ["Poshmark", "82%"],
+                ["Vinted", "64%"],
+                ["Depop", "49%"],
+                ["eBay", "31%"],
+              ].map(([name, width]) => (
+                <div key={name} className="mb-2">
+                  <div className="mb-1 flex justify-between text-[7px] text-white/80">
+                    <span>{name}</span><span>{width}</span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-white/12">
+                    <div className="h-full rounded-full bg-gradient-to-r from-[#a884ce] to-[#d6b8e7]" style={{ width }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="rounded-2xl bg-white p-3 shadow-sm">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-[9px] font-extrabold text-[#25142f]">Recent Orders</p>
+                <span className="text-[7px] font-bold text-[#76499a]">View all</span>
+              </div>
+              <div className="space-y-2">
+                <OrderRow variant={1} title="Bundle Order" platform="Depop" amount="$42" />
+                <OrderRow variant={2} title="Framed Art Print" platform="Poshmark" amount="$28" />
+                <OrderRow variant={3} title="Botanical Print" platform="Vinted" amount="$19" />
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <div className="rounded-2xl bg-white p-3 shadow-sm">
+              <p className="text-[9px] font-extrabold text-[#25142f]">Profit Overview</p>
+              <div className="mt-2 flex h-12 items-end gap-1.5">
+                {[42, 64, 48, 78, 56, 86, 70].map((h, i) => (
+                  <span key={i} className="flex-1 rounded-t bg-[#7b4da0]/75" style={{ height: `${h}%` }} />
+                ))}
+              </div>
+            </div>
+            <div className="rounded-2xl bg-white p-3 shadow-sm">
+              <p className="text-[9px] font-extrabold text-[#25142f]">Recent Expenses</p>
+              <div className="mt-2 space-y-2">
+                <div className="flex justify-between text-[8px]"><span className="text-slate-500">Shipping supplies</span><b>$24.80</b></div>
+                <div className="flex justify-between text-[8px]"><span className="text-slate-500">Printing</span><b>$18.25</b></div>
+                <div className="flex justify-between text-[8px]"><span className="text-slate-500">Packaging</span><b>$12.40</b></div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function DevicePreview() {
+  return (
+    <div className="relative mx-auto w-full max-w-[720px] pb-20 pt-2 lg:pb-10">
+      <div className="relative ml-auto w-[92%]">
+        <div className="rounded-[24px] bg-[#2a2030] p-[10px] shadow-[0_38px_80px_rgba(19,9,26,.40)]">
+          <DesktopDashboard />
         </div>
-
-        <div className="grid grid-cols-[86px_1fr] bg-[#faf8fc]">
-          <aside className="hidden min-h-[335px] bg-[#3c205b] px-2 py-4 sm:block">
-            <div className="mb-5 flex items-center gap-2 px-1">
-              <img src="/artflow-icon.svg" alt="" className="h-6 w-6 rounded-lg bg-white/95 p-1" />
-              <span className="text-[7px] font-bold leading-tight text-white">Art Flow<br />Creative</span>
-            </div>
-            {["Dashboard", "Orders", "Inventory", "Expenses", "Reports"].map((item, i) => (
-              <div key={item} className={`mb-1.5 rounded-lg px-2 py-2 text-[8px] font-semibold ${i === 0 ? "bg-white/16 text-white" : "text-white/68"}`}>
-                {item}
-              </div>
-            ))}
-          </aside>
-
-          <section className="p-3 sm:p-4">
-            <div className="mb-3 flex items-start justify-between gap-2">
-              <div>
-                <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#76559a]">Business overview</p>
-                <h3 className="text-base font-extrabold text-[#2f194f] sm:text-lg">Dashboard</h3>
-              </div>
-              <div className="rounded-full bg-[#eadff5] px-2.5 py-1 text-[8px] font-bold text-[#4f2d7f]">Synced</div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <StatCard label="Sales" value="$1,284" sub="This month" />
-              <StatCard label="Orders" value="48" sub="Across marketplaces" />
-              <StatCard label="Expenses" value="$316" sub="Tracked" />
-              <StatCard label="Profit" value="$968" sub="Before taxes" />
-            </div>
-
-            <div className="mt-3 grid gap-3 sm:grid-cols-[1.05fr_.95fr]">
-              <div className="rounded-2xl border border-white bg-white p-3 shadow-sm">
-                <p className="mb-2 text-[10px] font-bold text-[#2f194f]">Marketplace performance</p>
-                <div className="space-y-2.5">
-                  <MarketplaceRow name="Poshmark" value="$484" width="82%" />
-                  <MarketplaceRow name="Vinted" value="$356" width="65%" />
-                  <MarketplaceRow name="Depop" value="$274" width="51%" />
-                  <MarketplaceRow name="eBay" value="$170" width="34%" />
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-white bg-white p-3 shadow-sm">
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="text-[10px] font-bold text-[#2f194f]">Recent orders</p>
-                  <span className="text-[8px] font-semibold text-[#76559a]">View all</span>
-                </div>
-                <div className="grid gap-2">
-                  <OrderThumb label="Bundle" tone="bg-gradient-to-br from-[#6b3c97] to-[#aa8bd1]" />
-                  <OrderThumb label="Framed art print" tone="bg-gradient-to-br from-[#9c6f8f] to-[#d3a8be]" />
-                  <OrderThumb label="Botanical print" tone="bg-gradient-to-br from-[#5f7d72] to-[#99b1a7]" />
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>
+        <div className="mx-auto h-3 w-[78%] rounded-b-[90%] bg-[#3a303f]" />
+        <div className="mx-auto h-2 w-[62%] rounded-b-full bg-[#281f2d]/90" />
       </div>
 
-      <div className="mx-auto h-3 w-[78%] rounded-b-[80%] bg-gradient-to-b from-[#4a315d] to-[#251631] shadow-[0_8px_18px_rgba(46,24,79,0.22)]" />
-
-      <div className="absolute bottom-0 right-0 w-[132px] rounded-[24px] border-[7px] border-[#2c183d] bg-[#f8f5fb] p-2 shadow-[0_18px_42px_rgba(46,24,79,0.3)] sm:right-[-12px] sm:w-[150px]">
-        <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-[#2c183d]/40" />
-        <div className="rounded-2xl bg-white p-2">
-          <div className="mb-2 flex items-center gap-1.5">
-            <img src="/artflow-icon.svg" alt="" className="h-5 w-5" />
-            <span className="text-[8px] font-extrabold text-[#2f194f]">Dashboard</span>
+      <div className="absolute bottom-0 left-0 w-[33%] min-w-[138px] max-w-[205px] rounded-[32px] bg-[#211725] p-[8px] shadow-[0_28px_60px_rgba(16,7,21,.45)]">
+        <div className="overflow-hidden rounded-[25px] bg-[#f7f4f9]">
+          <div className="flex items-center justify-between bg-[#4a236f] px-3 py-2 text-white">
+            <div className="flex items-center gap-1.5">
+              <img src="/artflow-icon.svg" alt="" className="h-5 w-5 rounded-md bg-white p-0.5" />
+              <span className="text-[7px] font-black">Art Flow</span>
+            </div>
+            <span className="text-[8px]">•••</span>
           </div>
-          <div className="grid grid-cols-2 gap-1.5">
-            <div className="rounded-lg bg-[#f1e9f8] p-2"><p className="text-[7px] text-slate-500">Sales</p><p className="text-[10px] font-extrabold text-[#4f2d7f]">$1,284</p></div>
-            <div className="rounded-lg bg-[#f1e9f8] p-2"><p className="text-[7px] text-slate-500">Orders</p><p className="text-[10px] font-extrabold text-[#4f2d7f]">48</p></div>
-          </div>
-          <div className="mt-2 rounded-lg bg-[#faf8fc] p-2">
-            <p className="mb-1 text-[7px] font-bold text-[#2f194f]">Recent orders</p>
-            <div className="space-y-1">
-              <div className="h-2 rounded-full bg-[#d9c5ea]" />
-              <div className="h-2 w-4/5 rounded-full bg-[#e7dbf1]" />
-              <div className="h-2 w-3/5 rounded-full bg-[#efe7f5]" />
+          <div className="p-3">
+            <h4 className="text-[12px] font-black text-[#25142f]">Dashboard</h4>
+            <p className="text-[7px] text-slate-500">Your business at a glance</p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <Metric label="Sales" value="$1,284" />
+              <Metric label="Orders" value="48" />
+            </div>
+            <div className="mt-3 rounded-2xl bg-[#2d1938] p-2.5 text-white">
+              <p className="text-[8px] font-extrabold">Performance</p>
+              <div className="mt-2 space-y-1.5">
+                <div className="h-1.5 rounded-full bg-[#a781c7]" />
+                <div className="h-1.5 w-4/5 rounded-full bg-[#8e66ad]" />
+                <div className="h-1.5 w-3/5 rounded-full bg-[#76518f]" />
+              </div>
+            </div>
+            <div className="mt-3 space-y-2">
+              <OrderRow variant={4} title="Bundle" platform="Depop" amount="$42" />
+              <OrderRow variant={2} title="Art Print" platform="Vinted" amount="$19" />
             </div>
           </div>
         </div>
@@ -131,162 +175,153 @@ function DashboardPreview() {
 
 export default function AboutArtFlow() {
   useEffect(() => {
-    document.title = "Art Flow Creative | Business Tools for Artists & Online Sellers";
+    document.title = "Art Flow Creative | Business Management for Artists";
     const meta = document.querySelector('meta[name="description"]');
     if (meta) {
       meta.setAttribute(
         "content",
-        "Art Flow Creative helps independent artists and online sellers organize orders, expenses, inventory, mileage, reports, and business records in one place."
+        "Art Flow Creative brings your orders, inventory, expenses, mileage, taxes, and reports together in one simple workspace built for independent artists and online sellers."
       );
     }
   }, []);
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[#fbf9fd] text-slate-900">
-      <section className="relative isolate overflow-hidden">
-        <div className="absolute inset-0 -z-20 bg-[linear-gradient(135deg,#fbf8fd_0%,#f0e7f8_46%,#d7c1eb_100%)]" />
-        <div className="absolute -left-24 top-24 -z-10 h-72 w-72 rounded-full bg-[#c7a6df]/35 blur-3xl" />
-        <div className="absolute -right-20 top-[-70px] -z-10 h-96 w-96 rounded-full bg-[#9d7abf]/25 blur-3xl" />
-
-        <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8 lg:px-10">
-          <Link to="/" className="flex items-center gap-3">
-            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-white shadow-sm ring-1 ring-[#7b5b97]/10">
-              <img src="/artflow-icon.svg" alt="Art Flow Creative logo" className="h-8 w-8" />
-            </span>
-            <div>
-              <p className="text-base font-black tracking-tight text-[#2e184f]">Art Flow Creative</p>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#76559a]">Business made simpler</p>
-            </div>
-          </Link>
-
-          <div className="flex items-center gap-2">
-            <Link to="/login" className="hidden rounded-xl px-4 py-2.5 text-sm font-bold text-[#3c205b] hover:bg-white/60 sm:inline-flex">
-              Log In
+    <main className="min-h-screen bg-[#1b1122] text-white">
+      <section className="relative overflow-hidden bg-[#4b2470]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_45%,rgba(160,99,202,.24),transparent_36%),linear-gradient(180deg,#4b2470_0%,#4a236f_72%,#1b1122_100%)]" />
+        <div className="relative mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
+          <nav className="flex items-center justify-between py-7">
+            <Link to="/" className="flex items-center gap-3">
+              <span className="grid h-12 w-12 place-items-center rounded-2xl bg-white shadow-lg shadow-black/10">
+                <img src="/artflow-icon.svg" alt="Art Flow Creative" className="h-9 w-9" />
+              </span>
+              <div>
+                <p className="text-[18px] font-black tracking-tight">Art Flow Creative</p>
+                <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-white/60">Business Management for Artists</p>
+              </div>
             </Link>
-            <Link to="/register" className="rounded-xl bg-[#3c205b] px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#3c205b]/15 transition hover:bg-[#4c2a70]">
-              Create Account
+
+            <div className="hidden items-center gap-8 text-sm font-bold text-white/85 md:flex">
+              <a href="#features" className="transition hover:text-white">Features</a>
+              <a href="#how-it-works" className="transition hover:text-white">How It Works</a>
+              <a href="#pricing" className="transition hover:text-white">Pricing</a>
+            </div>
+
+            <Link to="/login" className="rounded-xl bg-white px-5 py-3 text-sm font-extrabold text-[#3e1f5b] shadow-lg shadow-black/10 transition hover:-translate-y-0.5">
+              Sign In
             </Link>
-          </div>
-        </nav>
+          </nav>
 
-        <div className="mx-auto grid max-w-7xl items-center gap-12 px-5 pb-16 pt-10 sm:px-8 sm:pb-20 lg:grid-cols-[0.88fr_1.12fr] lg:px-10 lg:pb-24 lg:pt-16">
-          <div className="max-w-xl">
-            <div className="mb-5 inline-flex items-center rounded-full border border-[#6f4b90]/15 bg-white/70 px-3.5 py-2 text-xs font-bold text-[#5a3977] shadow-sm backdrop-blur">
-              Built for independent artists & online sellers
+          <div className="grid items-center gap-10 pb-14 pt-10 lg:grid-cols-[0.78fr_1.22fr] lg:pb-24 lg:pt-20">
+            <div className="max-w-xl pb-2 lg:pb-16">
+              <h1 className="[font-family:'Fraunces',serif] text-[46px] font-semibold leading-[0.98] tracking-[-0.035em] text-white sm:text-[58px] lg:text-[72px]">
+                The business side of art, simplified.
+              </h1>
+
+              <p className="mt-7 max-w-lg text-[17px] leading-8 text-white/72 sm:text-lg">
+                Art Flow Creative brings your orders, inventory, expenses, mileage, taxes, and reports together in one simple workspace — so you can spend less time on admin and more time creating.
+              </p>
+
+              <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+                <Link to="/register" className="inline-flex min-h-14 items-center justify-center rounded-xl bg-white px-6 py-3 text-sm font-black text-[#4a236f] shadow-xl shadow-black/15 transition hover:-translate-y-0.5">
+                  Start your 30-day free trial
+                </Link>
+                <Link to="/login" className="inline-flex min-h-14 items-center justify-center rounded-xl border border-white/26 bg-white/8 px-7 py-3 text-sm font-black text-white backdrop-blur transition hover:bg-white/14">
+                  Sign in
+                </Link>
+              </div>
+
+              <p className="mt-5 flex items-center gap-2 text-xs font-semibold text-white/50">
+                <span className="grid h-4 w-4 place-items-center rounded-full border border-white/25 text-[9px] text-white/70">✓</span>
+                No credit card required
+              </p>
             </div>
-            <h1 className="text-4xl font-black leading-[1.04] tracking-[-0.045em] text-[#2e184f] sm:text-5xl lg:text-[58px]">
-              Business tools that keep your creative work flowing.
-            </h1>
-            <p className="mt-6 max-w-lg text-base leading-7 text-slate-600 sm:text-lg">
-              Track orders, expenses, inventory, mileage, reports, and marketplace performance in one clean workspace—without losing focus on the art.
-            </p>
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link to="/register" className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-[#3c205b] px-6 py-3 text-sm font-extrabold text-white shadow-xl shadow-[#3c205b]/20 transition hover:-translate-y-0.5 hover:bg-[#4a286c]">
-                Create Your Account
-              </Link>
-              <Link to="/login" className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-[#6d4c89]/20 bg-white/75 px-6 py-3 text-sm font-extrabold text-[#3c205b] shadow-sm backdrop-blur transition hover:bg-white">
-                Log In
-              </Link>
+            <div className="relative">
+              <DevicePreview />
             </div>
-
-            <div className="mt-8 grid max-w-lg grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-              {[
-                ["Orders", "Track marketplace sales"],
-                ["Expenses", "Organize business costs"],
-                ["Reports", "See your numbers clearly"],
-              ].map(([title, text]) => (
-                <div key={title} className="rounded-2xl border border-white/80 bg-white/55 p-3.5 shadow-sm backdrop-blur">
-                  <p className="font-extrabold text-[#3c205b]">{title}</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-600">{text}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="relative">
-            <DashboardPreview />
           </div>
         </div>
       </section>
 
-      <section className="border-y border-[#7b5b97]/10 bg-white">
-        <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 lg:px-10">
-          <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#76559a]">One workspace</p>
-            <h2 className="mt-3 text-3xl font-black tracking-tight text-[#2e184f]">Everything you need to run the business side</h2>
-            <p className="mt-4 text-sm leading-7 text-slate-600">
-              Keep the important pieces together so you can spend less time chasing records and more time creating and selling.
-            </p>
+      <section className="relative -mt-2 border-t border-white/5 bg-[#1b1122] px-5 pb-14 pt-10 sm:px-8">
+        <div className="mx-auto max-w-5xl text-center">
+          <p className="text-sm font-semibold text-white/45">Everything you need to run your creative business.</p>
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
+            {["Poshmark", "Vinted", "Depop", "Etsy", "eBay"].map((name) => (
+              <span key={name} className="rounded-full bg-white/8 px-4 py-2 text-[11px] font-extrabold tracking-wide text-white/65 ring-1 ring-white/5">
+                {name}
+              </span>
+            ))}
           </div>
+          <div className="mx-auto mt-8 h-px max-w-4xl bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+        </div>
+      </section>
 
-          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section id="features" className="bg-[#21152a] px-5 py-20 sm:px-8">
+        <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#b995d0]">Features</p>
+            <h2 className="mt-4 [font-family:'Fraunces',serif] text-4xl font-semibold text-white">Your creative business, in one place.</h2>
+          </div>
+          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              ["Orders & Sales", "Track marketplace orders and sales activity from one place."],
-              ["Expenses", "Organize business purchases, receipts, and operating costs."],
-              ["Inventory", "Store product details, images, availability, and sold history."],
-              ["Reports & Planning", "Review performance, mileage, taxes, and business planning tools."],
+              ["Orders & Sales", "Track marketplace orders and sales without mixing them with your listings."],
+              ["Inventory", "Store product photos, availability, sold history, and the details you need to relist quickly."],
+              ["Expenses", "Keep business purchases and receipts organized alongside your sales."],
+              ["Mileage & Taxes", "Keep mileage and tax-ready records together throughout the year."],
+              ["Reports", "See your numbers clearly with simple performance and profit reporting."],
+              ["Business Planning", "Keep goals, planning, and the practical side of your art business organized."],
             ].map(([title, text]) => (
-              <article key={title} className="rounded-3xl border border-[#76559a]/10 bg-[#fbf9fd] p-5 shadow-sm">
-                <div className="mb-4 h-2 w-10 rounded-full bg-gradient-to-r from-[#65408e] to-[#b99ad2]" />
-                <h3 className="text-base font-extrabold text-[#3c205b]">{title}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{text}</p>
+              <article key={title} className="rounded-3xl border border-white/7 bg-white/[0.045] p-6">
+                <div className="mb-5 h-1.5 w-10 rounded-full bg-[#9b6fba]" />
+                <h3 className="text-base font-black text-white">{title}</h3>
+                <p className="mt-2 text-sm leading-6 text-white/55">{text}</p>
               </article>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="bg-[#f5eff9]">
-        <div className="mx-auto max-w-5xl px-5 py-16 sm:px-8">
-          <div className="rounded-[32px] border border-[#74538f]/10 bg-white p-6 shadow-sm sm:p-8 lg:p-10">
-            <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#76559a]">Privacy & connections</p>
-            <h2 className="mt-3 text-2xl font-black text-[#2e184f]">Your Art Flow account stays separate from Google</h2>
-            <p className="mt-4 text-sm leading-7 text-slate-600">
-              Art Flow Creative uses its own email-and-password account system. Google connections are optional and are started only by the user.
-            </p>
+      <section id="how-it-works" className="bg-[#1b1122] px-5 py-20 sm:px-8">
+        <div className="mx-auto max-w-5xl text-center">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-[#b995d0]">How it works</p>
+          <h2 className="mt-4 [font-family:'Fraunces',serif] text-4xl font-semibold">Start simple. Add what you need.</h2>
+          <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-white/55">
+            Create your account, connect the services you choose, and keep your orders, products, expenses, and reports together in your private Art Flow workspace.
+          </p>
+        </div>
+      </section>
 
-            <div className="mt-8 grid gap-6 md:grid-cols-2">
-              <div>
-                <h3 className="font-extrabold text-[#3c205b]">How Google connections are used</h3>
-                <p className="mt-2 text-sm leading-7 text-slate-600">
-                  When authorized, Art Flow Creative uses Gmail read-only access to identify supported marketplace sale confirmations and business receipt emails so the user can import those records into a private Art Flow Creative business workspace.
-                </p>
-              </div>
-              <div>
-                <h3 className="font-extrabold text-[#3c205b]">Your Gmail stays under your control</h3>
-                <p className="mt-2 text-sm leading-7 text-slate-600">
-                  Art Flow Creative does not send, modify, or delete Gmail messages. Google user data is not used for advertising or sold. Users can revoke Google access from their Google Account or disconnect the inbox from Art Flow Creative.
-                </p>
-              </div>
-            </div>
+      <section id="pricing" className="bg-[#4a236f] px-5 py-20 sm:px-8">
+        <div className="mx-auto max-w-3xl rounded-[32px] border border-white/12 bg-white/[0.07] p-8 text-center shadow-2xl shadow-black/10 backdrop-blur sm:p-10">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-white/60">Pricing</p>
+          <h2 className="mt-4 [font-family:'Fraunces',serif] text-4xl font-semibold">Try Art Flow Creative free for 30 days.</h2>
+          <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-white/65">No credit card required to start. Create your account and explore the workspace before choosing a plan.</p>
+          <Link to="/register" className="mt-8 inline-flex min-h-14 items-center justify-center rounded-xl bg-white px-7 py-3 text-sm font-black text-[#4a236f]">
+            Start your 30-day free trial
+          </Link>
+        </div>
+      </section>
 
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link to="/privacy-policy" className="rounded-xl border border-[#76559a]/15 px-4 py-2.5 text-sm font-bold text-[#4b2a6a] hover:bg-[#f7f2fa]">Privacy Policy</Link>
-              <Link to="/terms-of-service" className="rounded-xl border border-[#76559a]/15 px-4 py-2.5 text-sm font-bold text-[#4b2a6a] hover:bg-[#f7f2fa]">Terms of Service</Link>
-              <Link to="/support" className="rounded-xl border border-[#76559a]/15 px-4 py-2.5 text-sm font-bold text-[#4b2a6a] hover:bg-[#f7f2fa]">Support</Link>
-            </div>
+      <section className="bg-[#17101c] px-5 py-14 sm:px-8">
+        <div className="mx-auto max-w-5xl rounded-3xl border border-white/6 bg-white/[0.035] p-7">
+          <h2 className="text-lg font-black">Google connections are optional</h2>
+          <p className="mt-3 text-sm leading-7 text-white/50">
+            Art Flow Creative uses its own account system. When a user chooses to connect Google, Gmail read-only access can be used to identify supported marketplace sale confirmations and business receipt emails for import into that user’s private workspace. Art Flow Creative does not send, modify, or delete Gmail messages, and Google user data is not sold or used for advertising.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-4 text-xs font-bold text-[#c7a4dc]">
+            <Link to="/privacy-policy">Privacy Policy</Link>
+            <Link to="/terms-of-service">Terms of Service</Link>
+            <Link to="/support">Support</Link>
           </div>
         </div>
       </section>
 
-      <footer className="bg-[#2c183d] text-white">
-        <div className="mx-auto flex max-w-7xl flex-col gap-5 px-5 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-10">
-          <div className="flex items-center gap-3">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-white">
-              <img src="/artflow-icon.svg" alt="" className="h-6 w-6" />
-            </span>
-            <div>
-              <p className="text-sm font-extrabold">Art Flow Creative</p>
-              <p className="text-xs text-white/60">Business tools for creative sellers</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-white/75">
-            <Link to="/privacy-policy" className="hover:text-white">Privacy</Link>
-            <Link to="/terms-of-service" className="hover:text-white">Terms</Link>
-            <Link to="/support" className="hover:text-white">Support</Link>
-            <Link to="/login" className="hover:text-white">Log In</Link>
-          </div>
+      <footer className="border-t border-white/5 bg-[#17101c] px-5 py-8 sm:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 text-xs text-white/40 sm:flex-row sm:items-center sm:justify-between">
+          <span>© Art Flow Creative</span>
+          <span>Business management for independent artists and online sellers.</span>
         </div>
       </footer>
     </main>
