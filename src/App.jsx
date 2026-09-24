@@ -27,6 +27,7 @@ import TermsOfService from '@/pages/TermsOfService';
 import AboutArtFlow from '@/pages/AboutArtFlow';
 import Support from '@/pages/Support';
 import MobileSaleCapture from '@/pages/MobileSaleCapture';
+import AppleSubscriptionGate from '@/components/AppleSubscriptionGate';
 import Logo from '@/components/Logo';
 import Shop from '@/pages/Shop';
 import ShopProduct from '@/pages/ShopProduct';
@@ -127,7 +128,7 @@ const AuthenticatedApp = () => {
       <Route path="/shop/checkout" element={<ShopCheckout />} />
       <Route path="/shop/account" element={<ShopAccount />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
-        <Route element={<Layout />}>
+        <Route element={<AppleSubscriptionGate><Layout /></AppleSubscriptionGate>}>
           <Route path="/" element={<TabShell />} />
           <Route path="/orders" element={<TabShell />} />
           <Route path="/inventory" element={<TabShell />} />
