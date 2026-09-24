@@ -25,6 +25,7 @@ const YAHOO_HOST = 'imap.mail.yahoo.com';
 const YAHOO_PORT = 993;
 const MAX_MESSAGES_PER_RUN = 300;
 const YAHOO_EXPENSE_PARSER_VERSION = 6;
+let yahooNoTotalDiagnosticCount = 0;
 
 function imapQuote(value='') {
   return `"${String(value).replace(/\\/g,'\\\\').replace(/"/g,'\\"')}"`;
@@ -1089,6 +1090,20 @@ async function insertYahooExpense(client, business, email, uid, parsed) {
 
   const amount = extractTotal(`${parsed.subject}\n${parsed.text}`);
   if (!amount) {
+    if (yahooNoTotalDiagnosticCount < 5) {
+      yahooNoTotalDiagnosticCount += 1;
+      const lines = String(parsed.text || '')
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line && /(?:\$|\btotal\b|\bpaid\b|\bamount\b|\bprice\b|\bcost\b)/i.test(line))
+        .slice(0, 12)
+        .map((line) => line.slice(0, 220));
+      console.log('Yahoo no-total sample', JSON.stringify({
+        subject: String(parsed.subject || '').slice(0, 180),
+        from: String(parsed.from || '').slice(0, 180),
+        lines,
+      }));
+    }
     await recordYahooExpenseImport(client, business, email, uid, 'skipped', 'Yahoo receipt did not contain a recognizable purchase total');
     return { imported:0, skipped:1 };
   }
