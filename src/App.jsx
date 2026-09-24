@@ -54,9 +54,10 @@ const AuthenticatedApp = () => {
 
   // Legal pages must be publicly accessible for Google OAuth verification and app users.
   const publicPath = window.location.pathname.replace(/\/+$/, '') || '/';
-  if (publicPath === '/about' || publicPath === '/privacy' || publicPath === '/privacy-policy' || publicPath === '/terms-of-service' || publicPath === '/terms' || publicPath === '/support') {
+  if (publicPath === '/' || publicPath === '/about' || publicPath === '/privacy' || publicPath === '/privacy-policy' || publicPath === '/terms-of-service' || publicPath === '/terms' || publicPath === '/support') {
     return (
       <Routes>
+        <Route path="/" element={<AboutArtFlow />} />
         <Route path="/about" element={<AboutArtFlow />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
@@ -129,7 +130,7 @@ const AuthenticatedApp = () => {
       <Route path="/shop/account" element={<ShopAccount />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route element={<AppleSubscriptionGate><Layout /></AppleSubscriptionGate>}>
-          <Route path="/" element={<TabShell />} />
+          <Route path="/dashboard" element={<TabShell />} />
           <Route path="/orders" element={<TabShell />} />
           <Route path="/inventory" element={<TabShell />} />
           <Route path="/expenses" element={<TabShell />} />
@@ -154,7 +155,7 @@ const AuthenticatedApp = () => {
 function App() {
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
   const isAuthPage = path === '/login' || path === '/register' || path === '/forgot-password' || path === '/reset-password';
-  const isLegalPage = path === '/about' || path === '/privacy' || path === '/privacy-policy' || path === '/terms-of-service' || path === '/terms' || path === '/support';
+  const isLegalPage = path === '/' || path === '/about' || path === '/privacy' || path === '/privacy-policy' || path === '/terms-of-service' || path === '/terms' || path === '/support';
   const isShopPage = path === '/shop' || path.startsWith('/shop/');
 
   // Render public/auth recovery pages without mounting AuthProvider at all.
@@ -176,13 +177,14 @@ function App() {
             <Route path="/shop/cart" element={<ShopCart />} />
             <Route path="/shop/checkout" element={<ShopCheckout />} />
             <Route path="/shop/account" element={<ShopAccount />} />
+            <Route path="/" element={<AboutArtFlow />} />
             <Route path="/about" element={<AboutArtFlow />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/terms-of-service" element={<TermsOfService />} />
               <Route path="/terms" element={<TermsOfService />} />
               <Route path="/support" element={<Support />} />
-                  <Route path="*" element={<Navigate to="/login" replace />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
           </Router>
           <Toaster />
