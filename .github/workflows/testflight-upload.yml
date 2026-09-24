@@ -76,6 +76,16 @@ jobs:
           ICON="ios/ArtFlowCreative/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
           PLIST="ios/ArtFlowCreative/Info.plist"
           PROJECT="ios/ArtFlowCreative.xcodeproj/project.pbxproj"
+          PRIVACY="ios/ArtFlowCreative/PrivacyInfo.xcprivacy"
+          ENTITLEMENTS="ios/ArtFlowCreative/ArtFlowCreative.entitlements"
+
+          test -f "$PRIVACY"
+          test -f "$ENTITLEMENTS"
+          plutil -lint "$PRIVACY"
+          plutil -lint "$ENTITLEMENTS"
+          grep -F "PrivacyInfo.xcprivacy in Resources" "$PROJECT"
+          grep -F "CODE_SIGN_ENTITLEMENTS = ArtFlowCreative/ArtFlowCreative.entitlements;" "$PROJECT"
+          /usr/libexec/PlistBuddy -c "Print :com.apple.developer.applesignin:0" "$ENTITLEMENTS" | grep -Fx "Default"
 
           WIDTH="$(sips -g pixelWidth "$ICON" | awk '/pixelWidth/ {print $2}')"
           HEIGHT="$(sips -g pixelHeight "$ICON" | awk '/pixelHeight/ {print $2}')"
