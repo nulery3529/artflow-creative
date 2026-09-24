@@ -14,7 +14,8 @@ function htmlPage({ error = "", returnTo = "/", nativeIOS = false } = {}) {
     && String(process.env.APPLE_KEY_ID || "").trim()
     && String(process.env.APPLE_PRIVATE_KEY || "").trim()
   );
-  const showGoogle = !nativeIOS || appleConfigured;\n  const message = error === "invalid_credentials"
+  const showGoogle = !nativeIOS || appleConfigured;
+  const message = error === "invalid_credentials"
     ? "Email or password is incorrect."
     : error === "google_sign_in_failed"
       ? "Google sign-in did not finish. Please try again."
@@ -83,7 +84,9 @@ export default async function handler(req, res) {
 
   const url = new URL(req.url, "http://localhost");
   const returnTo = safeReturnPath(url.searchParams.get("returnTo") || "/");
-  const error = String(url.searchParams.get("error") || "");\n  const userAgent = String(req.headers["user-agent"] || "");\n  const nativeIOS = /ArtFlowCreativeNative\\/1\\.0/i.test(userAgent);
+  const error = String(url.searchParams.get("error") || "");
+  const userAgent = String(req.headers["user-agent"] || "");
+  const nativeIOS = userAgent.includes("ArtFlowCreativeNative/1.0");
 
   try {
     const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
