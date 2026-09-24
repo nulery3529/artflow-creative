@@ -1,9 +1,11 @@
+import AuthenticationServices
 import UIKit
 import WebKit
 
 final class ArtFlowWebViewController: UIViewController {
     private var webView: WKWebView!
     private var iapBridge: ArtFlowIAPBridge?
+    private var appleAuthorizationController: ASAuthorizationController?
     private let loadingIndicator = UIActivityIndicatorView(style: .large)
     private let errorView = UIView()
     private let errorTitleLabel = UILabel()
@@ -160,6 +162,83 @@ final class ArtFlowWebViewController: UIViewController {
     private func openExternal(_ url: URL) {
         UIApplication.shared.open(url, options: [:], completionHandler: nil)
     }
+
+    private func isNativeAppleLoginURL(_ url: URL) -> Bool {
+        guard ["http", "https"].contains(url.scheme?.lowercased() ?? "") else {
+            return false
+        }
+        let host = (url.host ?? "").lowercased()
+        guard host == "artflowcreative.com" || host == "www.artflowcreative.com" else {
+            return false
+        }
+        return url.path == "/api/auth/apple-login"
+    }
+
+    private func startNativeAppleSignIn() {
+        let request = ASAuthorizationAppleIDProvider().createRequest()
+        request.requestedScopes = [.fullName, .email]
+
+        let controller = ASAuthorizationController(authorizationRequests: [request])
+        controller.delegate = self
+        controller.presentationContextProvider = self
+        appleAuthorizationController = controller
+        controller.performRequests()
+    }
+
+    private func javascriptStringLiteral(_ value: String) -> String? {
+        guard JSONSerialization.isValidJSONObject([value]),
+              let data = try? JSONSerialization.data(withJSONObject: [value]),
+              let array = String(data: data, encoding: .utf8),
+              array.count >= 2 else {
+            return nil
+        }
+        return String(array.dropFirst().dropLast())
+    }
+
+    private func completeNativeAppleSignIn(identityToken: String) {
+        guard let tokenLiteral = javascriptStringLiteral(identityToken) else {
+            showNativeAppleSignInError()
+            return
+        }
+
+        let script = """
+        (async () => {
+          try {
+            const response = await fetch('/api/auth/sign-in/social', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              cache: 'no-store',
+              body: JSON.stringify({
+                provider: 'apple',
+                idToken: { token: (tokenLiteral) },
+                callbackURL: '/'
+              })
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || payload?.error) {
+              window.location.replace('/login?error=apple_sign_in_failed');
+              return;
+            }
+            window.location.replace('/');
+          } catch (_) {
+            window.location.replace('/login?error=apple_sign_in_failed');
+          }
+        })();
+        """
+
+        DispatchQueue.main.async { [weak self] in
+            self?.webView.evaluateJavaScript(script, completionHandler: nil)
+        }
+    }
+
+    private func showNativeAppleSignInError() {
+        DispatchQueue.main.async { [weak self] in
+            self?.webView.load(
+                URLRequest(url: URL(string: "https://artflowcreative.com/login?error=apple_sign_in_failed")!)
+            )
+        }
+    }
 }
 
 extension ArtFlowWebViewController: WKNavigationDelegate {
@@ -168,6 +247,13 @@ extension ArtFlowWebViewController: WKNavigationDelegate {
         decidePolicyFor navigationAction: WKNavigationAction,
         decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
     ) {
+        if let url = navigationAction.request.url,
+           isNativeAppleLoginURL(url) {
+            decisionHandler(.cancel)
+            startNativeAppleSignIn()
+            return
+        }
+
         if navigationAction.navigationType == .linkActivated,
            let url = navigationAction.request.url,
            shouldOpenExternally(url) {
@@ -293,5 +379,43 @@ extension ArtFlowWebViewController: WKUIDelegate {
             webView.load(navigationAction.request)
         }
         return nil
+    }
+}
+
+
+extension ArtFlowWebViewController: ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
+    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        view.window ?? ASPresentationAnchor()
+    }
+
+    func authorizationController(
+        controller: ASAuthorizationController,
+        didCompleteWithAuthorization authorization: ASAuthorization
+    ) {
+        appleAuthorizationController = nil
+
+        guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+              let tokenData = credential.identityToken,
+              let identityToken = String(data: tokenData, encoding: .utf8),
+              !identityToken.isEmpty else {
+            showNativeAppleSignInError()
+            return
+        }
+
+        completeNativeAppleSignIn(identityToken: identityToken)
+    }
+
+    func authorizationController(
+        controller: ASAuthorizationController,
+        didCompleteWithError error: Error
+    ) {
+        appleAuthorizationController = nil
+
+        if let authError = error as? ASAuthorizationError,
+           authError.code == .canceled {
+            return
+        }
+
+        showNativeAppleSignInError()
     }
 }
