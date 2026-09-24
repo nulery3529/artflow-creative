@@ -20,7 +20,7 @@ export default async function handler(req, res) {
   const secret = process.env.CRON_SECRET;
   const provided = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   const vercelSchedule = String(req.headers['x-vercel-cron-schedule'] || '');
-  const authorized = secret ? provided === secret : vercelSchedule === '*/15 * * * *';
+  const authorized = secret ? provided === secret : vercelSchedule === '0 * * * *';
   if (!authorized) return res.status(401).json({ error: 'Unauthorized' });
 
   const client = await pool.connect();
