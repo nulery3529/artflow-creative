@@ -12,7 +12,7 @@ export default function AboutArtFlow() {
     <main className="min-h-screen bg-background text-foreground px-5 py-10">
       <div className="mx-auto max-w-3xl">
         <header className="space-y-4">
-          <p className="text-sm font-semibold text-primary">Art Flow Creative</p>
+          <p className="text-sm font-semibold tracking-[0.18em] text-primary">ART FLOW CREATIVE</p>
           <h1 className="text-4xl font-bold tracking-tight">Business management for independent artists and online sellers</h1>
           <p className="text-base leading-7 text-muted-foreground">
             Art Flow Creative helps independent artists and online sellers organize marketplace sales, business expenses, inventory, mileage, reports, and day-to-day business records in one place.
