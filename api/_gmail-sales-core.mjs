@@ -225,6 +225,13 @@ function ebayRows(subject, text) {
     || normalizedSubject.match(/Payment from\s+(.+?)\s+(?:is\s+)?confirmed:\s*(.+)$/i);
   const receivedPayment = normalizedSubject.match(/(?:You have received|You've received) a payment(?: from\s+(.+?))?(?::|\s+-)?\s*(.*)$/i);
 
+  const sellerBodySignal =
+    /\b(?:you (?:made|completed) the sale|your item (?:sold|has sold)|you sold|buyer(?: username)?|sold for|ship(?:ping)? to buyer|payment from .+ (?:is )?confirmed|you(?:'ve| have) received a payment)\b/i.test(text);
+
+  // Buyer order confirmations can contain "Item", "Total", and order IDs too.
+  // Only treat an eBay email as a sale when it has seller-side wording.
+  if (!oldSale && !paymentSale && !receivedPayment && !sellerBodySignal) return [];
+
   const title = clean(
     oldSale?.[1]
       || paymentSale?.[2]
