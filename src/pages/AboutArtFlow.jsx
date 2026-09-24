@@ -224,7 +224,7 @@ export default function AboutArtFlow() {
 
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
                 <Link to="/register" className="inline-flex min-h-14 items-center justify-center rounded-xl bg-white px-6 py-3 text-sm font-black text-[#4a236f] shadow-xl shadow-black/15 transition hover:-translate-y-0.5">
-                  Start your 30-day free trial
+                  Start your 7-day free trial
                 </Link>
                 <Link to="/login" className="inline-flex min-h-14 items-center justify-center rounded-xl border border-white/26 bg-white/8 px-7 py-3 text-sm font-black text-white backdrop-blur transition hover:bg-white/14">
                   Sign in
@@ -296,10 +296,10 @@ export default function AboutArtFlow() {
       <section id="pricing" className="bg-[#4a236f] px-5 py-20 sm:px-8">
         <div className="mx-auto max-w-3xl rounded-[32px] border border-white/12 bg-white/[0.07] p-8 text-center shadow-2xl shadow-black/10 backdrop-blur sm:p-10">
           <p className="text-xs font-black uppercase tracking-[0.2em] text-white/60">Pricing</p>
-          <h2 className="mt-4 [font-family:'Fraunces',serif] text-4xl font-semibold">Try Art Flow Creative free for 30 days.</h2>
+          <h2 className="mt-4 [font-family:'Fraunces',serif] text-4xl font-semibold">Try Art Flow Creative free for 7 days.</h2>
           <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-white/65">No credit card required to start. Create your account and explore the workspace before choosing a plan.</p>
           <Link to="/register" className="mt-8 inline-flex min-h-14 items-center justify-center rounded-xl bg-white px-7 py-3 text-sm font-black text-[#4a236f]">
-            Start your 30-day free trial
+            Start your 7-day free trial
           </Link>
         </div>
       </section>
