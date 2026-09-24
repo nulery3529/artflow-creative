@@ -21,6 +21,12 @@ export default async function handler(req,res){
     for(const business of businesses.rows){
       summary.accounts+=1;
       try{
+        business.data = business.data || {};
+        business.data.yahoo_mail = {
+          ...(business.data.yahoo_mail || {}),
+          expense_parser_version: 0,
+          last_expense_uid: 0,
+        };
         const result=await syncYahooExpenses(client,business);
         summary.checked+=Number(result.checked||0);
         summary.imported+=Number(result.imported||0);
