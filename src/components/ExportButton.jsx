@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Download, ChevronDown } from "lucide-react";
+import { shareNativeTextFile } from "@/lib/nativeIos";
 
 function csvCell(v) {
   const s = v == null ? "" : String(v);
@@ -16,6 +17,8 @@ function buildCsv(columns, rows) {
 }
 
 function triggerDownload(filename, csv) {
+  if (shareNativeTextFile(filename, csv, "text/csv")) return;
+
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
