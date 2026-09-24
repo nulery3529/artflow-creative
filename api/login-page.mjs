@@ -57,6 +57,7 @@ function htmlPage({ error = "", returnTo = "/" } = {}) {
       <button type="submit">Sign in</button>
     </form>
     <div class="links">
+      New to Art Flow? <a href="/register">Create account</a><br />
       <a href="/forgot-password">Forgot password?</a><br />
       Having trouble? <a href="mailto:help@artflowcreative.com?subject=Art%20Flow%20sign-in%20help">help@artflowcreative.com</a>
     </div>
