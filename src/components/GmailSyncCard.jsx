@@ -131,7 +131,11 @@ export default function GmailSyncCard() {
             Art Flow watches connected Gmail inboxes for marketplace sales and business expense receipts.
           </p>
         </div>
-        {connected ? <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-1" /> : needsReconnect ? <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-1" /> : null}
+        {needsReconnect
+          ? <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-1" />
+          : connected
+            ? <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-1" />
+            : null}
       </div>
 
       {loading ? (
@@ -163,9 +167,26 @@ export default function GmailSyncCard() {
               </div>
             )}
           </div>
+          {needsReconnect && (
+            <div className="rounded-2xl bg-amber-50 border border-amber-200 p-3 space-y-2">
+              <p className="text-sm font-semibold text-amber-950">One Gmail inbox needs to be reconnected</p>
+              <p className="text-xs text-amber-900">
+                Your other connected Gmail can keep syncing. Reconnect the affected inbox so Art Flow can read it in the background again.
+              </p>
+              <button
+                type="button"
+                onClick={() => connectGmail({ another: true })}
+                disabled={connecting}
+                className="w-full h-11 rounded-xl bg-amber-100 text-amber-950 font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                <RefreshCw className={`w-4 h-4 ${connecting ? "animate-spin" : ""}`} />
+                {connecting ? "Opening Google…" : "Reconnect Gmail Inbox"}
+              </button>
+            </div>
+          )}
           <button
             type="button"
-            onClick={() => syncNow()}
+            onClick={() => syncNow()
             disabled={syncing}
             className="w-full h-12 rounded-2xl bg-muted text-foreground font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
           >
