@@ -86,6 +86,8 @@ A reviewer can create an account directly in the app with email and password. Si
 The iOS app includes native Apple integrations in addition to the hosted business interface:
 - StoreKit 2 subscription purchases and entitlement checks
 - Native iOS share sheet for Sales and Expense CSV exports (Files, AirDrop, Mail, Messages, and other installed share targets)
+- Native pull-to-refresh for the main app view
+- External marketplace/support links open with the appropriate iOS app instead of being trapped in the Art Flow WebView
 - Light native haptic feedback when an export is handed to the iOS share sheet
 
 The iOS subscription screen supports:
