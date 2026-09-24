@@ -426,9 +426,10 @@ async function insertYahooExpense(client, business, email, uid, parsed) {
 async function yahooMessages(email, appPassword, afterUid=0) {
   const imap = await openImap(email, appPassword);
   try {
+    const yearStart = `01-Jan-${new Date().getFullYear()}`;
     const criteria = afterUid > 0
       ? `UID ${afterUid + 1}:* HEADER FROM "ebay"`
-      : 'SINCE 01-Jan-2026 HEADER FROM "ebay"';
+      : `SINCE ${yearStart} HEADER FROM "ebay"`;
     const searchResponse = await imap.command(`UID SEARCH ${criteria}`);
     const text = searchResponse.toString('utf8');
     const searchLine = text.match(/^\* SEARCH(?:\s+([0-9 ]+))?/mi)?.[1] || '';
