@@ -71,6 +71,8 @@ export function normalizedAppleProducts(products = []) {
       displayName: String(product?.displayName || product?.name || "").trim(),
       displayPrice: String(product?.displayPrice || product?.price || "").trim(),
       period: String(product?.period || product?.subscriptionPeriod || "").trim().toLowerCase(),
+      introPeriod: String(product?.introPeriod || "").trim().toLowerCase(),
+      introPaymentMode: String(product?.introPaymentMode || "").trim(),
     }))
     .filter((product) => product.id);
 }
