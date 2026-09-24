@@ -52,23 +52,27 @@ export const AuthProvider = ({ children }) => {
       // Launch-critical syncing runs entirely on the Vercel/Neon stack. Gmail
       // sales sync is independent from the optional tracker so one connector can
       // recover current orders even when the other needs to be reconnected.
-      const runSync = async (url) => {
+      const runSync = async (url, body = null) => {
         const response = await fetch(url, {
           method: 'POST',
           credentials: 'include',
           cache: 'no-store',
+          headers: body ? { 'Content-Type': 'application/json' } : undefined,
+          body: body ? JSON.stringify(body) : undefined,
         });
         return { response, data: await response.json().catch(() => ({})) };
       };
-      // Run Google services sequentially. Parallel Gmail + Sheets calls against
-      // the same account can exhaust Google's per-user quota during login.
+      // Run mail services sequentially so connector quotas and mailbox
+      // checkpoints cannot race each other during login.
       const gmail = await runSync('/api/gmail-sales-sync');
       const expenses = await runSync('/api/gmail-expense-sync');
-      const tracker = await runSync('/api/tracker-sync');
-      const results = [gmail, expenses, tracker];
-      const hardFailure = results.find(({ response }) => !response.ok && response.status !== 409);
+      const yahoo = await runSync('/api/yahoo-mail', {
+        action: 'sync',
+      });
+      const results = [gmail, expenses, yahoo];
+      const hardFailure = results.find(({ response }) => !response.ok && ![400, 409].includes(response.status));
       const connectorMessage = results
-        .filter(({ response }) => response.status === 409)
+        .filter(({ response }) => [400, 409].includes(response.status))
         .map(({ data }) => data?.error)
         .filter(Boolean)[0];
       const state = {
@@ -76,7 +80,7 @@ export const AuthProvider = ({ children }) => {
         at: new Date().toISOString(),
         gmail: gmail.response.ok ? gmail.data : null,
         expenses: expenses.response.ok ? expenses.data : null,
-        tracker: tracker.response.ok ? tracker.data : null,
+        yahoo: yahoo.response.ok ? yahoo.data : null,
         message: hardFailure?.data?.error || connectorMessage,
       };
       publishSyncState(state);
