@@ -1,8 +1,26 @@
 // Scheduled auto-sync for Vinted, Depop and Poshmark sales.
+// Vercel Cron calls this endpoint on a schedule (see vercel.json "crons").
+// It works without any user session: every linked Google mailbox is refreshed
+// server-side and scanned for marketplace sale emails, and new orders are
+// written straight into the sales database.
+import {
+  pool,
+  getLegacyProfile,
+  getBusiness,
+  googleAccessTokenFor,
+  syncGmailAccount,
+} from './_gmail-sales-core.mjs';
+
+export default async function handler(req, res) {
+  res.setHeader('Cache-Control', 'no-store');
+  if (!['GET', 'POST'].includes(req.method)) return res.status(405).json({ error: 'Method not allowed' });
+
+  // Prefer CRON_SECRET when configured. Until it is added in Vercel,
+  // only accept Vercel's scheduled-cron request for this exact schedule.
   const secret = process.env.CRON_SECRET;
   const provided = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   const vercelSchedule = String(req.headers['x-vercel-cron-schedule'] || '');
-  const authorized = secret ? provided === secret : vercelSchedule === "*/15 * * * *";
+  const authorized = secret ? provided === secret : vercelSchedule === '*/15 * * * *';
   if (!authorized) return res.status(401).json({ error: 'Unauthorized' });
 
   const client = await pool.connect();
