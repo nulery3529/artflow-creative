@@ -484,6 +484,11 @@ export default function Dashboard() {
       const direct = directImageUrl(order);
       if (direct) return direct;
 
+      const bundleOrder =
+        /\bbundle\b/i.test(String(orderTitle(order))) ||
+        Number(order?.quantity || 1) > 1;
+      if (bundleOrder) return "/bundle-placeholder.svg";
+
       const source = String(order?.source_url || order?.data?.source_url || "").trim();
       if (source && imageSources.listingByUrl.has(source)) {
         return imageSources.listingByUrl.get(source);
