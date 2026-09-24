@@ -15,17 +15,17 @@ export default function AboutArtFlow() {
           <p className="text-sm font-semibold text-primary">Art Flow Creative</p>
           <h1 className="text-4xl font-bold tracking-tight">Business management for independent artists and online sellers</h1>
           <p className="text-base leading-7 text-muted-foreground">
-            Art Flow Creative helps sellers organize sales, expenses, inventory, marketplace activity, reports, and business records in one place.
+            Art Flow Creative helps independent artists and online sellers organize marketplace sales, business expenses, inventory, mileage, reports, and day-to-day business records in one place.
           </p>
         </header>
 
         <section className="mt-10 space-y-4">
           <h2 className="text-2xl font-semibold">How Google connections are used</h2>
           <p className="text-sm leading-7">
-            Google connections are optional and are started only by the user. When authorized, Art Flow Creative can create or work with the user's ArtFlow tracker in Google Drive and read marketplace sale emails from Gmail so supported orders can be imported into the user's private business workspace.
+            Google connections are optional and are started only by the user. When authorized, Art Flow Creative uses Gmail read-only access to identify supported marketplace sale confirmations and business receipt emails so the user can import those records into a private Art Flow Creative business workspace.
           </p>
           <p className="text-sm leading-7">
-            Art Flow Creative does not use Google user data for advertising and does not sell Google user data. Users can revoke Google access from their Google Account or reconnect the integration from Art Flow Creative when needed.
+            Art Flow Creative does not send, modify, or delete Gmail messages. Google user data is not used for advertising or sold. Users can revoke Google access from their Google Account or disconnect the inbox from Art Flow Creative.
           </p>
         </section>
 
@@ -34,6 +34,16 @@ export default function AboutArtFlow() {
           <p className="text-sm leading-7">
             Art Flow Creative uses its own email-and-password account system. Connecting Google is optional and is used only for the Google-powered features a user chooses to enable.
           </p>
+        </section>
+
+        <section className="mt-10 space-y-4">
+          <h2 className="text-2xl font-semibold">What Art Flow Creative includes</h2>
+          <ul className="grid gap-3 text-sm leading-6 sm:grid-cols-2">
+            <li className="rounded-2xl border border-border p-4">Marketplace order and sales tracking</li>
+            <li className="rounded-2xl border border-border p-4">Business expense and receipt tracking</li>
+            <li className="rounded-2xl border border-border p-4">Inventory and product records</li>
+            <li className="rounded-2xl border border-border p-4">Mileage, reports, and planning tools</li>
+          </ul>
         </section>
 
         <div className="mt-10 flex flex-wrap gap-3">
