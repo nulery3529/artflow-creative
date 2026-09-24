@@ -76,23 +76,14 @@ export function useOrders() {
   }, []);
 
   useEffect(() => {
+    // Load once on mount, then refresh only after the shared connector sync
+    // finishes. AuthContext already owns the 15-minute in-app sync cadence;
+    // polling the full order ledger every minute wastes Neon network transfer.
     reload();
     const onSynced = () => reload();
-    const onFocus = () => reload();
-    const onVisible = () => {
-      if (document.visibilityState === "visible") reload();
-    };
-    const id = window.setInterval(() => {
-      if (document.visibilityState === "visible") reload();
-    }, 60 * 1000);
     window.addEventListener("artflow:data-synced", onSynced);
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onVisible);
     return () => {
-      window.clearInterval(id);
       window.removeEventListener("artflow:data-synced", onSynced);
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [reload]);
 
