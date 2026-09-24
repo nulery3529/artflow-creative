@@ -40,6 +40,27 @@ export default function Expenses() {
   const [editRecord, setEditRecord] = useState(null);
   const [importingEmail, setImportingEmail] = useState(false);
   const recurringChecked = useRef(false);
+  const mailboxRefreshStarted = useRef(false);
+
+  useEffect(() => {
+    if (mailboxRefreshStarted.current) return;
+    mailboxRefreshStarted.current = true;
+    (async () => {
+      await fetch("/api/gmail-expense-sync", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+      }).catch(() => null);
+      await fetch("/api/yahoo-mail", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "sync" }),
+      }).catch(() => null);
+      await reloadExpenses();
+    })();
+  }, []);
 
   useEffect(() => {
     if (expensesLoading || recurringChecked.current) return;
