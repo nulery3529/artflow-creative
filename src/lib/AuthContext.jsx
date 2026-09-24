@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }) => {
 
   const triggerLoginSync = useCallback(async () => {
     const now = Date.now();
-    if (syncInFlight.current || now - lastAutoSyncAt.current < 10 * 60 * 1000) return;
+    if (syncInFlight.current || now - lastAutoSyncAt.current < 55 * 60 * 1000) return;
     syncInFlight.current = true;
     publishSyncState({ status: 'syncing', at: new Date().toISOString() });
     try {
@@ -99,11 +99,11 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (!isAuthenticated) return undefined;
 
-    // Run once after login and every fifteen minutes while the app is open.
+    // Run once after login and then at most hourly while the app is open.
     // Individual connectors remain isolated so one unavailable service never
     // blocks the rest of the app.
     triggerLoginSync();
-    const syncId = window.setInterval(() => triggerLoginSync(), 15 * 60 * 1000);
+    const syncId = window.setInterval(() => triggerLoginSync(), 60 * 60 * 1000);
     const syncWhenActive = () => {
       if (document.visibilityState === 'visible') triggerLoginSync();
     };
@@ -127,27 +127,22 @@ export const AuthProvider = ({ children }) => {
     // can restore the signed-in app even if the client helper fails to expose
     // an otherwise valid HttpOnly session cookie after a deployment.
     try {
-      const [sessionResult, summaryResponse] = await Promise.all([
-        artflowAuthClient.getSession().catch(() => null),
-        fetch('/api/neon-data?op=summary', {
-          credentials: 'include',
-          cache: 'no-store',
-        }).catch(() => null),
-      ]);
+      const summaryResponse = await fetch('/api/neon-data?op=summary', {
+        credentials: 'include',
+        cache: 'no-store',
+      }).catch(() => null);
 
-      const session = sessionResult?.data || sessionResult;
       let summary = null;
       if (summaryResponse?.ok) {
         summary = await summaryResponse.json().catch(() => null);
       }
 
-      const sessionUser = session?.user || null;
       const summaryUser = summary?.user || null;
-      const resolvedUser = sessionUser || (summaryUser ? {
+      const resolvedUser = summaryUser ? {
         id: summaryUser.id,
         email: summaryUser.email,
         name: summaryUser.name,
-      } : null);
+      } : null;
 
       if (resolvedUser) {
         const activeBusinessId = summaryUser?.activeBusinessId || null;
