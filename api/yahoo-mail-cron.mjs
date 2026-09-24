@@ -45,10 +45,8 @@ export default async function handler(req, res) {
     for (const business of businesses.rows) {
       summary.accounts += 1;
       try {
-        const [result, expenses] = await Promise.all([
-          syncYahooMailbox(client, business),
-          syncYahooExpenses(client, business),
-        ]);
+        const result = await syncYahooMailbox(client, business);
+        const expenses = await syncYahooExpenses(client, business);
         summary.checked += Number(result.checked || 0);
         summary.saved += Number(result.saved || 0);
         summary.remaining += Number(result.remaining || 0);
