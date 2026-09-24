@@ -24,7 +24,7 @@ const pool = new Pool({
 const YAHOO_HOST = 'imap.mail.yahoo.com';
 const YAHOO_PORT = 993;
 const MAX_MESSAGES_PER_RUN = 300;
-const YAHOO_EXPENSE_PARSER_VERSION = 10;
+const YAHOO_EXPENSE_PARSER_VERSION = 11;
 let yahooExpenseDiagnosticCount = 0;
 let yahooNoTotalDiagnosticCount = 0;
 
@@ -437,11 +437,11 @@ async function insertYahooExpense(client, business, email, uid, parsed) {
   const receiptText = `${parsed.subject}\n${parsed.text}`;
   let amount = extractTotal(receiptText);
   if (!amount && /ebay/i.test(parsed.from)) {
-    const ebayAmount =
-      receiptText.match(/(?:order\s*total|total\s*paid|amount\s*paid|you\s*paid|payment\s*total|total)\s*[:\-]?\s*(?:US\s*)?\$?\s*([\d,]+\.\d{2})/i)?.[1]
-      || receiptText.match(/(?:US\s*)?\$\s*([\d,]+\.\d{2})\s*(?:USD)?/i)?.[1]
+    const labelledAmount =
+      receiptText.match(/order\s*total[\s\S]{0,120}?(?:US\s*)?\$\s*([\d,]+\.\d{2})/i)?.[1]
+      || receiptText.match(/(?:total\s*paid|amount\s*paid|you\s*paid|payment\s*total)[\s\S]{0,120}?(?:US\s*)?\$\s*([\d,]+\.\d{2})/i)?.[1]
       || '';
-    amount = Number(String(ebayAmount).replace(/,/g, '')) || 0;
+    amount = Number(String(labelledAmount).replace(/,/g, '')) || 0;
   }
   if (!amount) {
     if (yahooExpenseDiagnosticCount < 8 && /ebay/i.test(parsed.from)) {
