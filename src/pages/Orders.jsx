@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Search, Plus, RefreshCw, ExternalLink, Smartphone } from "lucide-react";
+import { Search, Plus, RefreshCw, ExternalLink, Smartphone, Image as ImageIcon } from "lucide-react";
 import { useEntity } from "@/lib/useBusinessData";
 import { useOrders } from "@/lib/useOrders";
 import { formatMoney, formatDate, currentMonthKey, monthShort } from "@/lib/format";
@@ -20,6 +20,45 @@ const hasRecordedSaleAmount = (order) => {
   return Number.isFinite(sale) && sale > 0;
 };
 
+const imageMatchKey = (value = "") =>
+  String(value || "")
+    .toLowerCase()
+    .replace(/^\s*[0-9]+(?:\.[0-9]+)?\s*x\s*[0-9]+(?:\.[0-9]+)?\s*[-–—|:]?\s*/i, "")
+    .replace(/\b(of|the|a|an)\b/gi, "")
+    .replace(/[^a-z0-9]+/g, "");
+
+const directImageUrl = (item = {}) =>
+  item?.image_url ||
+  item?.product_image_url ||
+  item?.marketplace_image_url ||
+  item?.thumbnail_url ||
+  item?.photo_url ||
+  item?.data?.image_url ||
+  item?.data?.product_image_url ||
+  item?.data?.marketplace_image_url ||
+  item?.data?.thumbnail_url ||
+  item?.data?.photo_url ||
+  "";
+
+function OrderThumbnail({ src, alt }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <div className="w-20 h-20 rounded-2xl overflow-hidden shrink-0 border border-[hsl(var(--border))] bg-muted flex items-center justify-center">
+      {src && !failed ? (
+        <img
+          src={src}
+          alt={alt || "Order artwork"}
+          loading="lazy"
+          className="w-full h-full object-cover"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <ImageIcon className="w-6 h-6 text-muted-foreground/60" />
+      )}
+    </div>
+  );
+}
+
 export default function Orders() {
   const { records: orders, reload: reloadOrders } = useOrders();
   const { selected: trackedSites, configured: sitesConfigured, loading: sitesLoading } = useMarketplacePreferences();
@@ -27,7 +66,26 @@ export default function Orders() {
   // historical sales that are already part of the business ledger.
   const activeOrders = orders;
   const { records: inventoryCosts } = useEntity("InventoryCost", "size");
-  const refresh = async () => { await reloadOrders(); };
+  const [marketplaceListings, setMarketplaceListings] = useState([]);
+
+  const loadMarketplaceListings = React.useCallback(async () => {
+    try {
+      const response = await fetch("/api/neon-data?op=listings", {
+        credentials: "include",
+        cache: "no-store",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || `Listings ${response.status}`);
+      setMarketplaceListings(Array.isArray(data.listings) ? data.listings : []);
+    } catch (error) {
+      console.error("Failed to load marketplace listing images:", error);
+      setMarketplaceListings([]);
+    }
+  }, []);
+
+  const refresh = async () => {
+    await Promise.all([reloadOrders(), loadMarketplaceListings()]);
+  };
   const { pathname, search: locationSearch } = useLocation();
   const navigate = useNavigate();
   const [platformFilter, setPlatformFilter] = useState("All");
@@ -41,8 +99,9 @@ export default function Orders() {
       setPlatformFilter("All");
       setSearch(new URLSearchParams(locationSearch).get("search") || "");
       reloadOrders();
+      loadMarketplaceListings();
     }
-  }, [pathname, locationSearch, reloadOrders]);
+  }, [pathname, locationSearch, reloadOrders, loadMarketplaceListings]);
   const { isOpen: formOpen, open: openForm, close: closeForm } = useModalRoute();
   const [importingEmail, setImportingEmail] = useState(false);
 
@@ -103,6 +162,63 @@ export default function Orders() {
     setSearch("");
   };
 
+  const imageSources = useMemo(() => {
+    const listingByUrl = new Map();
+    const listingByKey = new Map();
+    const inventoryByKey = new Map();
+
+    for (const listing of marketplaceListings) {
+      const image = directImageUrl(listing);
+      if (!image) continue;
+
+      const url = String(listing?.listing_url || "").trim();
+      if (url) listingByUrl.set(url, image);
+
+      const key = imageMatchKey(listing?.title);
+      if (key && !listingByKey.has(key)) listingByKey.set(key, image);
+    }
+
+    for (const item of inventoryCosts) {
+      const image = directImageUrl(item);
+      const key = imageMatchKey(item?.name || item?.title);
+      if (image && key && !inventoryByKey.has(key)) inventoryByKey.set(key, image);
+    }
+
+    return { listingByUrl, listingByKey, inventoryByKey };
+  }, [marketplaceListings, inventoryCosts]);
+
+  const imageForOrder = React.useCallback(
+    (order) => {
+      const direct = directImageUrl(order);
+      if (direct) return direct;
+
+      const rawSource = String(order?.source_url || order?.data?.source_url || "").trim();
+      if (rawSource && imageSources.listingByUrl.has(rawSource)) {
+        return imageSources.listingByUrl.get(rawSource);
+      }
+
+      const key = imageMatchKey(order?.product_name);
+      if (!key) return "";
+
+      if (imageSources.listingByKey.has(key)) return imageSources.listingByKey.get(key);
+      if (imageSources.inventoryByKey.has(key)) return imageSources.inventoryByKey.get(key);
+
+      for (const [candidate, image] of imageSources.listingByKey.entries()) {
+        if (key.length >= 8 && candidate.length >= 8 && (key.includes(candidate) || candidate.includes(key))) {
+          return image;
+        }
+      }
+      for (const [candidate, image] of imageSources.inventoryByKey.entries()) {
+        if (key.length >= 8 && candidate.length >= 8 && (key.includes(candidate) || candidate.includes(key))) {
+          return image;
+        }
+      }
+
+      return "";
+    },
+    [imageSources]
+  );
+
   const filtered = useMemo(() => {
     return activeOrders
       .filter((o) => {
@@ -117,8 +233,12 @@ export default function Orders() {
         }
         return true;
       })
-      .sort((a, b) => (b.sale_date || "").localeCompare(a.sale_date || ""));
-  }, [activeOrders, platformFilter, monthFilter, search]);
+      .sort((a, b) => (b.sale_date || "").localeCompare(a.sale_date || ""))
+      .map((order) => ({
+        ...order,
+        display_image_url: imageForOrder(order),
+      }));
+  }, [activeOrders, platformFilter, monthFilter, search, imageForOrder]);
 
   const summary = useMemo(() => {
     const completedSales = filtered.filter(hasRecordedSaleAmount);
@@ -258,23 +378,33 @@ export default function Orders() {
             key={o.id}
             className="bg-card rounded-2xl p-4 border border-[hsl(var(--border))]"
           >
-            <div className="flex items-start justify-between mb-2">
-              <div className="min-w-0">
-                <p className="font-medium truncate">{displayProductName(o)}</p>
-                <p className="text-xs text-muted-foreground">
-                  <span className="text-foreground">{o.size}</span> · Qty <span className="text-foreground">{o.quantity}</span> · <span className="text-foreground">{formatDate(o.sale_date)}</span>
-                </p>
-              </div>
-              <div className="shrink-0 ml-2 flex items-center gap-1.5">
-                <ProfitScoreBadge order={o} />
-                <span
-                  className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-                    PLATFORM_TONE[displayPlatform(o.platform)] || "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {displayPlatform(o.platform)}
-                </span>
-                {sourceUrl && <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />}
+            <div className="flex items-start gap-3 mb-3">
+              <OrderThumbnail
+                src={o.display_image_url}
+                alt={displayProductName(o)}
+              />
+
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">{displayProductName(o)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      <span className="text-foreground">{o.size}</span> · Qty <span className="text-foreground">{o.quantity}</span> · <span className="text-foreground">{formatDate(o.sale_date)}</span>
+                    </p>
+                  </div>
+
+                  <div className="shrink-0 flex items-center gap-1.5">
+                    <ProfitScoreBadge order={o} />
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                        PLATFORM_TONE[displayPlatform(o.platform)] || "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {displayPlatform(o.platform)}
+                    </span>
+                    {sourceUrl && <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />}
+                  </div>
+                </div>
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2 text-center pt-2 border-t border-[hsl(var(--border))]">
