@@ -24,6 +24,7 @@ const pool = new Pool({
 const YAHOO_HOST = 'imap.mail.yahoo.com';
 const YAHOO_PORT = 993;
 const MAX_MESSAGES_PER_RUN = 300;
+const YAHOO_EXPENSE_PARSER_VERSION = 3;
 
 function imapQuote(value='') {
   return `"${String(value).replace(/\\/g,'\\\\').replace(/"/g,'\\"')}"`;
@@ -277,7 +278,14 @@ const YAHOO_EXPENSE_TERMS = [
   'receipt',
   'invoice',
   'order confirmation',
+  'order confirmed',
+  'order details',
+  'order summary',
   'your order',
+  'we received your order',
+  'thanks for your purchase',
+  'thank you for your purchase',
+  'thank you for your order',
   'order receipt',
   'purchase confirmation',
   'purchase receipt',
@@ -489,9 +497,10 @@ export async function syncYahooExpenses(client, business) {
   }
 
   const password = decrypt(config.app_password_enc);
-  const expenseParserVersion = 2;
   const savedParserVersion = Number(config.expense_parser_version || 0);
-  const expenseAfterUid = savedParserVersion >= expenseParserVersion
+  // Re-scan this year's Yahoo receipts whenever the parser changes. This is
+  // intentionally safe because insertYahooExpense deduplicates by Yahoo UID.
+  const expenseAfterUid = savedParserVersion >= YAHOO_EXPENSE_PARSER_VERSION
     ? Number(config.last_expense_uid || 0)
     : 0;
   const { messages, remaining, maxUid } = await yahooExpenseMessages(
@@ -511,7 +520,7 @@ export async function syncYahooExpenses(client, business) {
 
   await saveYahooConfig(client, business, {
     last_expense_uid:maxUid,
-    expense_parser_version:expenseParserVersion,
+    expense_parser_version:YAHOO_EXPENSE_PARSER_VERSION,
     last_expense_sync_at:new Date().toISOString(),
     last_expense_checked:messages.length,
     last_expense_imported:imported,
