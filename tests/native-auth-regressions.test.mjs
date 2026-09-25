@@ -6,12 +6,13 @@ async function source(path) {
   return readFile(new URL(`../${path}`, import.meta.url), "utf8");
 }
 
-test("native iOS login hides Google and preserves Apple + email paths", async () => {
+test("Art Flow login uses Apple + email paths without Google sign-in", async () => {
   const reactLogin = await source("src/pages/IndependentLogin.jsx");
   const serverLogin = await source("api/login-page.mjs");
 
-  assert.match(reactLogin, /const showGoogleLogin = !nativeIOS;/);
-  assert.match(serverLogin, /const showGoogle = !nativeIOS;/);
+  assert.doesNotMatch(reactLogin, /Continue with Google/);
+  assert.doesNotMatch(serverLogin, /Continue with Google/);
+  assert.doesNotMatch(serverLogin, /\/api\/auth\/google-login/);
   assert.match(reactLogin, /Continue with Apple/);
   assert.match(serverLogin, /Continue with Apple/);
   assert.match(reactLogin, /appleid\.cdn-apple\.com\/appleid\/button\/logo/);
