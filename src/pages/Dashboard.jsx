@@ -1072,11 +1072,11 @@ export default function Dashboard() {
                 .slice(0, 6)
                 .map((row) => {
                   const brandColors = {
-                    Poshmark: "#D6249F",
-                    Vinted: "#007782",
-                    Depop: "#111111",
-                    Etsy: "#F1641E",
-                    eBay: "#3665F3",
+                    Poshmark: "#610721",
+                    Vinted: "#027783",
+                    Depop: "#E4001D",
+                    Etsy: "#F16521",
+                    eBay: "#0064D2",
                   };
                   const color = brandColors[row.name] || "#8B5CF6";
 
