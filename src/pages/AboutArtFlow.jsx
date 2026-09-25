@@ -1478,6 +1478,49 @@ export default function AboutArtFlow() {
         </div>
       </section>
 
+      <section id="what-we-do" className="border-t border-white/5 bg-[#17101c] px-5 py-16 sm:px-8 sm:py-20">
+        <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#b995d0]">What Art Flow Creative does</p>
+            <h2 className="mt-4 [font-family:'Fraunces',serif] text-4xl font-semibold text-white sm:text-5xl">
+              One workspace for the business side of your art.
+            </h2>
+            <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-white/58 sm:text-base">
+              Art Flow Creative helps independent artists and online sellers organize sales, inventory, expenses, mileage, taxes, and business reporting without juggling separate spreadsheets and apps.
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              ["Track marketplace orders", "Bring supported marketplace sale confirmations into one orders view so you can see what sold, where it sold, and how much you made."],
+              ["Manage inventory & products", "Store product details, photos, quantities, availability, sold history, and reusable listing information in one place."],
+              ["Organize business expenses", "Record purchases, receipts, marketplace fees, supplies, packaging, and other deductible business costs."],
+              ["Track mileage & taxes", "Keep business mileage, taxable profit, deductions, and tax-reserve planning together throughout the year."],
+              ["See reports & profit", "Review sales, costs, expenses, marketplace performance, net profit, and monthly trends from your real business data."],
+              ["Plan your business", "Set sales and profit goals, monitor break-even progress, and use simple cash-flow and tax planning tools."],
+            ].map(([title, text]) => (
+              <article
+                key={title}
+                className="rounded-[26px] border border-white/8 bg-gradient-to-br from-white/[0.07] to-white/[0.025] p-6 shadow-[0_18px_44px_rgba(0,0,0,.16)]"
+              >
+                <div className="mb-4 h-10 w-10 rounded-2xl bg-[#2a2030] ring-1 ring-white/8">
+                  <div className="h-full w-full rounded-2xl bg-[radial-gradient(circle_at_30%_30%,rgba(200,120,220,.32),transparent_55%)]" />
+                </div>
+                <h3 className="text-base font-black text-white">{title}</h3>
+                <p className="mt-2 text-sm leading-6 text-white/55">{text}</p>
+              </article>
+            ))}
+          </div>
+
+          <div className="mt-8 rounded-[26px] border border-white/8 bg-black/20 p-6 sm:p-7">
+            <h3 className="text-base font-black text-white">Optional email connections</h3>
+            <p className="mt-2 text-sm leading-7 text-white/55">
+              You can optionally connect supported email accounts so Art Flow can identify marketplace sale confirmations and business receipt emails for import into your private workspace. Google connections use read-only Gmail access; Art Flow does not send, edit, or delete your Gmail messages.
+            </p>
+          </div>
+        </div>
+      </section>
+
       <section className="relative -mt-2 border-t border-white/5 bg-[#1b1122] px-5 pb-14 pt-10 sm:px-8">
         <div className="mx-auto max-w-5xl text-center">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-[#b995d0]">Supported marketplaces</p>
