@@ -561,9 +561,7 @@ export default function AboutArtFlow() {
         <div className="relative mx-auto max-w-7xl px-4 sm:px-8 lg:px-10">
           <nav className="flex items-center justify-between py-5 sm:py-7">
             <Link to="/" className="flex items-center gap-3">
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-white shadow-lg shadow-black/10 sm:h-12 sm:w-12 sm:rounded-2xl">
-                <img src="/artflow-icon.svg" alt="Art Flow Creative" className="h-7 w-7 sm:h-9 sm:w-9" />
-              </span>
+              <img src="/artflow-icon.svg" alt="Art Flow Creative" className="h-10 w-10 rounded-xl shadow-lg shadow-black/10 sm:h-12 sm:w-12 sm:rounded-2xl" />
               <div className="leading-none">
                 <p className="[font-family:'Fraunces',serif] text-[18px] font-medium tracking-[0.12em] text-white sm:text-[24px]">ART FLOW</p>
                 <p className="mt-1 text-[8px] font-medium tracking-[0.38em] text-white/80 sm:text-[10px]">CREATIVE</p>
