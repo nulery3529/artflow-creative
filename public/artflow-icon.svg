@@ -1,31 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Art Flow Creative">
   <defs>
-    <linearGradient id="lavender" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#d1c1ff"/>
-      <stop offset="100%" stop-color="#bca8f4"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#c8c5f0"/>
+      <stop offset="55%" stop-color="#b9b9e9"/>
+      <stop offset="100%" stop-color="#adb2e4"/>
     </linearGradient>
   </defs>
-  <rect width="256" height="256" rx="58" fill="url(#lavender)"/>
+  <rect x="2" y="2" width="252" height="252" rx="48" fill="url(#bg)"/>
   <path
-    d="M181 78
-       C159 56 130 48 103 53
-       C70 59 47 84 43 116
-       C39 148 55 179 84 196
-       C111 212 145 210 170 193
-       C179 187 187 179 194 169"
+    d="M195 104
+       C187 72 160 52 128 51
+       C88 50 56 82 55 123
+       C54 165 87 199 129 200
+       C158 201 184 187 198 163"
     fill="none"
-    stroke="#1d245f"
-    stroke-width="32"
+    stroke="#172b66"
+    stroke-width="45"
     stroke-linecap="round"
     stroke-linejoin="round"
   />
-  <path
-    d="M177 69
-       C160 57 145 51 128 49"
-    fill="none"
-    stroke="#1d245f"
-    stroke-width="12"
-    stroke-linecap="round"
-    opacity=".95"
-  />
+  <path d="M191 81 C203 92 208 104 209 116" fill="none" stroke="#172b66" stroke-width="9" stroke-linecap="round"/>
+  <path d="M196 87 C207 100 211 111 211 122" fill="none" stroke="#172b66" stroke-width="5" stroke-linecap="round" opacity=".95"/>
+  <path d="M197 169 C205 157 209 145 210 134" fill="none" stroke="#172b66" stroke-width="9" stroke-linecap="round"/>
+  <path d="M200 165 C209 151 213 140 214 130" fill="none" stroke="#172b66" stroke-width="4" stroke-linecap="round" opacity=".92"/>
 </svg>
