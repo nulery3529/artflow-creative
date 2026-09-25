@@ -108,6 +108,7 @@ function PreviewMarketPerformance({ compact = false }) {
     ["Poshmark", "$1,420", "100%", "bg-purple-500"],
     ["Vinted", "$1,080", "76%", "bg-pink-400"],
     ["Depop", "$822", "58%", "bg-cyan-400"],
+    ["Etsy", "$640", "45%", "bg-fuchsia-400"],
     ["eBay", "$520", "37%", "bg-amber-400"],
   ];
   return (
@@ -386,7 +387,8 @@ export default function AboutArtFlow() {
 
       <section className="relative -mt-2 border-t border-white/5 bg-[#1b1122] px-5 pb-14 pt-10 sm:px-8">
         <div className="mx-auto max-w-5xl text-center">
-          <p className="text-sm font-semibold text-white/45">Everything you need to run your creative business.</p>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#b995d0]">Supported marketplaces</p>
+          <p className="mx-auto mt-3 max-w-2xl text-sm font-semibold leading-6 text-white/55">Track orders and sales from the marketplaces Art Flow Creative supports.</p>
           <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
             {["Poshmark", "Vinted", "Depop", "Etsy", "eBay"].map((name) => (
               <span key={name} className="rounded-full bg-white/8 px-4 py-2 text-[11px] font-extrabold tracking-wide text-white/65 ring-1 ring-white/5">
