@@ -1461,7 +1461,7 @@ export default function AboutArtFlow() {
               </div>
 
               <p className="mt-4 flex items-center justify-center gap-2 text-xs font-semibold text-white/50 sm:mt-5 sm:justify-start">
-                <span className="grid h-4 w-4 place-items-center rounded-full border border-white/25 text-[9px] text-white/70">✓</span>
+                <span className="grid h-4 w-4 place-items-center rounded-full border border-[#c7a4dc] bg-[#c7a4dc]/15 text-[9px] font-black text-[#e6d3f2]">✓</span>
                 No credit card required
               </p>
             </div>
@@ -1571,7 +1571,7 @@ export default function AboutArtFlow() {
               ["Business Planning", "Keep goals, planning, and the practical side of your art business organized."],
             ].map(([title, text]) => (
               <article key={title} className="rounded-3xl border border-white/7 bg-white/[0.045] p-6">
-                <div className="mb-5 h-1.5 w-10 rounded-full bg-[#9b6fba]" />
+                <div className="mb-5 h-1.5 w-10 rounded-full bg-[#c7a4dc] shadow-[0_0_14px_rgba(199,164,220,.28)]" />
                 <h3 className="text-base font-black text-white">{title}</h3>
                 <p className="mt-2 text-sm leading-6 text-white/55">{text}</p>
               </article>
