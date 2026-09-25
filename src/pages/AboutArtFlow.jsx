@@ -122,7 +122,7 @@ function PreviewHero({ compact = false, onTabChange }) {
           ))}
         </div>
 
-        <div className="mt-4 grid grid-cols-2 overflow-hidden rounded-2xl bg-white/10">
+        <div className="mt-4 grid grid-cols-3 overflow-hidden rounded-2xl bg-white/10">
           <div className="bg-gradient-to-br from-[#c93cff] to-[#e247c5] px-3 py-2.5">
             <span className="block text-[7px] font-bold uppercase tracking-[0.08em] text-white/70">Items sold</span>
             <strong className="mt-1 block text-[12px] font-black">214</strong>
@@ -130,6 +130,10 @@ function PreviewHero({ compact = false, onTabChange }) {
           <div className="bg-gradient-to-br from-[#c93cff] to-[#e247c5] px-3 py-2.5">
             <span className="block text-[7px] font-bold uppercase tracking-[0.08em] text-white/70">Orders</span>
             <strong className="mt-1 block text-[12px] font-black">187</strong>
+          </div>
+          <div className="bg-gradient-to-br from-[#c93cff] to-[#e247c5] px-3 py-2.5">
+            <span className="block text-[7px] font-bold uppercase tracking-[0.08em] text-white/70">Avg. order revenue</span>
+            <strong className="mt-1 block text-[12px] font-black">$20.55</strong>
           </div>
         </div>
       </div>
