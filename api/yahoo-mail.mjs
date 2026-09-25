@@ -253,6 +253,22 @@ async function openImap(email, appPassword) {
 
   return {
     command,
+    select: async (mailbox = 'INBOX') => command(`SELECT ${imapQuote(mailbox)}`),
+    listMailboxes: async () => {
+      const response = await command('LIST "" "*"');
+      const text = response.toString('utf8');
+      const names = [];
+      for (const line of text.split(/\r?\n/)) {
+        const match = line.match(/^\*\s+LIST\s+\([^)]*\)\s+(?:"[^"]*"|NIL)\s+(.+)$/i);
+        if (!match) continue;
+        let name = clean(match[1] || '');
+        if (name.startsWith('"') && name.endsWith('"')) {
+          name = name.slice(1, -1).replace(/\\(["\\])/g, '$1');
+        }
+        if (name && !names.includes(name)) names.push(name);
+      }
+      return names;
+    },
     close: async () => {
       try { await command('LOGOUT'); } catch {}
       socket.destroy();
@@ -514,48 +530,95 @@ async function insertYahooExpense(client, business, email, uid, parsed) {
 async function yahooMessages(email, appPassword, afterUid=0) {
   const imap = await openImap(email, appPassword);
   try {
-    // Re-check recent eBay mail on every sync instead of relying only on the
-    // last Yahoo UID. If an eBay seller email arrived while parsing was broken
-    // or Yahoo returned messages out of sequence, a strict UID cursor can skip
-    // that sale forever. insertOrders() already de-duplicates imported orders,
-    // so rescanning a recent window is safe.
+    // eBay mail can be routed by Yahoo rules into Archive or a custom folder.
+    // Search every non-trash mailbox instead of only INBOX, and re-scan a
+    // recent window so a moved message cannot be permanently missed.
     const since = new Date();
-    since.setDate(since.getDate() - 90);
+    since.setDate(since.getDate() - 14);
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const recentStart = `${String(since.getDate()).padStart(2,'0')}-${months[since.getMonth()]}-${since.getFullYear()}`;
 
-    const found = new Set();
-    const searches = [
-      `SINCE ${recentStart} HEADER FROM "ebay"`,
-      `SINCE ${recentStart} HEADER SUBJECT "You made the sale"`,
-      `SINCE ${recentStart} HEADER SUBJECT "payment from"`,
-      `SINCE ${recentStart} HEADER SUBJECT "received a payment"`,
-      `SINCE ${recentStart} HEADER SUBJECT "sold"`,
-    ];
+    let mailboxes = ['INBOX'];
+    try {
+      const listed = await imap.listMailboxes();
+      mailboxes = Array.from(new Set(['INBOX', ...listed])).filter((name) => {
+        const normalized = normalize(name);
+        return normalized &&
+          !/(?:^|[\/._ -])(trash|deleted|sent|draft|junk|spam|bulk)(?:$|[\/._ -])/i.test(normalized);
+      });
+    } catch {}
 
-    for (const criteria of searches) {
-      const searchResponse = await imap.command(`UID SEARCH ${criteria}`);
-      const text = searchResponse.toString('utf8');
-      const searchLine = text.match(/^\* SEARCH(?:\s+([0-9 ]+))?/mi)?.[1] || '';
-      for (const uid of searchLine.split(/\s+/).map(Number).filter((n) => Number.isFinite(n) && n > 0)) {
-        found.add(uid);
+    const messages = [];
+    let candidateCount = 0;
+
+    for (const mailbox of mailboxes) {
+      if (messages.length >= MAX_MESSAGES_PER_RUN) break;
+
+      try {
+        await imap.select(mailbox);
+      } catch {
+        continue;
+      }
+
+      const found = new Set();
+      const searches = [
+        `SINCE ${recentStart} HEADER FROM "ebay"`,
+        `SINCE ${recentStart} HEADER SUBJECT "sale"`,
+        `SINCE ${recentStart} HEADER SUBJECT "sold"`,
+        `SINCE ${recentStart} HEADER SUBJECT "payment"`,
+        `SINCE ${recentStart} HEADER SUBJECT "ship"`,
+      ];
+
+      for (const criteria of searches) {
+        try {
+          const searchResponse = await imap.command(`UID SEARCH ${criteria}`);
+          const text = searchResponse.toString('utf8');
+          const searchLine = text.match(/^\* SEARCH(?:\s+([0-9 ]+))?/mi)?.[1] || '';
+          for (const uid of searchLine.split(/\s+/).map(Number).filter((n) => Number.isFinite(n) && n > 0)) {
+            found.add(uid);
+          }
+        } catch {}
+      }
+
+      // If filtered searches return nothing, scan recent mail in this folder.
+      // parseSaleEmail() still requires seller-side eBay wording, so ordinary
+      // Yahoo mail will not be imported as an order.
+      if (!found.size) {
+        try {
+          const response = await imap.command(`UID SEARCH SINCE ${recentStart}`);
+          const text = response.toString('utf8');
+          const searchLine = text.match(/^\* SEARCH(?:\s+([0-9 ]+))?/mi)?.[1] || '';
+          const recent = searchLine
+            .split(/\s+/)
+            .map(Number)
+            .filter((n) => Number.isFinite(n) && n > 0)
+            .slice(-75);
+          recent.forEach((uid) => found.add(uid));
+        } catch {}
+      }
+
+      const uids = [...found]
+        .sort((a, b) => a - b)
+        .slice(-Math.max(0, MAX_MESSAGES_PER_RUN - messages.length));
+
+      candidateCount += uids.length;
+
+      for (let i = 0; i < uids.length; i += 20) {
+        const batch = uids.slice(i, i + 20);
+        const response = await imap.command(`UID FETCH ${batch.join(',')} (UID BODY.PEEK[])`);
+        for (const item of literalMessages(response)) {
+          messages.push({ ...item, mailbox });
+        }
       }
     }
 
-    const allUids = [...found].sort((a,b)=>a-b);
-    const uids = allUids.slice(-MAX_MESSAGES_PER_RUN);
-    const messages = [];
-
-    for (let i = 0; i < uids.length; i += 20) {
-      const batch = uids.slice(i, i + 20);
-      const response = await imap.command(`UID FETCH ${batch.join(',')} (UID BODY.PEEK[])`);
-      messages.push(...literalMessages(response));
-    }
+    try { await imap.select('INBOX'); } catch {}
 
     return {
       messages,
-      remaining: Math.max(0, allUids.length - uids.length),
-      maxUid: uids.length ? Math.max(afterUid, ...uids) : afterUid,
+      remaining: Math.max(0, candidateCount - messages.length),
+      maxUid: afterUid,
+      foldersChecked: mailboxes.length,
     };
   } finally {
     await imap.close();
@@ -656,7 +719,7 @@ export async function syncYahooMailbox(client, business) {
   }
 
   const password = decrypt(config.app_password_enc);
-  const { messages, remaining, maxUid } = await yahooMessages(email, password, Number(config.last_uid || 0));
+  const { messages, remaining, maxUid, foldersChecked = 1 } = await yahooMessages(email, password, Number(config.last_uid || 0));
   const rows = [];
 
   for (const item of messages) {
@@ -680,6 +743,12 @@ export async function syncYahooMailbox(client, business) {
     last_error: '',
   });
 
+  console.log('Yahoo sales mailbox scan', JSON.stringify({
+    checked: messages.length,
+    saved,
+    remaining,
+    folders_checked: foldersChecked,
+  }));
   return { connected:true, checked:messages.length, saved, remaining };
 }
 
