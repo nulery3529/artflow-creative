@@ -837,13 +837,15 @@ export default function Dashboard() {
       const results = await Promise.all([
         runSync("/api/gmail-sales-sync", { force: true }),
         runSync("/api/gmail-expense-sync"),
+        runSync("/api/yahoo-mail", { action: "sync" }),
+        runSync("/api/ebay-official", { action: "sync" }),
       ]);
 
       const hardFailure = results.find(
-        ({ response }) => !response.ok && response.status !== 409
+        ({ response }) => !response.ok && ![400, 409].includes(response.status)
       );
       const connectorMessage = results
-        .filter(({ response }) => response.status === 409)
+        .filter(({ response }) => [400, 409].includes(response.status))
         .map(({ data }) => data?.error)
         .find(Boolean);
 
@@ -866,7 +868,7 @@ export default function Dashboard() {
       if (hardFailure) {
         toast.error("Sync needs attention", { description: state.message });
       } else if (results.some(({ response }) => response.ok)) {
-        toast.success("Sales and expenses are up to date");
+        toast.success("Sales, eBay, and expenses are up to date");
       } else {
         toast.info("Saved data refreshed", { description: connectorMessage });
       }
