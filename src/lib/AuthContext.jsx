@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }) => {
 
   const triggerLoginSync = useCallback(async () => {
     const now = Date.now();
-    if (syncInFlight.current || now - lastAutoSyncAt.current < 55 * 60 * 1000) return;
+    if (syncInFlight.current || now - lastAutoSyncAt.current < 14 * 60 * 1000) return;
     syncInFlight.current = true;
     publishSyncState({ status: 'syncing', at: new Date().toISOString() });
     try {
@@ -69,7 +69,10 @@ export const AuthProvider = ({ children }) => {
       const yahoo = await runSync('/api/yahoo-mail', {
         action: 'sync',
       });
-      const results = [gmail, expenses, yahoo];
+      const ebay = await runSync('/api/ebay-official', {
+        action: 'sync',
+      });
+      const results = [gmail, expenses, yahoo, ebay];
       const hardFailure = results.find(({ response }) => !response.ok && ![400, 409].includes(response.status));
       const connectorMessage = results
         .filter(({ response }) => [400, 409].includes(response.status))
@@ -81,6 +84,7 @@ export const AuthProvider = ({ children }) => {
         gmail: gmail.response.ok ? gmail.data : null,
         expenses: expenses.response.ok ? expenses.data : null,
         yahoo: yahoo.response.ok ? yahoo.data : null,
+        ebay: ebay.response.ok ? ebay.data : null,
         message: hardFailure?.data?.error || connectorMessage,
       };
       publishSyncState(state);
@@ -99,11 +103,11 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (!isAuthenticated) return undefined;
 
-    // Run once after login and then at most hourly while the app is open.
+    // Run once after login and then every 15 minutes while the app is open.
     // Individual connectors remain isolated so one unavailable service never
     // blocks the rest of the app.
     triggerLoginSync();
-    const syncId = window.setInterval(() => triggerLoginSync(), 60 * 60 * 1000);
+    const syncId = window.setInterval(() => triggerLoginSync(), 15 * 60 * 1000);
     const syncWhenActive = () => {
       if (document.visibilityState === 'visible') triggerLoginSync();
     };
