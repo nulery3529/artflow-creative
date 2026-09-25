@@ -255,20 +255,23 @@ function ebayRows(subject, text) {
   const paymentSale = normalizedSubject.match(/The payment from\s+(.+?)\s+is confirmed:\s*(.+)$/i)
     || normalizedSubject.match(/Payment from\s+(.+?)\s+(?:is\s+)?confirmed:\s*(.+)$/i);
   const receivedPayment = normalizedSubject.match(/(?:You have received|You've received) a payment(?: from\s+(.+?))?(?::|\s+-)?\s*(.*)$/i);
+  const soldSubject = /\b(?:your eBay item sold|congratulations,? your item sold|your item (?:has )?sold|you sold an item|item sold)\b/i.test(normalizedSubject);
 
   const sellerBodySignal =
-    /\b(?:you (?:made|completed) the sale|your item (?:sold|has sold)|you sold|sold for|ship(?:ping)? to buyer|payment from .+ (?:is )?confirmed|you(?:'ve| have) received a payment)\b/i.test(text)
+    /\b(?:you (?:made|completed) the sale|your item (?:sold|has sold)|you sold|sold for|quantity sold|ship(?:ping)? to buyer|ship (?:this|your) item|payment from .+ (?:is )?confirmed|you(?:'ve| have) received a payment)\b/i.test(text)
     || /(?:^|\n)\s*Buyer(?: username)?\s*(?:\n|:)\s*[^\n]+/i.test(text);
 
   // Buyer order confirmations can contain "Item", "Total", and order IDs too.
   // Only treat an eBay email as a sale when it has seller-side wording.
-  if (!oldSale && !paymentSale && !receivedPayment && !sellerBodySignal) return [];
+  if (!oldSale && !paymentSale && !receivedPayment && !soldSubject && !sellerBodySignal) return [];
 
   const title = clean(
     oldSale?.[1]
       || paymentSale?.[2]
       || receivedPayment?.[2]
       || text.match(/(?:Item|Listing)\s*(?:title)?\s*(?:\n|:)\s*([^\n]+)/i)?.[1]
+      || text.match(/(?:Item sold|Sold item|You sold)\s*(?:\n|:)\s*([^\n]+)/i)?.[1]
+      || text.match(/Quantity sold\s*(?:\n|:)\s*\d+\s*\n+([^\n$]+)/i)?.[1]
       || ''
   ).replace(/[.!]+$/, '');
   const normalizedTitle = clean(title)
@@ -290,8 +293,8 @@ function ebayRows(subject, text) {
   );
 
   const totalText =
-    text.match(/(?:Order total|Total paid|Total)\s*(?:\n|:)?\s*\$([\d,.]+)/i)?.[1]
-    || text.match(/(?:Sold for|Item price|Price)\s*(?:\n|:)?\s*\$([\d,.]+)/i)?.[1]
+    text.match(/(?:Order total|Total paid|Total|Sale total|Sale price)\s*(?:\n|:)?\s*(?:US\s*)?\$([\d,.]+)/i)?.[1]
+    || text.match(/(?:Sold for|Item price|Price)\s*(?:\n|:)?\s*(?:US\s*)?\$([\d,.]+)/i)?.[1]
     || '';
   const saleTotal = Number(String(totalText).replace(/,/g, '')) || 0;
   if (saleTotal <= 0) return [];
