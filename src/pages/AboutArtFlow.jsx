@@ -36,6 +36,43 @@ const OrderRow = ({ variant, title, platform, amount }) => (
   </div>
 );
 
+const MARKETPLACE_STYLES = {
+  Poshmark: { color: "#D6249F", soft: "rgba(214,36,159,.18)", mark: "P" },
+  Vinted: { color: "#007782", soft: "rgba(0,119,130,.20)", mark: "V" },
+  Depop: { color: "#111111", soft: "rgba(255,255,255,.08)", mark: "D" },
+  Etsy: { color: "#F1641E", soft: "rgba(241,100,30,.18)", mark: "E" },
+  eBay: { color: "#3665F3", soft: "rgba(54,101,243,.18)", mark: "eBay" },
+};
+
+function MarketplaceMark({ name }) {
+  const style = MARKETPLACE_STYLES[name] || MARKETPLACE_STYLES.eBay;
+
+  if (name === "eBay") {
+    return (
+      <div className="grid h-11 w-11 place-items-center rounded-xl bg-white shadow-sm ring-1 ring-white/40">
+        <span className="flex items-baseline text-[12px] font-black tracking-[-0.12em]" aria-label="eBay">
+          <span className="text-[#E53238]">e</span>
+          <span className="text-[#0064D2]">b</span>
+          <span className="text-[#F5AF02]">a</span>
+          <span className="text-[#86B817]">y</span>
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="grid h-11 w-11 place-items-center rounded-xl text-white shadow-sm ring-1 ring-white/15"
+      style={{ backgroundColor: style.color }}
+      aria-label={name}
+    >
+      <span className={`font-black ${name === "Etsy" ? "[font-family:Georgia,serif] text-[27px]" : name === "Vinted" ? "text-[25px] italic" : "text-[22px]"}`}>
+        {style.mark}
+      </span>
+    </div>
+  );
+}
+
 function PreviewHero({ compact = false, onTabChange }) {
   return (
     <div className={`relative overflow-hidden bg-[radial-gradient(circle_at_88%_12%,rgba(206,67,255,.30),transparent_8rem),radial-gradient(circle_at_-2%_0%,rgba(255,255,255,.14),transparent_7rem),linear-gradient(145deg,#171719_0%,#070708_76%)] text-white shadow-[0_18px_44px_rgba(17,12,21,.20)] ${compact ? "rounded-[24px] p-4" : "rounded-[26px] p-4"}`}>
@@ -111,11 +148,11 @@ function PreviewLineChart() {
 
 function PreviewMarketPerformance({ compact = false }) {
   const rows = [
-    ["Poshmark", "$1,420", "100%", "bg-purple-500"],
-    ["Vinted", "$1,080", "76%", "bg-pink-400"],
-    ["Depop", "$822", "58%", "bg-cyan-400"],
-    ["Etsy", "$640", "45%", "bg-fuchsia-400"],
-    ["eBay", "$520", "37%", "bg-amber-400"],
+    ["Poshmark", "$1,420", "100%", "#D6249F"],
+    ["Vinted", "$1,080", "76%", "#007782"],
+    ["Depop", "$822", "58%", "#111111"],
+    ["Etsy", "$640", "45%", "#F1641E"],
+    ["eBay", "$520", "37%", "#3665F3"],
   ];
   return (
     <div className="space-y-2.5">
@@ -126,7 +163,7 @@ function PreviewMarketPerformance({ compact = false }) {
             <span className="font-bold text-slate-800">{amount}</span>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-purple-100/70">
-            <div className={`h-full rounded-full ${color}`} style={{ width }} />
+            <div className="h-full rounded-full" style={{ width, backgroundColor: color }} />
           </div>
         </div>
       ))}
@@ -946,30 +983,30 @@ export default function AboutArtFlow() {
           <p className="text-xs font-black uppercase tracking-[0.18em] text-[#b995d0]">Supported marketplaces</p>
           <p className="mx-auto mt-3 max-w-2xl text-sm font-semibold leading-6 text-white/55">Track orders and sales from the marketplaces Art Flow Creative supports.</p>
           <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            {[
-              ["Poshmark", "https://cdn.simpleicons.org/poshmark/ffffff"],
-              ["Vinted", "https://cdn.simpleicons.org/vinted/ffffff"],
-              ["Depop", "https://cdn.simpleicons.org/depop/ffffff"],
-              ["Etsy", "https://cdn.simpleicons.org/etsy/ffffff"],
-              ["eBay", "https://cdn.simpleicons.org/ebay/ffffff"],
-            ].map(([name, logo]) => (
-              <div
-                key={name}
-                className="group flex min-h-[104px] flex-col items-center justify-center rounded-2xl border border-white/8 bg-white/[0.055] px-4 py-4 shadow-[0_10px_28px_rgba(0,0,0,.08)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/[0.08]"
-              >
-                <div className="grid h-11 w-11 place-items-center rounded-xl bg-white/10 ring-1 ring-white/10">
-                  <img
-                    src={logo}
-                    alt={`${name} logo`}
-                    loading="lazy"
-                    className="h-6 w-6 object-contain"
+            {["Poshmark", "Vinted", "Depop", "Etsy", "eBay"].map((name) => {
+              const brand = MARKETPLACE_STYLES[name];
+              return (
+                <div
+                  key={name}
+                  className="group relative flex min-h-[112px] flex-col items-center justify-center overflow-hidden rounded-2xl border px-4 py-4 backdrop-blur transition hover:-translate-y-0.5"
+                  style={{
+                    borderColor: `${brand.color}80`,
+                    background: `linear-gradient(145deg, ${brand.soft} 0%, rgba(255,255,255,.055) 82%)`,
+                    boxShadow: `inset 0 1px 0 rgba(255,255,255,.08), 0 12px 30px rgba(0,0,0,.10)`,
+                  }}
+                >
+                  <div
+                    className="absolute inset-x-0 top-0 h-1"
+                    style={{ backgroundColor: brand.color }}
+                    aria-hidden="true"
                   />
+                  <MarketplaceMark name={name} />
+                  <span className="mt-3 text-[12px] font-extrabold tracking-wide text-white">
+                    {name}
+                  </span>
                 </div>
-                <span className="mt-3 text-[12px] font-extrabold tracking-wide text-white/80">
-                  {name}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div className="mx-auto mt-8 h-px max-w-4xl bg-gradient-to-r from-transparent via-white/10 to-transparent" />
         </div>
