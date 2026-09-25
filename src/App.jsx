@@ -35,7 +35,6 @@ import ShopCart from '@/pages/ShopCart';
 import ShopCheckout from '@/pages/ShopCheckout';
 import ShopAccount from '@/pages/ShopAccount';
 import StoreProducts from '@/pages/StoreProducts';
-import StoreOrders from '@/pages/StoreOrders';
 // Add page imports here
 
 const TabShell = () => null;
@@ -143,7 +142,6 @@ const AuthenticatedApp = () => {
           <Route path="/gallery" element={<Navigate to="/orders" replace />} />
           <Route path="/mileage" element={<Mileage />} />
           <Route path="/store-products" element={<StoreProducts />} />
-          <Route path="/store-orders" element={<StoreOrders />} />
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />
