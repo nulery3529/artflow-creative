@@ -449,8 +449,7 @@ function DesktopDashboard({ activeTab, onTabChange }) {
         </aside>
 
         <section className="p-3">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <span className="text-[8px] font-black text-[#6e3769]">{activeTab}</span>
+          <div className="mb-3 flex items-center justify-end gap-2">
             <div className="flex gap-2">
               <div className="h-8 w-[180px] rounded-full border border-slate-200 bg-white px-3 text-[7px] leading-8 text-slate-400">Search orders by product or order ID...</div>
               <div className="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-[#6e3769]">•</div>
@@ -476,16 +475,6 @@ function MobileDashboard({ activeTab, onTabChange }) {
   return (
     <div className="mx-auto w-full max-w-[330px] rounded-[34px] bg-[#201821] p-[8px] shadow-[0_30px_70px_rgba(15,7,20,.48)]">
       <div className="relative min-h-[600px] overflow-hidden rounded-[27px] bg-[#f5f3f7] px-3 pb-20 pt-3 text-slate-900">
-        {activeTab !== "Dashboard" && (
-          <div className="mb-3 flex items-center justify-between">
-            <div>
-              <p className="text-[8px] font-black uppercase tracking-[0.14em] text-[#6e3769]">Art Flow Creative</p>
-              <p className="mt-1 text-[13px] font-black text-slate-900">{activeTab}</p>
-            </div>
-            <img src="/artflow-icon.svg" alt="" className="h-8 w-8" />
-          </div>
-        )}
-
         <PreviewTabContent activeTab={activeTab} onTabChange={onTabChange} compact />
 
         <div className="absolute inset-x-3 bottom-3">
