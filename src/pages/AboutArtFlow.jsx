@@ -1273,7 +1273,7 @@ function DesktopDashboard({ activeTab, onTabChange }) {
       <div className="grid min-h-[430px] grid-cols-[120px_1fr]">
         <aside className="m-2 flex flex-col rounded-[20px] border border-white/70 bg-white/70 p-3 shadow-sm backdrop-blur">
           <div className="mb-4 flex items-center gap-2 px-1">
-            <img src="/artflow-icon.svg?v=5" alt="" className="h-7 w-7" />
+            <img src="/artflow-icon.svg?v=6" alt="" className="h-7 w-7" />
             <div>
               <p className="text-[9px] font-black text-[#5c2b76]">ART FLOW</p>
               <p className="text-[6px] font-bold tracking-[0.22em] text-slate-400">CREATIVE</p>
@@ -1423,7 +1423,7 @@ export default function AboutArtFlow() {
         <div className="relative mx-auto max-w-7xl px-4 sm:px-8 lg:px-10">
           <nav className="flex items-center justify-between py-5 sm:py-7">
             <Link to="/" className="flex items-center gap-3">
-              <img src="/artflow-icon.svg?v=5" alt="Art Flow Creative" className="h-10 w-10 rounded-xl shadow-lg shadow-black/10 sm:h-12 sm:w-12 sm:rounded-2xl" />
+              <img src="/artflow-icon.svg?v=6" alt="Art Flow Creative" className="h-10 w-10 rounded-xl shadow-lg shadow-black/10 sm:h-12 sm:w-12 sm:rounded-2xl" />
               <div className="leading-none">
                 <p className="[font-family:'Fraunces',serif] text-[18px] font-medium tracking-[0.12em] text-white sm:text-[24px]">ART FLOW</p>
                 <p className="mt-1 text-[8px] font-medium tracking-[0.38em] text-white/80 sm:text-[10px]">CREATIVE</p>
