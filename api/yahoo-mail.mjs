@@ -514,15 +514,36 @@ async function insertYahooExpense(client, business, email, uid, parsed) {
 async function yahooMessages(email, appPassword, afterUid=0) {
   const imap = await openImap(email, appPassword);
   try {
-    const yearStart = `01-Jan-${new Date().getFullYear()}`;
-    const criteria = afterUid > 0
-      ? `UID ${afterUid + 1}:* HEADER FROM "ebay"`
-      : `SINCE ${yearStart} HEADER FROM "ebay"`;
-    const searchResponse = await imap.command(`UID SEARCH ${criteria}`);
-    const text = searchResponse.toString('utf8');
-    const searchLine = text.match(/^\* SEARCH(?:\s+([0-9 ]+))?/mi)?.[1] || '';
-    const allUids = searchLine.split(/\s+/).map(Number).filter(Number.isFinite).filter((n) => n > 0).sort((a,b)=>a-b);
-    const uids = allUids.slice(0, MAX_MESSAGES_PER_RUN);
+    // Re-check recent eBay mail on every sync instead of relying only on the
+    // last Yahoo UID. If an eBay seller email arrived while parsing was broken
+    // or Yahoo returned messages out of sequence, a strict UID cursor can skip
+    // that sale forever. insertOrders() already de-duplicates imported orders,
+    // so rescanning a recent window is safe.
+    const since = new Date();
+    since.setDate(since.getDate() - 90);
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const recentStart = `${String(since.getDate()).padStart(2,'0')}-${months[since.getMonth()]}-${since.getFullYear()}`;
+
+    const found = new Set();
+    const searches = [
+      `SINCE ${recentStart} HEADER FROM "ebay"`,
+      `SINCE ${recentStart} HEADER SUBJECT "You made the sale"`,
+      `SINCE ${recentStart} HEADER SUBJECT "payment from"`,
+      `SINCE ${recentStart} HEADER SUBJECT "received a payment"`,
+      `SINCE ${recentStart} HEADER SUBJECT "sold"`,
+    ];
+
+    for (const criteria of searches) {
+      const searchResponse = await imap.command(`UID SEARCH ${criteria}`);
+      const text = searchResponse.toString('utf8');
+      const searchLine = text.match(/^\* SEARCH(?:\s+([0-9 ]+))?/mi)?.[1] || '';
+      for (const uid of searchLine.split(/\s+/).map(Number).filter((n) => Number.isFinite(n) && n > 0)) {
+        found.add(uid);
+      }
+    }
+
+    const allUids = [...found].sort((a,b)=>a-b);
+    const uids = allUids.slice(-MAX_MESSAGES_PER_RUN);
     const messages = [];
 
     for (let i = 0; i < uids.length; i += 20) {
@@ -534,7 +555,7 @@ async function yahooMessages(email, appPassword, afterUid=0) {
     return {
       messages,
       remaining: Math.max(0, allUids.length - uids.length),
-      maxUid: uids.length ? Math.max(...uids) : afterUid,
+      maxUid: uids.length ? Math.max(afterUid, ...uids) : afterUid,
     };
   } finally {
     await imap.close();
