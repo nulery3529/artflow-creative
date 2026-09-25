@@ -3,8 +3,11 @@ import { Link, useNavigate } from "react-router-dom";
 
 import PageHeader from "@/components/PageHeader";
 import PullToRefresh from "@/components/PullToRefresh";
+import MonthlySummary from "@/components/MonthlySummary";
+import TaxLiabilityTracker from "@/components/TaxLiabilityTracker";
+import ExportButton from "@/components/ExportButton";
 import { EmptyRow, PlatformBar } from "@/components/Cards";
-import { useEntity, isApprovedExpense } from "@/lib/useBusinessData";
+import { useEntity, useTaxRate, isApprovedExpense } from "@/lib/useBusinessData";
 import { useOrders } from "@/lib/useOrders";
 import { formatMoney } from "@/lib/format";
 import { PLATFORM_BAR, displayPlatform } from "@/lib/platforms";
@@ -70,6 +73,7 @@ export default function Reports() {
     "-created_date"
   );
   const expenses = allExpenses.filter(isApprovedExpense);
+  const [taxRate] = useTaxRate();
   const [period, setPeriod] = useState("thisMonth");
 
   const refresh = async () => {
@@ -100,6 +104,32 @@ export default function Reports() {
       0
     );
     const netProfit = grossSales - productCosts - bizExpenses;
+    const estimatedProfit = periodOrders.reduce(
+      (sum, order) => sum + Number(order.estimated_profit || 0),
+      0
+    );
+    const deductions = periodExpenses.reduce(
+      (sum, expense) =>
+        sum +
+        Number(
+          expense.deductible_amount ??
+            Number(expense.amount || 0) *
+              (Number(expense.deductible_percent ?? 100) / 100)
+        ),
+      0
+    );
+    const taxableProfit = estimatedProfit - deductions;
+    const taxReserve = Math.max(0, taxableProfit) * (Number(taxRate || 0) / 100);
+    const expenseCount = periodExpenses.length;
+    const expenseCategories = Object.entries(
+      periodExpenses.reduce((acc, expense) => {
+        const category = expense.category || "Other";
+        acc[category] = (acc[category] || 0) + Number(expense.amount || 0);
+        return acc;
+      }, {})
+    )
+      .map(([category, amount]) => ({ category, amount }))
+      .sort((a, b) => b.amount - a.amount);
 
     const platformNames = Array.from(
       new Set(
@@ -126,9 +156,13 @@ export default function Reports() {
       productCosts,
       bizExpenses,
       netProfit,
+      taxableProfit,
+      taxReserve,
+      expenseCount,
+      expenseCategories,
       platformSales,
     };
-  }, [orders, expenses, period, trackedSites]);
+  }, [orders, expenses, period, trackedSites, taxRate]);
 
   const maxPlatform = Math.max(...calc.platformSales.map((item) => item.sales), 1);
 
@@ -140,6 +174,7 @@ export default function Reports() {
         title="Reports"
         subtitle="Performance over time"
         onBack={() => navigate(-1)}
+        right={<ExportButton orders={orders} expenses={expenses} />}
       />
 
       <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1">
@@ -220,6 +255,68 @@ export default function Reports() {
             ))
           )}
         </div>
+      </section>
+
+      <div className="pt-1">
+        <MonthlySummary orders={orders} expenses={expenses} />
+      </div>
+
+      <TaxLiabilityTracker orders={orders} expenses={expenses} taxRate={taxRate} />
+
+      <div className="grid grid-cols-2 gap-3">
+        <ReportCard
+          label="Taxable Profit"
+          value={formatMoney(calc.taxableProfit)}
+          tone="purple"
+          to="/taxes"
+          sub="Tap to view taxes"
+        />
+        <ReportCard
+          label="Tax Reserve"
+          value={formatMoney(calc.taxReserve)}
+          tone="orange"
+          to="/taxes"
+          sub="Based on your current tax rate"
+        />
+      </div>
+
+      <section className="rounded-3xl border border-[hsl(var(--border))] bg-card p-5 shadow-sm">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="font-heading text-lg text-foreground">Expense Breakdown</h2>
+          <Link
+            to="/expenses"
+            className="text-sm font-medium text-[hsl(var(--primary))]"
+          >
+            View expenses
+          </Link>
+        </div>
+
+        {calc.expenseCategories.length > 0 ? (
+          <div className="space-y-3">
+            {calc.expenseCategories.map(({ category, amount }) => (
+              <div
+                key={category}
+                className="flex items-center justify-between gap-4"
+              >
+                <span className="text-sm text-muted-foreground">{category}</span>
+                <span className="text-sm font-semibold text-foreground">
+                  {formatMoney(amount)}
+                </span>
+              </div>
+            ))}
+
+            <div className="mt-3 flex items-center justify-between border-t border-[hsl(var(--border))] pt-3">
+              <span className="text-sm font-semibold text-foreground">
+                Total expenses
+              </span>
+              <span className="font-heading text-lg text-foreground">
+                {formatMoney(calc.bizExpenses)}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <EmptyRow text="No expenses in this period" />
+        )}
       </section>
 
       {calc.numOrders === 0 && calc.bizExpenses === 0 && (
