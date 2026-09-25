@@ -1,6 +1,6 @@
 import React from "react";
 
-const LOGO_URL = "/artflow-logo-exact.jpg?v=3";
+const LOGO_URL = "/artflow-logo-exact.jpg?v=4";
 
 export default function Logo({ size = 36, className = "" }) {
   return (
