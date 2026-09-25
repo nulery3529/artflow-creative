@@ -1503,8 +1503,8 @@ export default function AboutArtFlow() {
                 key={title}
                 className="rounded-[26px] border border-white/8 bg-gradient-to-br from-white/[0.07] to-white/[0.025] p-6 shadow-[0_18px_44px_rgba(0,0,0,.16)]"
               >
-                <div className="mb-4 h-10 w-10 rounded-2xl bg-[#171719] ring-1 ring-white/8">
-                  <div className="h-full w-full rounded-2xl bg-[radial-gradient(circle_at_30%_30%,rgba(200,120,220,.32),transparent_55%)]" />
+                <div className="mb-4 h-10 w-10 rounded-2xl bg-[#c7a4dc] ring-1 ring-[#e6d3f2]/60 shadow-[0_0_18px_rgba(199,164,220,.30)]">
+                  <div className="h-full w-full rounded-2xl bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,.42),transparent_56%)]" />
                 </div>
                 <h3 className="text-base font-black text-white">{title}</h3>
                 <p className="mt-2 text-sm leading-6 text-white/55">{text}</p>
