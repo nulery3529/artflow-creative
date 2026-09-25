@@ -251,19 +251,27 @@ function ebayRows(subject, text) {
     /\b(?:your listing|listing (?:created|live|active|ended|renewed|updated|published|removed)|item listed|listed item|watcher|watching|listing views?|listing activity|listing performance|offer received|send offer|price drop|sell similar|relist|draft listing|promote your listing)\b/i.test(`${normalizedSubject}\n${text || ''}`);
   if (listingNoise) return [];
 
-  const oldSale = normalizedSubject.match(/You made the sale for\s+(.+?)(?:!|$)/i);
+  const oldSale = normalizedSubject.match(/You made the sale for\s+(.+?)(?:!|$)/i)
+    || normalizedSubject.match(/You made (?:a|the) sale[:!\s-]+(.+?)(?:!|$)/i)
+    || normalizedSubject.match(/Sold[:!\s-]+(.+?)(?:!|$)/i);
   const paymentSale = normalizedSubject.match(/The payment from\s+(.+?)\s+is confirmed:\s*(.+)$/i)
     || normalizedSubject.match(/Payment from\s+(.+?)\s+(?:is\s+)?confirmed:\s*(.+)$/i);
   const receivedPayment = normalizedSubject.match(/(?:You have received|You've received) a payment(?: from\s+(.+?))?(?::|\s+-)?\s*(.*)$/i);
-  const soldSubject = /\b(?:your eBay item sold|congratulations,? your item sold|your item (?:has )?sold|you sold an item|item sold)\b/i.test(normalizedSubject);
+  const soldSubject = /\b(?:your eBay item sold|congratulations[,!]?(?: your)? item sold|your item (?:has )?sold|you sold (?:an|your) item|item sold|you made (?:a|the) sale|sale confirmed|ready to ship|ship your item)\b/i.test(normalizedSubject);
 
   const sellerBodySignal =
-    /\b(?:you (?:made|completed) the sale|your item (?:sold|has sold)|you sold|sold for|quantity sold|ship(?:ping)? to buyer|ship (?:this|your) item|payment from .+ (?:is )?confirmed|you(?:'ve| have) received a payment)\b/i.test(text)
+    /\b(?:you (?:made|completed) (?:a|the) sale|your item (?:sold|has sold)|you sold|sold for|quantity sold|buyer paid|sale price|order paid|ready to ship|ship(?:ping)? to buyer|ship (?:this|your) item|payment from .+ (?:is )?confirmed|you(?:'ve| have) received a payment)\b/i.test(text)
     || /(?:^|\n)\s*Buyer(?: username)?\s*(?:\n|:)\s*[^\n]+/i.test(text);
 
   // Buyer order confirmations can contain "Item", "Total", and order IDs too.
   // Only treat an eBay email as a sale when it has seller-side wording.
   if (!oldSale && !paymentSale && !receivedPayment && !soldSubject && !sellerBodySignal) return [];
+
+  const subjectFallback = clean(
+    normalizedSubject
+      .replace(/^.*?\b(?:you made (?:a|the) sale|your item (?:has )?sold|item sold|sold)\b\s*[:!\-–—]*\s*/i, '')
+      .replace(/\s*[|•]\s*eBay.*$/i, '')
+  );
 
   const title = clean(
     oldSale?.[1]
@@ -272,13 +280,14 @@ function ebayRows(subject, text) {
       || text.match(/(?:Item|Listing)\s*(?:title)?\s*(?:\n|:)\s*([^\n]+)/i)?.[1]
       || text.match(/(?:Item sold|Sold item|You sold)\s*(?:\n|:)\s*([^\n]+)/i)?.[1]
       || text.match(/Quantity sold\s*(?:\n|:)\s*\d+\s*\n+([^\n$]+)/i)?.[1]
+      || text.match(/(?:Item name|Product)\s*(?:\n|:)\s*([^\n]+)/i)?.[1]
+      || subjectFallback
       || ''
   ).replace(/[.!]+$/, '');
-  const normalizedTitle = clean(title)
+  let normalizedTitle = clean(title)
     .replace(/&(?:#\d+|#x[0-9a-f]+|[a-z]+);/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-  if (!normalizedTitle || normalizedTitle.length < 3 || !/[a-z0-9]/i.test(normalizedTitle)) return [];
 
   const buyer = clean(
     paymentSale?.[1]
@@ -293,11 +302,16 @@ function ebayRows(subject, text) {
   );
 
   const totalText =
-    text.match(/(?:Order total|Total paid|Total|Sale total|Sale price)\s*(?:\n|:)?\s*(?:US\s*)?\$([\d,.]+)/i)?.[1]
-    || text.match(/(?:Sold for|Item price|Price)\s*(?:\n|:)?\s*(?:US\s*)?\$([\d,.]+)/i)?.[1]
+    text.match(/(?:Order total|Total paid|Buyer paid|Sale total|Sale price|Order amount|Item subtotal|Total)\s*(?:\n|:)?\s*(?:US\s*)?\$\s*([\d,.]+)/i)?.[1]
+    || text.match(/(?:Sold for|Item price|Price|Amount)\s*(?:\n|:)?\s*(?:US\s*)?\$\s*([\d,.]+)/i)?.[1]
+    || normalizedSubject.match(/(?:US\s*)?\$\s*([\d,.]+)/i)?.[1]
     || '';
   const saleTotal = Number(String(totalText).replace(/,/g, '')) || 0;
   if (saleTotal <= 0) return [];
+
+  if (!normalizedTitle || normalizedTitle.length < 3 || !/[a-z0-9]/i.test(normalizedTitle)) {
+    normalizedTitle = orderId ? `eBay Order ${orderId}` : 'eBay Order';
+  }
 
   const quantity = Math.max(1, Number(text.match(/Quantity\s*(?:\n|:)?\s*(\d+)/i)?.[1] || 1));
 
