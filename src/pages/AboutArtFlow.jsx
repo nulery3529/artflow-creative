@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ShoppingBag, Receipt, Package, MoreHorizontal, RefreshCw, Home, Car, Palette, UserRound, BarChart3, Calculator, CalendarDays, Target, Store, ShoppingCart, Save, TrendingUp, BadgeDollarSign, WalletCards, PiggyBank, ArrowRight, ArrowUpRight, Images, Activity, Plus } from "lucide-react";
+import { ShoppingBag, Receipt, Package, MoreHorizontal, RefreshCw, Home, Car, Palette, UserRound, BarChart3, Calculator, CalendarDays, Target, Save, TrendingUp, BadgeDollarSign, WalletCards, PiggyBank, ArrowRight, ArrowUpRight, Images, Activity, Plus } from "lucide-react";
 
 const MiniArt = ({ variant = 1 }) => {
   const classes = {
@@ -861,39 +861,6 @@ function PreviewCalendar() {
   );
 }
 
-function PreviewStoreOrders() {
-  return (
-    <div>
-      <PreviewSectionHeader title="Store Orders" subtitle="Orders placed through your storefront" />
-      <div className="mb-3 grid grid-cols-3 gap-2">
-        {[
-          ["Pending","3","bg-amber-50"],
-          ["Processing","5","bg-purple-50"],
-          ["Completed","28","bg-emerald-50"],
-        ].map(([label,value,tone])=>(
-          <div key={label} className={`rounded-[18px] border border-[#eeeaf1] p-3 shadow-sm ${tone}`}>
-            <p className="text-[7px] font-bold text-slate-500">{label}</p>
-            <p className="mt-1 text-[14px] font-black text-slate-900">{value}</p>
-          </div>
-        ))}
-      </div>
-      <div className="rounded-[20px] border border-[#eeeaf1] bg-white px-3 shadow-sm">
-        {[
-          ["#1048", "Framed Floral Print", "$24.00", "Pending"],
-          ["#1047", "2 Art Prints", "$36.00", "Processing"],
-          ["#1046", "Digital Download", "$8.00", "Completed"],
-        ].map(([id,item,amount,status])=>(
-          <div key={id} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 border-b border-slate-100 py-3 last:border-b-0">
-            <div className="grid h-9 w-9 place-items-center rounded-xl bg-pink-100 text-pink-600"><ShoppingCart className="h-4 w-4" /></div>
-            <div className="min-w-0"><p className="truncate text-[8px] font-bold text-slate-800">{item}</p><p className="mt-1 text-[7px] text-slate-400">{id} · {status}</p></div>
-            <p className="text-[8px] font-black text-slate-800">{amount}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function PreviewMoreHub({ onSelect }) {
   const options = [
     ["Reports", "Performance & profit", BarChart3],
@@ -901,9 +868,7 @@ function PreviewMoreHub({ onSelect }) {
     ["Products", "Available & sold products", Palette],
     ["Taxes", "Tax reserve overview", Calculator],
     ["Business Plan", "Goals & cash flow", Target],
-    ["Calendar", "Dates & schedule", CalendarDays],
-    ["Store Orders", "Storefront purchases", Store],
-    ["Account", "Profile & settings", UserRound],
+    ["Calendar", "Dates & schedule", CalendarDays],    ["Account", "Profile & settings", UserRound],
   ];
   return (
     <div>
@@ -928,9 +893,7 @@ function PreviewMoreMenu({ onSelect, onClose, compact = false }) {
     ["Products", Palette],
     ["Taxes", Calculator],
     ["Business Plan", Target],
-    ["Calendar", CalendarDays],
-    ["Store Orders", Store],
-    ["Account", UserRound],
+    ["Calendar", CalendarDays],    ["Account", UserRound],
   ];
   return (
     <div className={`absolute z-30 rounded-[20px] border border-[#2a2230] bg-[#171219]/95 p-2.5 text-white shadow-2xl backdrop-blur ${compact ? "bottom-16 right-0 max-h-[250px] w-[185px] overflow-y-auto" : "bottom-16 right-0 max-h-[290px] w-[220px] overflow-y-auto"}`}>
@@ -1194,9 +1157,7 @@ function PreviewTabContent({ activeTab, onTabChange, compact = false }) {
   if (activeTab === "Account") return <PreviewAccount />;
   if (activeTab === "Taxes") return <PreviewTaxes />;
   if (activeTab === "Business Plan") return <PreviewBusinessPlan />;
-  if (activeTab === "Calendar") return <PreviewCalendar />;
-  if (activeTab === "Store Orders") return <PreviewStoreOrders />;
-  if (activeTab === "More") return <PreviewMoreHub onSelect={onTabChange} />;
+  if (activeTab === "Calendar") return <PreviewCalendar />;  if (activeTab === "More") return <PreviewMoreHub onSelect={onTabChange} />;
   if (compact) {
     return <PreviewDashboardHome onTabChange={onTabChange} compact />;
   }
@@ -1211,7 +1172,7 @@ function PreviewBottomTabs({ activeTab, onTabChange, compact = false }) {
     ["Inventory", Package],
     ["Expenses", Receipt],
   ];
-  const moreActive = ["Reports", "Mileage", "Products", "Taxes", "Business Plan", "Calendar", "Store Orders", "Account", "More"].includes(activeTab);
+  const moreActive = ["Reports", "Mileage", "Products", "Taxes", "Business Plan", "Calendar", "Account", "More"].includes(activeTab);
 
   return (
     <div className={`relative mt-3 rounded-[20px] border border-[#19191b] bg-[#050506] px-2 py-2 text-white shadow-[0_12px_28px_rgba(8,7,10,.18)] ${compact ? "" : "mx-auto max-w-[430px]"}`}>
@@ -1263,9 +1224,7 @@ function DesktopDashboard({ activeTab, onTabChange }) {
     ["Products", "Products"],
     ["Business Plan", "Business Plan"],
     ["Taxes", "Taxes"],
-    ["Calendar", "Calendar"],
-    ["Store Orders", "Store Orders"],
-    ["Account", "Account"],
+    ["Calendar", "Calendar"],    ["Account", "Account"],
   ];
 
   return (
@@ -1323,7 +1282,7 @@ function MobileDashboard({ activeTab, onTabChange }) {
     ["Inventory", "Inventory", Package],
     ["Expenses", "Expenses", Receipt],
   ];
-  const moreActive = ["Reports", "Mileage", "Products", "Taxes", "Business Plan", "Calendar", "Store Orders", "Account", "More"].includes(activeTab);
+  const moreActive = ["Reports", "Mileage", "Products", "Taxes", "Business Plan", "Calendar", "Account", "More"].includes(activeTab);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTo({ top: 0, behavior: "smooth" });
