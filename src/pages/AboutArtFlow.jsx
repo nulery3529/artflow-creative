@@ -1378,16 +1378,106 @@ function MobileDashboard({ activeTab, onTabChange }) {
   );
 }
 
+const previewSwipeTabs = [
+  "Dashboard",
+  "Orders",
+  "Inventory",
+  "Expenses",
+  "Reports",
+  "Mileage",
+  "Products",
+  "Taxes",
+  "Business Plan",
+  "Calendar",
+  "Account",
+];
+
 function DevicePreview() {
   const [activeTab, setActiveTab] = useState("Dashboard");
+  const swipeStartRef = useRef(null);
+
+  const shouldIgnorePreviewSwipe = (target) => {
+    if (!(target instanceof Element)) return false;
+
+    if (
+      target.closest(
+        "input, textarea, select, button, a, [role='slider'], [contenteditable='true'], [data-no-tab-swipe='true']"
+      )
+    ) {
+      return true;
+    }
+
+    let node = target;
+    while (node && node !== document.body) {
+      const style = window.getComputedStyle(node);
+      const horizontallyScrollable =
+        /(auto|scroll)/.test(style.overflowX) &&
+        node.scrollWidth > node.clientWidth + 4;
+
+      if (horizontallyScrollable) return true;
+      node = node.parentElement;
+    }
+
+    return false;
+  };
+
+  const handlePreviewTouchStart = (event) => {
+    if (
+      event.touches.length !== 1 ||
+      shouldIgnorePreviewSwipe(event.target)
+    ) {
+      swipeStartRef.current = null;
+      return;
+    }
+
+    const touch = event.touches[0];
+    swipeStartRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handlePreviewTouchEnd = (event) => {
+    const start = swipeStartRef.current;
+    swipeStartRef.current = null;
+
+    if (!start || event.changedTouches.length !== 1) return;
+
+    const touch = event.changedTouches[0];
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+
+    if (Math.abs(dx) < 56 || Math.abs(dx) < Math.abs(dy) * 1.3) return;
+
+    setActiveTab((current) => {
+      const currentIndex = previewSwipeTabs.indexOf(current);
+      if (currentIndex < 0) return current;
+
+      const nextIndex = dx < 0 ? currentIndex + 1 : currentIndex - 1;
+      if (nextIndex < 0 || nextIndex >= previewSwipeTabs.length) return current;
+
+      return previewSwipeTabs[nextIndex];
+    });
+  };
+
+  const clearPreviewSwipe = () => {
+    swipeStartRef.current = null;
+  };
 
   return (
     <>
-      <div className="sm:hidden">
+      <div
+        className="sm:hidden"
+        onTouchStart={handlePreviewTouchStart}
+        onTouchEnd={handlePreviewTouchEnd}
+        onTouchCancel={clearPreviewSwipe}
+      >
         <MobileDashboard activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
 
-      <div className="relative mx-auto hidden w-full max-w-[760px] pb-20 pt-2 sm:block lg:pb-10">
+      <div
+        className="relative mx-auto hidden w-full max-w-[760px] pb-20 pt-2 sm:block lg:pb-10"
+        onTouchStart={handlePreviewTouchStart}
+        onTouchEnd={handlePreviewTouchEnd}
+        onTouchCancel={clearPreviewSwipe}
+      >
         <div className="relative ml-auto w-[93%]">
           <div className="rounded-[24px] bg-[#171719] p-[10px] shadow-[0_38px_80px_rgba(19,9,26,.40)]">
             <DesktopDashboard activeTab={activeTab} onTabChange={setActiveTab} />
