@@ -94,7 +94,7 @@ export default function YahooInboxCard() {
     }
   };
 
-  const connected = status?.connected === true;
+  const connected = status?.connected === true && status?.credential_ready !== false;
 
   return (
     <section className="bg-card rounded-3xl p-5 border border-[hsl(var(--border))] space-y-4">
@@ -126,9 +126,16 @@ export default function YahooInboxCard() {
               Art Flow checks this inbox automatically every 15 minutes for new eBay sales and business expense receipts.
             </p>
             {status?.last_sync_at && (
-              <p className="text-[11px] text-muted-foreground mt-2">
-                Last sales check: {new Date(status.last_sync_at).toLocaleString()}
-              </p>
+              <>
+                <p className="text-[11px] text-muted-foreground mt-2">
+                  Last sales check: {new Date(status.last_sync_at).toLocaleString()}
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Checked {Number(status?.last_checked || 0)} Yahoo message{Number(status?.last_checked || 0) === 1 ? "" : "s"}
+                  {" · "}
+                  Added {Number(status?.last_saved || 0)} eBay order{Number(status?.last_saved || 0) === 1 ? "" : "s"}
+                </p>
+              </>
             )}
             {status?.last_expense_sync_at && (
               <p className="text-[11px] text-muted-foreground mt-1">
