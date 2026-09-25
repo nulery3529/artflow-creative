@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ShoppingBag, Receipt, Package, MoreHorizontal, RefreshCw, Home, Car, Palette, UserRound, BarChart3, Calculator, CalendarDays, Target, Store, ShoppingCart } from "lucide-react";
+import { ShoppingBag, Receipt, Package, MoreHorizontal, RefreshCw, Home, Car, Palette, UserRound, BarChart3, Calculator, CalendarDays, Target, Store, ShoppingCart, Save, TrendingUp, BadgeDollarSign, WalletCards, PiggyBank, ArrowRight } from "lucide-react";
 
 const MiniArt = ({ variant = 1 }) => {
   const classes = {
@@ -650,36 +650,142 @@ function PreviewTaxes() {
 }
 
 function PreviewBusinessPlan() {
+  const progress = (width) => (
+    <div className="h-1.5 overflow-hidden rounded-full bg-white/70">
+      <div
+        className="h-full rounded-full bg-gradient-to-r from-[#7b3d86] to-fuchsia-400"
+        style={{ width }}
+      />
+    </div>
+  );
+
   return (
     <div>
-      <PreviewSectionHeader title="Business Plan" subtitle="Goals and cash-flow guidance from your real sales" />
+      <PreviewSectionHeader
+        title="Business Plan"
+        subtitle="Goals and cash-flow guidance from your real sales"
+        action={
+          <span className="flex items-center gap-1 rounded-xl bg-[#6e3769] px-2.5 py-2 text-[6px] font-bold text-white">
+            <Save className="h-3 w-3" /> Save
+          </span>
+        }
+      />
+
       <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-[18px] border border-[#eeeaf1] bg-purple-50 p-3 shadow-sm">
-          <p className="text-[7px] font-bold text-slate-500">Monthly sales</p>
-          <p className="mt-2 text-[14px] font-black text-slate-900">$1,284 / $2,000</p>
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white"><div className="h-full w-[64%] rounded-full bg-purple-500" /></div>
+        <div className="rounded-[18px] border border-[#e7e2eb] bg-purple-50 p-3 shadow-sm">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="text-[5.5px] font-bold uppercase tracking-[0.12em] text-slate-500">Monthly sales</p>
+              <p className="mt-1.5 text-[13px] font-black text-slate-900">$1,284</p>
+            </div>
+            <span className="grid h-7 w-7 place-items-center rounded-xl bg-white/70 text-[#6e3769]">
+              <Target className="h-3.5 w-3.5" />
+            </span>
+          </div>
+          <div className="mt-2.5">{progress("64%")}</div>
+          <div className="mt-2 flex items-center justify-between gap-1 text-[5.5px]">
+            <span className="text-slate-400">$31/day needed</span>
+            <span className="font-bold text-slate-700">Goal $2,000</span>
+          </div>
         </div>
-        <div className="rounded-[18px] border border-[#eeeaf1] bg-emerald-50 p-3 shadow-sm">
-          <p className="text-[7px] font-bold text-slate-500">Monthly profit</p>
-          <p className="mt-2 text-[14px] font-black text-slate-900">$968 / $1,000</p>
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white"><div className="h-full w-[97%] rounded-full bg-emerald-500" /></div>
+
+        <div className="rounded-[18px] border border-[#e7e2eb] bg-orange-50 p-3 shadow-sm">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="text-[5.5px] font-bold uppercase tracking-[0.12em] text-slate-500">Monthly profit</p>
+              <p className="mt-1.5 text-[13px] font-black text-slate-900">$968</p>
+            </div>
+            <span className="grid h-7 w-7 place-items-center rounded-xl bg-white/70 text-[#6e3769]">
+              <TrendingUp className="h-3.5 w-3.5" />
+            </span>
+          </div>
+          <div className="mt-2.5">{progress("97%")}</div>
+          <div className="mt-2 flex items-center justify-between gap-1 text-[5.5px]">
+            <span className="text-slate-400">$220 weekly pace</span>
+            <span className="font-bold text-slate-700">Goal $1,000</span>
+          </div>
         </div>
       </div>
-      <div className="mt-3 rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
-        <p className="text-[9px] font-black text-slate-800">Plan settings</p>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          {[
-            ["Sales goal", "$2,000"],
-            ["Profit goal", "$1,000"],
-            ["Fixed costs", "$220"],
-            ["Tax reserve", "25%"],
-          ].map(([label, value]) => (
-            <div key={label} className="rounded-xl bg-slate-50 p-2.5">
-              <p className="text-[7px] text-slate-400">{label}</p>
-              <p className="mt-1 text-[9px] font-black text-slate-800">{value}</p>
+
+      <div className="mt-2 grid grid-cols-[.9fr_1.1fr] gap-2">
+        <section className="rounded-[18px] border border-[#e7e2eb] bg-white p-3 shadow-sm">
+          <div>
+            <p className="text-[8px] font-black text-slate-900">Plan settings</p>
+            <p className="mt-1 text-[5.5px] text-slate-400">Saved to this Art Flow business.</p>
+          </div>
+          <div className="mt-2 space-y-1.5">
+            {[
+              ["Monthly sales goal", "$2,000"],
+              ["Monthly profit goal", "$1,000"],
+              ["Cash on hand", "$0"],
+              ["Planned fixed costs", "$220"],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-xl border border-slate-200 bg-slate-50 px-2 py-1.5">
+                <p className="text-[5.2px] font-bold text-slate-500">{label}</p>
+                <p className="mt-0.5 text-[7px] font-black text-slate-900">{value}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <div className="space-y-2">
+          <section className="rounded-[18px] border border-[#e7e2eb] bg-white p-3 shadow-sm">
+            <div className="flex items-start gap-2">
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-fuchsia-50 text-fuchsia-600">
+                <BadgeDollarSign className="h-3.5 w-3.5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-1">
+                  <p className="text-[8px] font-black text-slate-900">Break-even tracker</p>
+                  <span className="text-[5.5px] font-bold text-emerald-600">Covered</span>
+                </div>
+                <p className="mt-1 text-[5.2px] leading-3 text-slate-400">Sales compared with recorded costs.</p>
+              </div>
             </div>
-          ))}
+            <div className="mt-2">{progress("100%")}</div>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <div>
+                <p className="text-[5.2px] text-slate-400">Sales</p>
+                <p className="text-[7px] font-black text-slate-800">$1,284</p>
+              </div>
+              <div>
+                <p className="text-[5.2px] text-slate-400">Break-even</p>
+                <p className="text-[7px] font-black text-slate-800">$742</p>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-[18px] border border-[#e7e2eb] bg-white p-3 shadow-sm">
+            <div className="flex items-start gap-2">
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-purple-50 text-[#6e3769]">
+                <WalletCards className="h-3.5 w-3.5" />
+              </span>
+              <div>
+                <p className="text-[8px] font-black text-slate-900">Cash-flow forecast</p>
+                <p className="mt-1 text-[5.2px] text-slate-400">Based on your last 30 days.</p>
+              </div>
+            </div>
+            <div className="mt-2 grid grid-cols-3 gap-1">
+              {[["7 days", "$226"], ["30 days", "$968"], ["60 days", "$1,936"]].map(([label, value]) => (
+                <div key={label} className="rounded-xl border border-slate-200 bg-slate-50 p-1.5 text-center">
+                  <p className="text-[4.8px] uppercase text-slate-400">{label}</p>
+                  <p className="mt-1 text-[6.5px] font-black text-slate-800">{value}</p>
+                </div>
+              ))}
+            </div>
+          </section>
         </div>
+      </div>
+
+      <div className="mt-2 flex items-center gap-2 rounded-[18px] border border-[#e7e2eb] bg-yellow-50 p-3 shadow-sm">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-white/70 text-[#6e3769]">
+          <PiggyBank className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[8px] font-black text-slate-900">Tax reserve planner</p>
+          <p className="mt-1 text-[5.5px] text-slate-500">Set aside $242 at your current 25% rate.</p>
+        </div>
+        <ArrowRight className="h-3.5 w-3.5 text-slate-400" />
       </div>
     </div>
   );
