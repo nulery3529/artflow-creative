@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ShoppingBag, Receipt, Package, MoreHorizontal, RefreshCw, Home, Car, Palette, UserRound, BarChart3, Calculator, CalendarDays, Target, Store, ShoppingCart, Save, TrendingUp, BadgeDollarSign, WalletCards, PiggyBank, ArrowRight } from "lucide-react";
 
@@ -1150,6 +1150,7 @@ function DesktopDashboard({ activeTab, onTabChange }) {
 
 function MobileDashboard({ activeTab, onTabChange }) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const scrollRef = useRef(null);
   const tabs = [
     ["Home", "Dashboard", Home],
     ["Orders", "Orders", ShoppingBag],
@@ -1158,14 +1159,24 @@ function MobileDashboard({ activeTab, onTabChange }) {
   ];
   const moreActive = ["Reports", "Mileage", "Products", "Taxes", "Business Plan", "Calendar", "Store Orders", "Account", "More"].includes(activeTab);
 
-  return (
-    <div className="mx-auto w-full max-w-[330px] rounded-[34px] bg-[#201821] p-[8px] shadow-[0_30px_70px_rgba(15,7,20,.48)]">
-      <div className="relative min-h-[600px] overflow-hidden rounded-[27px] bg-[#f5f3f7] px-3 pb-20 pt-3 text-slate-900">
-        <PreviewTabContent activeTab={activeTab} onTabChange={onTabChange} compact />
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTo({ top: 0, behavior: "smooth" });
+  }, [activeTab]);
 
-        <div className="absolute inset-x-3 bottom-3">
-          <div className="relative flex items-center justify-between rounded-[22px] border border-[#19191b] bg-[#050506] px-2 py-2 text-white shadow-[0_16px_38px_rgba(8,7,10,.25)]">
-            {moreOpen && <PreviewMoreMenu onSelect={onTabChange} onClose={() => setMoreOpen(false)} compact />}
+  return (
+    <div className="mx-auto w-full max-w-[390px] rounded-[38px] bg-[#201821] p-[9px] shadow-[0_30px_70px_rgba(15,7,20,.48)]">
+      <div className="flex h-[700px] max-h-[76vh] min-h-[620px] flex-col overflow-hidden rounded-[30px] bg-[#f5f3f7] text-slate-900">
+        <div
+          ref={scrollRef}
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-4"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
+          <PreviewTabContent activeTab={activeTab} onTabChange={onTabChange} compact />
+        </div>
+
+        <div className="relative z-20 shrink-0 bg-[#f5f3f7] px-3 pb-3 pt-2">
+          <div className="relative flex items-center justify-between rounded-[22px] border border-[#19191b] bg-[#050506] px-2 py-2.5 text-white shadow-[0_16px_38px_rgba(8,7,10,.25)]">
+            {moreOpen && <PreviewMoreMenu onSelect={onTabChange} onClose={() => setMoreOpen(false)} />}
             {tabs.map(([label, key, Icon]) => {
               const active = activeTab === key;
               return (
@@ -1174,12 +1185,12 @@ function MobileDashboard({ activeTab, onTabChange }) {
                   key={label}
                   onClick={() => { setMoreOpen(false); onTabChange(key); }}
                   aria-pressed={active}
-                  className="flex flex-1 flex-col items-center gap-0.5"
+                  className="flex flex-1 flex-col items-center gap-1 py-0.5"
                 >
-                  <span className={`grid h-8 w-9 place-items-center rounded-full ${active ? "bg-white text-black" : "text-[#8d8990]"}`}>
-                    <Icon className="h-4 w-4" />
+                  <span className={`grid h-9 w-10 place-items-center rounded-full transition ${active ? "bg-white text-black" : "text-[#8d8990]"}`}>
+                    <Icon className="h-[18px] w-[18px]" />
                   </span>
-                  <span className={`text-[7px] font-semibold ${active ? "text-white" : "text-[#9b97a0]"}`}>{label}</span>
+                  <span className={`text-[8px] font-semibold transition ${active ? "text-white" : "text-[#9b97a0]"}`}>{label}</span>
                 </button>
               );
             })}
@@ -1187,12 +1198,12 @@ function MobileDashboard({ activeTab, onTabChange }) {
               type="button"
               onClick={() => setMoreOpen((open) => !open)}
               aria-expanded={moreOpen}
-              className="flex flex-1 flex-col items-center gap-0.5"
+              className="flex flex-1 flex-col items-center gap-1 py-0.5"
             >
-              <span className={`grid h-8 w-9 place-items-center rounded-full ${moreActive || moreOpen ? "bg-white text-black" : "text-[#8d8990]"}`}>
-                <MoreHorizontal className="h-4 w-4" />
+              <span className={`grid h-9 w-10 place-items-center rounded-full transition ${moreActive || moreOpen ? "bg-white text-black" : "text-[#8d8990]"}`}>
+                <MoreHorizontal className="h-[18px] w-[18px]" />
               </span>
-              <span className={`text-[7px] font-semibold ${moreActive || moreOpen ? "text-white" : "text-[#9b97a0]"}`}>More</span>
+              <span className={`text-[8px] font-semibold transition ${moreActive || moreOpen ? "text-white" : "text-[#9b97a0]"}`}>More</span>
             </button>
           </div>
         </div>
@@ -1206,19 +1217,6 @@ function DevicePreview() {
 
   return (
     <>
-      <div className="mb-3 flex justify-center gap-1.5 sm:hidden">
-        {["Dashboard", "Orders", "Inventory", "Expenses", "Reports"].map((tab) => (
-          <button
-            type="button"
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`rounded-full px-2.5 py-1.5 text-[9px] font-bold transition ${activeTab === tab ? "bg-white text-[#4a236f]" : "bg-white/10 text-white/65"}`}
-          >
-            {tab === "Dashboard" ? "Home" : tab}
-          </button>
-        ))}
-      </div>
-
       <div className="sm:hidden">
         <MobileDashboard activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
