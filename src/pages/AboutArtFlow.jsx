@@ -625,25 +625,67 @@ function PreviewTaxes() {
   return (
     <div>
       <PreviewSectionHeader title="Taxes" subtitle="2026 tax overview" />
+
       <div className="grid grid-cols-2 gap-2">
-        {[
-          ["Business Profit", "$3,126.40", "bg-purple-50"],
-          ["Deductions", "$316.00", "bg-yellow-50"],
-          ["Taxable Profit", "$2,810.40", "bg-blue-50"],
-          ["Suggested Reserve", "$702.60", "bg-pink-50"],
-        ].map(([label, value, tone]) => (
-          <div key={label} className={`rounded-[18px] border border-[#eeeaf1] p-3 shadow-sm ${tone}`}>
-            <p className="text-[7px] font-bold text-slate-500">{label}</p>
-            <p className="mt-2 text-[14px] font-black text-slate-900">{value}</p>
-          </div>
-        ))}
-      </div>
-      <div className="mt-3 rounded-[20px] border border-[#eeeaf1] bg-white p-4 shadow-sm">
-        <p className="text-[9px] font-black text-slate-800">Tax Reserve Rate</p>
-        <div className="mt-3 h-2 overflow-hidden rounded-full bg-purple-100">
-          <div className="h-full w-1/4 rounded-full bg-purple-500" />
+        <div className="rounded-[18px] border border-[#e7e2eb] bg-emerald-50 p-3 shadow-sm">
+          <p className="text-[5.5px] font-bold uppercase tracking-[0.08em] text-slate-500">Business Profit</p>
+          <p className="mt-1.5 text-[14px] font-black text-slate-900">$3,126.40</p>
         </div>
-        <div className="mt-2 flex justify-between text-[7px] text-slate-400"><span>0%</span><span className="font-bold text-purple-600">25%</span><span>40%</span></div>
+        <div className="rounded-[18px] border border-[#e7e2eb] bg-orange-50 p-3 shadow-sm">
+          <p className="text-[5.5px] font-bold uppercase tracking-[0.08em] text-slate-500">Additional Deductions</p>
+          <p className="mt-1.5 text-[14px] font-black text-slate-900">$316.00</p>
+        </div>
+      </div>
+
+      <div className="mt-2 rounded-[20px] border border-[#e7e2eb] bg-white p-3 shadow-sm">
+        <p className="text-[5.8px] font-bold uppercase tracking-[0.1em] text-slate-500">
+          Taxable Business Profit
+        </p>
+        <p className="mt-1.5 text-[18px] font-black text-slate-900">$2,810.40</p>
+        <p className="mt-1 text-[5.5px] text-slate-400">
+          Estimated profit minus business deductions
+        </p>
+      </div>
+
+      <div className="mt-2 rounded-[20px] border border-[#e7e2eb] bg-white p-3 shadow-sm">
+        <p className="text-[5.8px] font-bold uppercase tracking-[0.1em] text-slate-500">
+          Tax Reserve Rate
+        </p>
+        <div className="mt-3 flex items-center gap-2.5">
+          <div className="relative flex-1">
+            <div className="h-2 rounded-full bg-slate-200" />
+            <div className="absolute left-0 top-0 h-2 w-1/2 rounded-full bg-[#6e3769]" />
+            <div className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#6e3769] shadow" />
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="grid h-9 w-12 place-items-center rounded-xl border border-slate-200 bg-slate-50 text-[10px] font-black text-slate-900">
+              25
+            </div>
+            <span className="text-[9px] font-bold text-slate-700">%</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-2 space-y-2">
+        <div className="rounded-[20px] border border-[#e7e2eb] bg-yellow-50 p-3 shadow-sm">
+          <p className="text-[5.5px] font-bold uppercase tracking-[0.08em] text-slate-500">
+            Suggested Tax Reserve
+          </p>
+          <p className="mt-1.5 text-[17px] font-black text-slate-900">$702.60</p>
+          <p className="mt-1 text-[5.5px] text-slate-400">
+            <span className="font-bold text-slate-700">25%</span> of taxable business profit
+          </p>
+        </div>
+
+        <div className="rounded-[20px] border border-[#e7e2eb] bg-blue-50 p-3 shadow-sm">
+          <p className="text-[5.5px] font-bold uppercase tracking-[0.08em] text-slate-500">
+            After Tax Reserve
+          </p>
+          <p className="mt-1.5 text-[17px] font-black text-slate-900">$2,107.80</p>
+          <p className="mt-1 text-[5.5px] text-slate-400">
+            What remains after setting aside taxes
+          </p>
+        </div>
       </div>
     </div>
   );
