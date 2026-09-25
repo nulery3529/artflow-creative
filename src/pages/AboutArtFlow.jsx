@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
+import { ShoppingBag, Receipt, Package, MoreHorizontal, RefreshCw, Home, BarChart3 } from "lucide-react";
 
 const MiniArt = ({ variant = 1 }) => {
   const classes = {
@@ -35,89 +36,190 @@ const OrderRow = ({ variant, title, platform, amount }) => (
   </div>
 );
 
-function DesktopDashboard() {
+function PreviewHero({ compact = false }) {
   return (
-    <div className="overflow-hidden rounded-[18px] bg-[#f7f4f9]">
-      <div className="grid min-h-[370px] grid-cols-[92px_1fr]">
-        <aside className="bg-[#4a236f] px-3 py-4 text-white">
-          <div className="mb-5 flex items-center gap-2">
-            <img src="/artflow-icon.svg" alt="" className="h-7 w-7 rounded-lg bg-white p-1" />
-            <span className="text-[7px] font-extrabold leading-tight">Art Flow<br />Creative</span>
+    <div className={`relative overflow-hidden bg-[radial-gradient(circle_at_88%_12%,rgba(206,67,255,.30),transparent_8rem),radial-gradient(circle_at_-2%_0%,rgba(255,255,255,.14),transparent_7rem),linear-gradient(145deg,#171719_0%,#070708_76%)] text-white shadow-[0_18px_44px_rgba(17,12,21,.20)] ${compact ? "rounded-[24px] p-4" : "rounded-[26px] p-4"}`}>
+      <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,.04),transparent_38%,transparent_72%,rgba(216,72,255,.08))]" />
+      <div className="relative z-10">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[9px] font-bold text-white/65">Good morning, Artist</p>
+            <p className="mt-2 text-[9px] text-white/60">Total business sales</p>
+            <p className={`mt-0.5 font-black tracking-[-0.05em] ${compact ? "text-[28px]" : "text-[30px]"}`}>$3,842.60</p>
           </div>
-          {["Dashboard", "Orders", "Inventory", "Expenses", "Reports", "Account"].map((item, i) => (
-            <div key={item} className={`mb-1 rounded-lg px-2 py-2 text-[7px] font-bold ${i === 0 ? "bg-white/15 text-white" : "text-white/65"}`}>
-              {item}
+          <div className="grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-white/10">
+            <RefreshCw className="h-4 w-4" />
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-4 gap-2">
+          {[
+            ["Orders", ShoppingBag, false],
+            ["Expenses", Receipt, false],
+            ["Inventory", Package, false],
+            ["More", MoreHorizontal, true],
+          ].map(([label, Icon, accent]) => (
+            <div key={label} className="flex min-w-0 flex-col items-center gap-1.5">
+              <span className={`grid rounded-full shadow-md ${compact ? "h-10 w-10" : "h-11 w-11"} place-items-center ${accent ? "bg-gradient-to-br from-[#c53bff] to-[#e948c5] text-white" : "bg-white text-[#111]"}`}>
+                <Icon className="h-4 w-4" />
+              </span>
+              <span className="text-[8px] font-semibold text-white/72">{label}</span>
             </div>
           ))}
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 overflow-hidden rounded-2xl bg-white/10">
+          <div className="bg-gradient-to-br from-[#c93cff] to-[#e247c5] px-3 py-2.5">
+            <span className="block text-[7px] font-bold uppercase tracking-[0.08em] text-white/70">Items sold</span>
+            <strong className="mt-1 block text-[12px] font-black">214</strong>
+          </div>
+          <div className="bg-gradient-to-br from-[#c93cff] to-[#e247c5] px-3 py-2.5">
+            <span className="block text-[7px] font-bold uppercase tracking-[0.08em] text-white/70">Orders</span>
+            <strong className="mt-1 block text-[12px] font-black">187</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PreviewLineChart() {
+  return (
+    <div className="mt-3">
+      <svg viewBox="0 0 220 70" className="h-[70px] w-full" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="coverSalesFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#a78bfa" stopOpacity=".30" />
+            <stop offset="100%" stopColor="#a78bfa" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d="M 0 62 L 0 48 L 38 41 L 75 50 L 112 31 L 150 35 L 185 18 L 220 24 L 220 62 Z" fill="url(#coverSalesFill)" />
+        <polyline points="0,48 38,41 75,50 112,31 150,35 185,18 220,24" fill="none" stroke="#8b5cf6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      <div className="grid grid-cols-6 text-center text-[6px] text-slate-400">
+        <span>Apr</span><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span>Sep</span>
+      </div>
+    </div>
+  );
+}
+
+function PreviewMarketPerformance({ compact = false }) {
+  const rows = [
+    ["Poshmark", "$1,420", "100%", "bg-purple-500"],
+    ["Vinted", "$1,080", "76%", "bg-pink-400"],
+    ["Depop", "$822", "58%", "bg-cyan-400"],
+    ["eBay", "$520", "37%", "bg-amber-400"],
+  ];
+  return (
+    <div className="space-y-2.5">
+      {rows.map(([name, amount, width, color]) => (
+        <div key={name}>
+          <div className="mb-1 flex items-center justify-between gap-2 text-[7px]">
+            <span className="font-semibold text-slate-700">{name}</span>
+            <span className="font-bold text-slate-800">{amount}</span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-purple-100/70">
+            <div className={`h-full rounded-full ${color}`} style={{ width }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PreviewOrder({ image = "bundle", title, platform, amount }) {
+  return (
+    <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 border-b border-purple-100/60 py-2 last:border-b-0">
+      <div className="h-10 w-10 overflow-hidden rounded-xl border border-purple-100 bg-gradient-to-br from-purple-100 via-pink-50 to-cyan-50">
+        {image === "bundle" ? (
+          <img src="/bundle-placeholder.svg" alt="" className="h-full w-full object-cover" />
+        ) : (
+          <MiniArt variant={image} />
+        )}
+      </div>
+      <div className="min-w-0">
+        <p className="truncate text-[8px] font-bold text-slate-800">{title}</p>
+        <p className="mt-1 text-[7px] text-slate-400">{platform}</p>
+      </div>
+      <p className="text-[8px] font-black text-slate-800">{amount}</p>
+    </div>
+  );
+}
+
+function DesktopDashboard() {
+  const sideItems = ["Dashboard", "Orders", "Expenses", "Inventory", "Reports", "Business Plan", "Taxes", "Mileage"];
+  return (
+    <div className="overflow-hidden rounded-[18px] bg-[#f5f3f7] text-slate-900">
+      <div className="grid min-h-[430px] grid-cols-[120px_1fr]">
+        <aside className="m-2 flex flex-col rounded-[20px] border border-white/70 bg-white/70 p-3 shadow-sm backdrop-blur">
+          <div className="mb-4 flex items-center gap-2 px-1">
+            <img src="/artflow-icon.svg" alt="" className="h-7 w-7" />
+            <div>
+              <p className="text-[9px] font-black text-[#5c2b76]">ART FLOW</p>
+              <p className="text-[6px] font-bold tracking-[0.22em] text-slate-400">CREATIVE</p>
+            </div>
+          </div>
+          <div className="space-y-1">
+            {sideItems.map((item, i) => (
+              <div key={item} className={`rounded-xl px-2.5 py-2 text-[7px] font-semibold ${i === 0 ? "bg-[#6e3769] text-white shadow-sm" : "text-slate-500"}`}>
+                {item}
+              </div>
+            ))}
+          </div>
         </aside>
 
-        <section className="p-4">
-          <div className="mb-3 flex items-start justify-between">
-            <div>
-              <h3 className="text-[17px] font-black text-[#25142f]">Good morning!</h3>
-              <p className="mt-0.5 text-[8px] text-slate-500">Here’s your business at a glance.</p>
-            </div>
-            <div className="rounded-full bg-white px-2 py-1 text-[7px] font-bold text-[#5b337c] shadow-sm">Syncing ✓</div>
+        <section className="p-3">
+          <div className="mb-3 flex justify-end gap-2">
+            <div className="h-8 w-[180px] rounded-full border border-slate-200 bg-white px-3 text-[7px] leading-8 text-slate-400">Search orders by product or order ID...</div>
+            <div className="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-[#6e3769]">•</div>
           </div>
 
-          <div className="grid grid-cols-4 gap-2">
-            <Metric label="Sales" value="$1,284" />
-            <Metric label="Orders" value="48" />
-            <Metric label="Expenses" value="$316" accent="text-[#a15068]" />
-            <Metric label="Profit" value="$968" accent="text-[#2f7a63]" />
-          </div>
+          <PreviewHero />
 
-          <div className="mt-3 grid grid-cols-[1.1fr_.9fr] gap-3">
-            <div className="rounded-2xl bg-[#2c1937] p-3 text-white shadow-sm">
-              <div className="mb-2 flex items-center justify-between">
-                <p className="text-[9px] font-extrabold">Marketplace Performance</p>
-                <span className="text-[7px] text-white/60">This month</span>
+          <div className="mt-3 grid grid-cols-[1.45fr_.8fr] gap-3">
+            <div className="rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[9px] font-bold">Sales Overview</p>
+                  <p className="mt-0.5 text-[7px] text-slate-400">Revenue over the last several months</p>
+                </div>
+                <span className="text-[7px] font-semibold text-purple-600">● Sales</span>
               </div>
-              {[
-                ["Poshmark", "82%"],
-                ["Vinted", "64%"],
-                ["Depop", "49%"],
-                ["eBay", "31%"],
-              ].map(([name, width]) => (
-                <div key={name} className="mb-2">
-                  <div className="mb-1 flex justify-between text-[7px] text-white/80">
-                    <span>{name}</span><span>{width}</span>
-                  </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-white/12">
-                    <div className="h-full rounded-full bg-gradient-to-r from-[#a884ce] to-[#d6b8e7]" style={{ width }} />
+              <PreviewLineChart />
+            </div>
+
+            <div className="rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
+              <p className="text-[9px] font-bold">Market Performance</p>
+              <p className="mb-3 mt-0.5 text-[7px] text-slate-400">Sales across all marketplaces</p>
+              <PreviewMarketPerformance />
+            </div>
+          </div>
+
+          <div className="mt-3 grid grid-cols-[1.45fr_.8fr] gap-3">
+            <div className="rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[9px] font-bold">Recent Orders</p>
+                  <p className="mt-0.5 text-[7px] text-slate-400">Latest sales across your connected shops</p>
+                </div>
+                <span className="text-[7px] font-bold text-purple-600">View all ↗</span>
+              </div>
+              <div className="mt-2">
+                <PreviewOrder image="bundle" title="Bundle Order" platform="Depop" amount="$42.00" />
+                <PreviewOrder image={2} title="Framed Art Print" platform="Poshmark" amount="$28.00" />
+              </div>
+            </div>
+
+            <div className="rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
+              <p className="text-[9px] font-bold">Expenses Overview</p>
+              <p className="mt-0.5 text-[7px] text-slate-400">Deductible business spending</p>
+              <div className="mt-3 grid place-items-center">
+                <div className="grid h-20 w-20 place-items-center rounded-full bg-[conic-gradient(#a78bfa_0_35%,#f472b6_35%_60%,#67e8f9_60%_82%,#fbbf24_82%_100%)]">
+                  <div className="grid h-12 w-12 place-items-center rounded-full bg-white text-center">
+                    <span className="text-[6px] text-slate-400">Total</span>
+                    <strong className="text-[8px]">$316</strong>
                   </div>
                 </div>
-              ))}
-            </div>
-
-            <div className="rounded-2xl bg-white p-3 shadow-sm">
-              <div className="mb-2 flex items-center justify-between">
-                <p className="text-[9px] font-extrabold text-[#25142f]">Recent Orders</p>
-                <span className="text-[7px] font-bold text-[#76499a]">View all</span>
-              </div>
-              <div className="space-y-2">
-                <OrderRow variant={1} title="Bundle Order" platform="Depop" amount="$42" />
-                <OrderRow variant={2} title="Framed Art Print" platform="Poshmark" amount="$28" />
-                <OrderRow variant={3} title="Botanical Print" platform="Vinted" amount="$19" />
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <div className="rounded-2xl bg-white p-3 shadow-sm">
-              <p className="text-[9px] font-extrabold text-[#25142f]">Profit Overview</p>
-              <div className="mt-2 flex h-12 items-end gap-1.5">
-                {[42, 64, 48, 78, 56, 86, 70].map((h, i) => (
-                  <span key={i} className="flex-1 rounded-t bg-[#7b4da0]/75" style={{ height: `${h}%` }} />
-                ))}
-              </div>
-            </div>
-            <div className="rounded-2xl bg-white p-3 shadow-sm">
-              <p className="text-[9px] font-extrabold text-[#25142f]">Recent Expenses</p>
-              <div className="mt-2 space-y-2">
-                <div className="flex justify-between text-[8px]"><span className="text-slate-500">Shipping supplies</span><b>$24.80</b></div>
-                <div className="flex justify-between text-[8px]"><span className="text-slate-500">Printing</span><b>$18.25</b></div>
-                <div className="flex justify-between text-[8px]"><span className="text-slate-500">Packaging</span><b>$12.40</b></div>
               </div>
             </div>
           </div>
@@ -129,66 +231,57 @@ function DesktopDashboard() {
 
 function MobileDashboard() {
   return (
-    <div className="mx-auto w-full max-w-[330px] rounded-[36px] bg-[#211725] p-[9px] shadow-[0_28px_60px_rgba(16,7,21,.45)]">
-      <div className="overflow-hidden rounded-[28px] bg-[#f7f4f9]">
-        <div className="flex items-center justify-between bg-[#4a236f] px-4 py-3 text-white">
-          <div className="flex items-center gap-2">
-            <img src="/artflow-icon.svg" alt="" className="h-7 w-7 rounded-lg bg-white p-1" />
-            <span className="text-[10px] font-black">Art Flow Creative</span>
+    <div className="mx-auto w-full max-w-[330px] rounded-[34px] bg-[#201821] p-[8px] shadow-[0_30px_70px_rgba(15,7,20,.48)]">
+      <div className="relative min-h-[600px] overflow-hidden rounded-[27px] bg-[#f5f3f7] px-3 pb-20 pt-3 text-slate-900">
+        <PreviewHero compact />
+
+        <div className="mt-3 rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-bold">Sales Overview</p>
+              <p className="mt-0.5 text-[7px] text-slate-400">Revenue over the last several months</p>
+            </div>
+            <span className="text-[7px] font-semibold text-purple-600">● Sales</span>
           </div>
-          <span className="text-[12px]">•••</span>
+          <PreviewLineChart />
         </div>
 
-        <div className="p-4">
-          <div className="mb-4 flex items-start justify-between">
+        <div className="mt-3 rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
+          <p className="text-[10px] font-bold">Market Performance</p>
+          <p className="mb-3 mt-0.5 text-[7px] text-slate-400">Sales across all marketplaces</p>
+          <PreviewMarketPerformance compact />
+        </div>
+
+        <div className="mt-3 rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
+          <div className="flex items-center justify-between">
             <div>
-              <h4 className="text-[18px] font-black text-[#25142f]">Dashboard</h4>
-              <p className="mt-1 text-[9px] text-slate-500">Your business at a glance</p>
+              <p className="text-[10px] font-bold">Recent Orders</p>
+              <p className="mt-0.5 text-[7px] text-slate-400">Latest sales across your connected shops</p>
             </div>
-            <span className="rounded-full bg-[#efe7f5] px-2 py-1 text-[8px] font-bold text-[#6a3b8d]">Synced ✓</span>
+            <span className="text-[7px] font-bold text-purple-600">View all ↗</span>
           </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <Metric label="Sales" value="$1,284" />
-            <Metric label="Orders" value="48" />
-            <Metric label="Expenses" value="$316" accent="text-[#a15068]" />
-            <Metric label="Profit" value="$968" accent="text-[#2f7a63]" />
+          <div className="mt-2">
+            <PreviewOrder image="bundle" title="Bundle Order" platform="Depop" amount="$42.00" />
+            <PreviewOrder image={2} title="Framed Art Print" platform="Poshmark" amount="$28.00" />
           </div>
+        </div>
 
-          <div className="mt-4 rounded-2xl bg-[#2d1938] p-3 text-white">
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] font-extrabold">Marketplace Performance</p>
-              <span className="text-[8px] text-white/55">This month</span>
-            </div>
-            <div className="mt-3 space-y-2">
-              {[
-                ["Poshmark", "82%"],
-                ["Vinted", "64%"],
-                ["Depop", "49%"],
-                ["eBay", "31%"],
-              ].map(([name, width]) => (
-                <div key={name}>
-                  <div className="mb-1 flex justify-between text-[8px] text-white/75">
-                    <span>{name}</span><span>{width}</span>
-                  </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-white/12">
-                    <div className="h-full rounded-full bg-gradient-to-r from-[#a884ce] to-[#d6b8e7]" style={{ width }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-4">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-[10px] font-extrabold text-[#25142f]">Recent Orders</p>
-              <span className="text-[8px] font-bold text-[#76499a]">View all</span>
-            </div>
-            <div className="space-y-2">
-              <OrderRow variant={1} title="Bundle Order" platform="Depop" amount="$42" />
-              <OrderRow variant={2} title="Framed Art Print" platform="Poshmark" amount="$28" />
-              <OrderRow variant={3} title="Botanical Print" platform="Vinted" amount="$19" />
-            </div>
+        <div className="absolute inset-x-3 bottom-3">
+          <div className="flex items-center justify-between rounded-[22px] border border-[#19191b] bg-[#050506] px-2 py-2 text-white shadow-[0_16px_38px_rgba(8,7,10,.25)]">
+            {[
+              ["Home", Home, true],
+              ["Orders", ShoppingBag, false],
+              ["Inventory", Package, false],
+              ["Expenses", Receipt, false],
+              ["More", MoreHorizontal, false],
+            ].map(([label, Icon, active]) => (
+              <div key={label} className="flex flex-1 flex-col items-center gap-0.5">
+                <span className={`grid h-8 w-9 place-items-center rounded-full ${active ? "bg-white text-black" : "text-[#8d8990]"}`}>
+                  <Icon className="h-4 w-4" />
+                </span>
+                <span className={`text-[7px] font-semibold ${active ? "text-white" : "text-[#9b97a0]"}`}>{label}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -203,8 +296,8 @@ function DevicePreview() {
         <MobileDashboard />
       </div>
 
-      <div className="relative mx-auto hidden w-full max-w-[720px] pb-20 pt-2 sm:block lg:pb-10">
-        <div className="relative ml-auto w-[92%]">
+      <div className="relative mx-auto hidden w-full max-w-[760px] pb-20 pt-2 sm:block lg:pb-10">
+        <div className="relative ml-auto w-[93%]">
           <div className="rounded-[24px] bg-[#2a2030] p-[10px] shadow-[0_38px_80px_rgba(19,9,26,.40)]">
             <DesktopDashboard />
           </div>
@@ -212,36 +305,8 @@ function DevicePreview() {
           <div className="mx-auto h-2 w-[62%] rounded-b-full bg-[#281f2d]/90" />
         </div>
 
-        <div className="absolute bottom-0 left-0 w-[33%] min-w-[138px] max-w-[205px] rounded-[32px] bg-[#211725] p-[8px] shadow-[0_28px_60px_rgba(16,7,21,.45)]">
-          <div className="overflow-hidden rounded-[25px] bg-[#f7f4f9]">
-            <div className="flex items-center justify-between bg-[#4a236f] px-3 py-2 text-white">
-              <div className="flex items-center gap-1.5">
-                <img src="/artflow-icon.svg" alt="" className="h-5 w-5 rounded-md bg-white p-0.5" />
-                <span className="text-[7px] font-black">Art Flow</span>
-              </div>
-              <span className="text-[8px]">•••</span>
-            </div>
-            <div className="p-3">
-              <h4 className="text-[12px] font-black text-[#25142f]">Dashboard</h4>
-              <p className="text-[7px] text-slate-500">Your business at a glance</p>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <Metric label="Sales" value="$1,284" />
-                <Metric label="Orders" value="48" />
-              </div>
-              <div className="mt-3 rounded-2xl bg-[#2d1938] p-2.5 text-white">
-                <p className="text-[8px] font-extrabold">Performance</p>
-                <div className="mt-2 space-y-1.5">
-                  <div className="h-1.5 rounded-full bg-[#a781c7]" />
-                  <div className="h-1.5 w-4/5 rounded-full bg-[#8e66ad]" />
-                  <div className="h-1.5 w-3/5 rounded-full bg-[#76518f]" />
-                </div>
-              </div>
-              <div className="mt-3 space-y-2">
-                <OrderRow variant={4} title="Bundle" platform="Depop" amount="$42" />
-                <OrderRow variant={2} title="Art Print" platform="Vinted" amount="$19" />
-              </div>
-            </div>
-          </div>
+        <div className="absolute bottom-0 left-0 w-[31%] min-w-[145px] max-w-[205px]">
+          <MobileDashboard />
         </div>
       </div>
     </>
