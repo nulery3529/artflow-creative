@@ -656,7 +656,14 @@ export async function syncYahooExpenses(client, business) {
   const config = yahooConfig(business);
   const email = normalize(config.email);
   if (!config.connected || !email || !config.app_password_enc) {
-    return { connected:false, checked:0, imported:0, skipped:0, remaining:0 };
+    return {
+      connected:false,
+      checked:0,
+      imported:0,
+      skipped:0,
+      remaining:0,
+      code:'YAHOO_RECONNECT',
+    };
   }
 
   const password = decrypt(config.app_password_enc);
@@ -715,7 +722,20 @@ export async function syncYahooMailbox(client, business) {
   const config = yahooConfig(business);
   const email = normalize(config.email);
   if (!config.connected || !email || !config.app_password_enc) {
-    return { connected:false, checked:0, saved:0, remaining:0 };
+    const diagnostics = {
+      connected_flag: Boolean(config.connected),
+      email_present: Boolean(email),
+      credential_present: Boolean(config.app_password_enc),
+    };
+    console.warn('Yahoo sales connection unavailable', JSON.stringify(diagnostics));
+    return {
+      connected:false,
+      checked:0,
+      saved:0,
+      remaining:0,
+      code:'YAHOO_RECONNECT',
+      diagnostics,
+    };
   }
 
   const password = decrypt(config.app_password_enc);
@@ -773,6 +793,7 @@ export default async function handler(req, res) {
         last_checked: Number(config.last_checked || 0),
         last_saved: Number(config.last_saved || 0),
         last_error: clean(config.last_error || ''),
+        credential_ready: Boolean(config.connected && config.email && config.app_password_enc),
         last_expense_sync_at: config.last_expense_sync_at || null,
         last_expense_checked: Number(config.last_expense_checked || 0),
         last_expense_imported: Number(config.last_expense_imported || 0),
@@ -838,6 +859,7 @@ export default async function handler(req, res) {
         const result = await syncYahooMailbox(client, business);
         const expenses = await syncYahooExpenses(client, business);
         console.log('Yahoo sync summary', JSON.stringify({
+          yahoo_connected: Boolean(result.connected),
           sales_checked: Number(result.checked || 0),
           sales_saved: Number(result.saved || 0),
           expense_checked: Number(expenses.checked || 0),
@@ -845,12 +867,22 @@ export default async function handler(req, res) {
           expense_skipped: Number(expenses.skipped || 0),
           expense_remaining: Number(expenses.remaining || 0),
         }));
+
+        if (!result.connected) {
+          return res.status(409).json({
+            error:'Yahoo is not currently connected to this Art Flow business. Open Account → Yahoo Inbox and reconnect it with a Yahoo app password, then tap Check Yahoo Now.',
+            code:'YAHOO_RECONNECT',
+            diagnostics: result.diagnostics || null,
+          });
+        }
+
         return res.status(200).json({
           ok:true,
           ...result,
           expenses,
           message: [
             result.saved > 0 ? `${result.saved} new eBay sale${result.saved === 1 ? '' : 's'}` : '',
+            result.checked > 0 && result.saved === 0 ? `${result.checked} Yahoo message${result.checked === 1 ? '' : 's'} checked; no new eBay sale matched` : '',
             expenses.imported > 0 ? `${expenses.imported} Yahoo expense receipt${expenses.imported === 1 ? '' : 's'} added to review` : '',
           ].filter(Boolean).join(' and ') || 'Yahoo sales and expenses are up to date.',
         });
