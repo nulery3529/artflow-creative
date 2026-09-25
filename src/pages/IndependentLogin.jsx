@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogIn, Mail, Lock } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
-import GoogleIcon from "@/components/GoogleIcon";
 import { artflowAuthClient } from "@/lib/artflowAuthClient";
 import { safeReturnTo } from "@/lib/authReturnTo";
 
@@ -14,48 +13,17 @@ export default function IndependentLogin() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [appleEnabled, setAppleEnabled] = useState(false);
   const nativeIOS = typeof window !== "undefined" && (
     window.ArtFlowNative?.platform === "ios"
     || document.documentElement?.dataset?.artflowPlatform === "ios"
   );
-  const showGoogleLogin = !nativeIOS;
 
   const finish = () => {
     window.location.replace(safeReturnTo());
   };
 
   const accountEmail = () => email.trim().toLowerCase();
-
-  const handleGoogleSignIn = async () => {
-    if (loading || googleLoading) return;
-    setError("");
-    setGoogleLoading(true);
-    try {
-      const returnTo = safeReturnTo();
-      const isLocal = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
-      const canonicalOrigin = isLocal ? window.location.origin : "https://artflowcreative.com";
-      if (!isLocal && window.location.origin !== canonicalOrigin) {
-        window.location.assign(`${canonicalOrigin}/login?returnTo=${encodeURIComponent(returnTo)}`);
-        return;
-      }
-      const result = await artflowAuthClient.signIn.social({
-        provider: "google",
-        callbackURL: `${canonicalOrigin}${returnTo}`,
-        errorCallbackURL: `${canonicalOrigin}/login?error=google_sign_in_failed`,
-        disableRedirect: true,
-        requestSignUp: false,
-        additionalParams: { prompt: "select_account" },
-      });
-      if (result?.error) throw new Error(result.error.message || "Could not sign in with Google.");
-      if (!result?.data?.url) throw new Error("Google sign-in did not open. Please try again.");
-      window.location.assign(result.data.url);
-    } catch (err) {
-      setError(err?.message || "Could not sign in with Google.");
-      setGoogleLoading(false);
-    }
-  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -128,13 +96,9 @@ export default function IndependentLogin() {
       icon={LogIn}
       title="Welcome back"
       subtitle={
-        nativeIOS
-          ? appleEnabled
-            ? "Continue with Apple or use your Art Flow Creative email and password"
-            : "Sign in with your Art Flow Creative email and password"
-          : appleEnabled
-            ? "Continue with Apple, Google, or your Art Flow Creative email and password"
-            : "Continue with Google or use your Art Flow Creative email and password"
+        appleEnabled
+          ? "Continue with Apple or use your Art Flow Creative email and password"
+          : "Sign in with your Art Flow Creative email and password"
       }
       footer={
         <>
@@ -147,15 +111,6 @@ export default function IndependentLogin() {
         <div className="mb-4 px-4 py-3 rounded-2xl border border-destructive/30 bg-destructive/10 text-destructive text-sm leading-relaxed" role="alert">
           {error}
         </div>
-      )}
-
-      {showGoogleLogin && (
-        <Button asChild variant="outline" className="w-full h-12 rounded-2xl font-semibold text-base bg-background text-foreground">
-          <a href={`/api/auth/google-login?returnTo=${encodeURIComponent(safeReturnTo())}`}>
-            <GoogleIcon className="w-5 h-5 mr-2" />
-            Continue with Google
-          </a>
-        </Button>
       )}
 
       {appleEnabled && (
@@ -176,7 +131,7 @@ export default function IndependentLogin() {
         </Button>
       )}
 
-      {(showGoogleLogin || appleEnabled) && (
+      {appleEnabled && (
       <div className="flex items-center gap-3 my-5" aria-hidden="true">
         <span className="h-px flex-1 bg-border" />
         <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">or</span>
@@ -215,13 +170,9 @@ export default function IndependentLogin() {
 
       <p className="text-center text-xs text-muted-foreground mt-6 leading-relaxed">
         {
-          nativeIOS
-            ? appleEnabled
-              ? "Apple sign-in opens your Art Flow account. You can also use your Art Flow Creative email and password."
-              : "Sign in with your Art Flow Creative email and password. Apple sign-in will appear automatically when the Apple provider is enabled."
-            : appleEnabled
-              ? "Apple or Google sign-in opens your Art Flow account. New users can also create an email-and-password account."
-              : "Google sign-in opens your existing Art Flow account. New users can create an email-and-password account below."
+          appleEnabled
+            ? "Apple sign-in opens your Art Flow account. You can also use your Art Flow Creative email and password."
+            : "Sign in with your Art Flow Creative email and password. New users can create an account below."
         }
       </p>
       <p className="text-center text-sm text-muted-foreground mt-4">
