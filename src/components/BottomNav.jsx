@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Home,
@@ -32,11 +32,97 @@ const more = [
   { label: "Account", to: "/account", icon: UserRound },
 ];
 
+const swipeTabs = [...primary, ...more];
+
 export default function BottomNav() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const [moreOpen, setMoreOpen] = useState(false);
   const [lastTap, setLastTap] = useState({});
+  const swipeStartRef = useRef(null);
+
+  useEffect(() => {
+    const shouldIgnoreSwipe = (target) => {
+      if (!(target instanceof Element)) return false;
+
+      if (
+        target.closest(
+          "input, textarea, select, button, a, [role='slider'], [contenteditable='true'], [data-no-tab-swipe='true']"
+        )
+      ) {
+        return true;
+      }
+
+      let node = target;
+      while (node && node !== document.body) {
+        const style = window.getComputedStyle(node);
+        const horizontallyScrollable =
+          /(auto|scroll)/.test(style.overflowX) &&
+          node.scrollWidth > node.clientWidth + 4;
+
+        if (horizontallyScrollable) return true;
+        node = node.parentElement;
+      }
+
+      return false;
+    };
+
+    const handleTouchStart = (event) => {
+      if (
+        !window.matchMedia("(max-width: 1023px)").matches ||
+        event.touches.length !== 1 ||
+        shouldIgnoreSwipe(event.target)
+      ) {
+        swipeStartRef.current = null;
+        return;
+      }
+
+      const touch = event.touches[0];
+      swipeStartRef.current = { x: touch.clientX, y: touch.clientY };
+    };
+
+    const handleTouchEnd = (event) => {
+      const start = swipeStartRef.current;
+      swipeStartRef.current = null;
+
+      if (!start || event.changedTouches.length !== 1) return;
+
+      const touch = event.changedTouches[0];
+      const dx = touch.clientX - start.x;
+      const dy = touch.clientY - start.y;
+
+      if (Math.abs(dx) < 64 || Math.abs(dx) < Math.abs(dy) * 1.35) return;
+
+      const currentIndex = swipeTabs.findIndex((item) =>
+        item.to === "/dashboard"
+          ? pathname === "/dashboard"
+          : pathname === item.to || pathname.startsWith(item.to + "/")
+      );
+
+      if (currentIndex < 0) return;
+
+      const nextIndex = dx < 0 ? currentIndex + 1 : currentIndex - 1;
+      if (nextIndex < 0 || nextIndex >= swipeTabs.length) return;
+
+      setMoreOpen(false);
+      navigate(swipeTabs[nextIndex].to);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    const clearSwipe = () => {
+      swipeStartRef.current = null;
+    };
+
+    document.addEventListener("touchstart", handleTouchStart, { passive: true });
+    document.addEventListener("touchend", handleTouchEnd, { passive: true });
+    document.addEventListener("touchcancel", clearSwipe, { passive: true });
+
+    return () => {
+      document.removeEventListener("touchstart", handleTouchStart);
+      document.removeEventListener("touchend", handleTouchEnd);
+      document.removeEventListener("touchcancel", clearSwipe);
+    };
+  }, [navigate, pathname]);
 
   const isActive = (to) =>
     to === "/dashboard"
