@@ -276,7 +276,7 @@ function PreviewOrders() {
 
       <div className="mb-2 flex gap-1.5 overflow-hidden">
         {["All months", "Sep", "Aug", "Jul"].map((item, i) => (
-          <span key={item} className={`shrink-0 rounded-full px-2.5 py-1.5 text-[6.5px] font-bold ${i === 0 ? "bg-[#6e3769] text-white" : "bg-slate-100 text-slate-600"}`}>
+          <span key={item} className={`shrink-0 rounded-full px-2.5 py-1.5 text-[6.5px] font-bold ${i === 0 ? "bg-[#d63bea] text-white" : "bg-slate-100 text-slate-600"}`}>
             {item}
           </span>
         ))}
@@ -299,7 +299,7 @@ function PreviewOrders() {
         <div className="flex h-8 items-center justify-center rounded-xl bg-slate-100 text-[6.5px] font-bold text-slate-700">
           Send Sale from Phone / iPad
         </div>
-        <div className="flex h-8 items-center justify-center rounded-xl bg-[#6e3769] text-[6.5px] font-bold text-white">
+        <div className="flex h-8 items-center justify-center rounded-xl bg-[#d63bea] text-[6.5px] font-bold text-white">
           ↻ Sync All Sales Now
         </div>
       </div>
@@ -310,7 +310,7 @@ function PreviewOrders() {
 
       <div className="mb-2 flex gap-1 overflow-hidden">
         {["All (187)", "Poshmark (64)", "Vinted (51)", "Depop (39)", "Etsy (21)", "eBay (12)", "Bundles (18)"].map((item, i) => (
-          <span key={item} className={`shrink-0 rounded-full px-2 py-1.5 text-[5.5px] font-bold ${i === 0 ? "bg-[#6e3769] text-white" : "bg-slate-100 text-slate-600"}`}>
+          <span key={item} className={`shrink-0 rounded-full px-2 py-1.5 text-[5.5px] font-bold ${i === 0 ? "bg-[#d63bea] text-white" : "bg-slate-100 text-slate-600"}`}>
             {item}
           </span>
         ))}
@@ -321,7 +321,7 @@ function PreviewOrders() {
         <PreviewOrderCard image={2} title="Framed Art Print" platform="Poshmark" size="8x10" qty="1" date="Sep 24" sale="$28.00" cost="$2.49" profit="$25.51" />
       </div>
 
-      <div className="pointer-events-none absolute bottom-[68px] right-5 grid h-10 w-10 place-items-center rounded-full bg-[#6e3769] text-lg font-bold text-white shadow-lg">
+      <div className="pointer-events-none absolute bottom-[68px] right-5 grid h-10 w-10 place-items-center rounded-full bg-[#d63bea] text-lg font-bold text-white shadow-lg">
         +
       </div>
     </div>
@@ -367,7 +367,7 @@ function PreviewInventoryItem({ title, category, size, base, unit, qty, image = 
         </div>
         <div className="flex items-center gap-1.5">
           <span className="grid h-8 w-8 place-items-center rounded-full border border-slate-200 bg-white text-[13px]">−</span>
-          <span className="grid h-8 w-8 place-items-center rounded-full bg-[#6e3769] text-[13px] font-bold text-white">+</span>
+          <span className="grid h-8 w-8 place-items-center rounded-full bg-[#d63bea] text-[13px] font-bold text-white">+</span>
         </div>
       </div>
     </div>
@@ -380,7 +380,7 @@ function PreviewInventory() {
       <PreviewSectionHeader title="Inventory" subtitle="Stock across all categories" />
       <div className="mb-3 grid grid-cols-3 gap-1.5">
         {[["ALL", "4"], ["PACKAGING", "1"], ["SUPPLIES", "3"]].map(([label, count], i) => (
-          <div key={label} className={`flex h-14 flex-col items-center justify-center rounded-2xl border ${i === 0 ? "border-transparent bg-[#6e3769] text-white" : "border-slate-200 bg-white text-slate-700"}`}>
+          <div key={label} className={`flex h-14 flex-col items-center justify-center rounded-2xl border ${i === 0 ? "border-transparent bg-[#d63bea] text-white" : "border-slate-200 bg-white text-slate-700"}`}>
             <p className="text-[5.5px] font-bold tracking-wide">{label}</p>
             <p className="mt-1 text-[12px] font-black">{count}</p>
           </div>
@@ -393,7 +393,7 @@ function PreviewInventory() {
         <PreviewInventoryItem title="11x14 Art Prints" category="Print" size="11x14" base="$3.00" unit="$5.09" qty="2" image={1} tone="low" />
       </div>
 
-      <div className="pointer-events-none absolute bottom-[68px] right-5 grid h-10 w-10 place-items-center rounded-full bg-[#6e3769] text-lg font-bold text-white shadow-lg">
+      <div className="pointer-events-none absolute bottom-[68px] right-5 grid h-10 w-10 place-items-center rounded-full bg-[#d63bea] text-lg font-bold text-white shadow-lg">
         +
       </div>
     </div>
@@ -407,7 +407,7 @@ function PreviewExpenseRow({ name, category, date, amount, deduction = "100% ded
         <p className="truncate text-[8px] font-bold text-slate-900">{name}</p>
         <p className="mt-1 text-[6px] text-slate-400">
           {category} · <span className="text-slate-600">{date}</span>
-          {recurring && <span className="ml-1 font-bold text-[#6e3769]">↻ Monthly</span>}
+          {recurring && <span className="ml-1 font-bold text-[#d63bea]">↻ Monthly</span>}
         </p>
       </div>
       <div className="ml-3 shrink-0 text-right">
@@ -427,7 +427,7 @@ function PreviewExpenses() {
         action={
           <div className="flex gap-1">
             <span className="rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-[6px] font-bold text-slate-600">Export</span>
-            <span className="rounded-xl bg-[#6e3769] px-2.5 py-2 text-[6px] font-bold text-white">+ Add</span>
+            <span className="rounded-xl bg-[#d63bea] px-2.5 py-2 text-[6px] font-bold text-white">+ Add</span>
           </div>
         }
       />
@@ -435,7 +435,7 @@ function PreviewExpenses() {
       <div className="mb-2 rounded-[18px] border border-[#e7e2eb] bg-white p-3 shadow-sm">
         <p className="text-[8px] font-bold text-slate-800">Expense records</p>
         <p className="mt-1 text-[6px] leading-3 text-slate-400">Your saved business expenses are stored securely with Art Flow.</p>
-        <div className="mt-2 flex h-8 items-center justify-center rounded-xl bg-[#6e3769] text-[6.5px] font-bold text-white">
+        <div className="mt-2 flex h-8 items-center justify-center rounded-xl bg-[#d63bea] text-[6.5px] font-bold text-white">
           ↻ Refresh Expenses
         </div>
       </div>
@@ -447,7 +447,7 @@ function PreviewExpenses() {
 
       <div className="mb-2 flex gap-1 overflow-hidden">
         {["All", "Supplies", "Packaging", "Fees", "Software"].map((item, i) => (
-          <span key={item} className={`shrink-0 rounded-full px-2 py-1.5 text-[5.5px] font-bold ${i === 0 ? "bg-[#6e3769] text-white" : "bg-slate-100 text-slate-600"}`}>
+          <span key={item} className={`shrink-0 rounded-full px-2 py-1.5 text-[5.5px] font-bold ${i === 0 ? "bg-[#d63bea] text-white" : "bg-slate-100 text-slate-600"}`}>
             {item}
           </span>
         ))}
@@ -480,7 +480,7 @@ function PreviewExpenses() {
         <PreviewExpenseRow name="ChatGPT" category="Software" date="Sep 20" amount="$20.00" recurring />
       </div>
 
-      <div className="pointer-events-none absolute bottom-[68px] right-5 grid h-10 w-10 place-items-center rounded-full bg-[#6e3769] text-lg font-bold text-white shadow-lg">
+      <div className="pointer-events-none absolute bottom-[68px] right-5 grid h-10 w-10 place-items-center rounded-full bg-[#d63bea] text-lg font-bold text-white shadow-lg">
         +
       </div>
     </div>
@@ -501,7 +501,7 @@ function PreviewReports() {
       <PreviewSectionHeader title="Reports" subtitle="Performance over time" />
       <div className="mb-3 flex gap-1.5 overflow-hidden">
         {["This Month", "Last Month", "Last 3 Months", "This Year", "All Time"].map((item, i) => (
-          <span key={item} className={`shrink-0 rounded-full px-2.5 py-1.5 text-[7px] font-bold ${i === 0 ? "bg-[#6e3769] text-white" : "bg-white text-slate-500 border border-slate-200"}`}>
+          <span key={item} className={`shrink-0 rounded-full px-2.5 py-1.5 text-[7px] font-bold ${i === 0 ? "bg-[#d63bea] text-white" : "bg-white text-slate-500 border border-slate-200"}`}>
             {item}
           </span>
         ))}
@@ -525,7 +525,7 @@ function PreviewReports() {
 function PreviewMileage() {
   return (
     <div>
-      <PreviewSectionHeader title="Mileage" subtitle="Log business drives" action={<span className="rounded-xl bg-[#6e3769] px-3 py-2 text-[8px] font-bold text-white">+ Log trip</span>} />
+      <PreviewSectionHeader title="Mileage" subtitle="Log business drives" action={<span className="rounded-xl bg-[#d63bea] px-3 py-2 text-[8px] font-bold text-white">+ Log trip</span>} />
       <div className="grid grid-cols-2 gap-2">
         <div className="rounded-[18px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
           <p className="text-[7px] font-bold uppercase text-slate-400">Total Miles</p>
@@ -565,10 +565,10 @@ function PreviewProducts() {
   ];
   return (
     <div>
-      <PreviewSectionHeader title="Products" subtitle="Available and sold product history" action={<span className="rounded-xl bg-[#6e3769] px-3 py-2 text-[8px] font-bold text-white">+ New product</span>} />
+      <PreviewSectionHeader title="Products" subtitle="Available and sold product history" action={<span className="rounded-xl bg-[#d63bea] px-3 py-2 text-[8px] font-bold text-white">+ New product</span>} />
       <div className="mb-3 flex gap-1.5 overflow-hidden">
         {["Available", "Sold Today", "Sold History"].map((item, i) => (
-          <span key={item} className={`shrink-0 rounded-full px-2.5 py-1.5 text-[7px] font-bold ${i === 0 ? "bg-[#6e3769] text-white" : "bg-white text-slate-500 border border-slate-200"}`}>
+          <span key={item} className={`shrink-0 rounded-full px-2.5 py-1.5 text-[7px] font-bold ${i === 0 ? "bg-[#d63bea] text-white" : "bg-white text-slate-500 border border-slate-200"}`}>
             {item}
           </span>
         ))}
@@ -654,8 +654,8 @@ function PreviewTaxes() {
         <div className="mt-3 flex items-center gap-2.5">
           <div className="relative flex-1">
             <div className="h-2 rounded-full bg-slate-200" />
-            <div className="absolute left-0 top-0 h-2 w-1/2 rounded-full bg-[#6e3769]" />
-            <div className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#6e3769] shadow" />
+            <div className="absolute left-0 top-0 h-2 w-1/2 rounded-full bg-[#d63bea]" />
+            <div className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#d63bea] shadow" />
           </div>
           <div className="flex items-center gap-1">
             <div className="grid h-9 w-12 place-items-center rounded-xl border border-slate-200 bg-slate-50 text-[10px] font-black text-slate-900">
@@ -707,7 +707,7 @@ function PreviewBusinessPlan() {
         title="Business Plan"
         subtitle="Goals and cash-flow guidance from your real sales"
         action={
-          <span className="flex items-center gap-1 rounded-xl bg-[#6e3769] px-2.5 py-2 text-[6px] font-bold text-white">
+          <span className="flex items-center gap-1 rounded-xl bg-[#d63bea] px-2.5 py-2 text-[6px] font-bold text-white">
             <Save className="h-3 w-3" /> Save
           </span>
         }
@@ -720,7 +720,7 @@ function PreviewBusinessPlan() {
               <p className="text-[5.5px] font-bold uppercase tracking-[0.12em] text-slate-500">Monthly sales</p>
               <p className="mt-1.5 text-[13px] font-black text-slate-900">$1,284</p>
             </div>
-            <span className="grid h-7 w-7 place-items-center rounded-xl bg-white/70 text-[#6e3769]">
+            <span className="grid h-7 w-7 place-items-center rounded-xl bg-white/70 text-[#d63bea]">
               <Target className="h-3.5 w-3.5" />
             </span>
           </div>
@@ -737,7 +737,7 @@ function PreviewBusinessPlan() {
               <p className="text-[5.5px] font-bold uppercase tracking-[0.12em] text-slate-500">Monthly profit</p>
               <p className="mt-1.5 text-[13px] font-black text-slate-900">$968</p>
             </div>
-            <span className="grid h-7 w-7 place-items-center rounded-xl bg-white/70 text-[#6e3769]">
+            <span className="grid h-7 w-7 place-items-center rounded-xl bg-white/70 text-[#d63bea]">
               <TrendingUp className="h-3.5 w-3.5" />
             </span>
           </div>
@@ -799,7 +799,7 @@ function PreviewBusinessPlan() {
 
           <section className="rounded-[18px] border border-[#e7e2eb] bg-white p-3 shadow-sm">
             <div className="flex items-start gap-2">
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-purple-50 text-[#6e3769]">
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-purple-50 text-[#d63bea]">
                 <WalletCards className="h-3.5 w-3.5" />
               </span>
               <div>
@@ -820,7 +820,7 @@ function PreviewBusinessPlan() {
       </div>
 
       <div className="mt-2 flex items-center gap-2 rounded-[18px] border border-[#e7e2eb] bg-yellow-50 p-3 shadow-sm">
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-white/70 text-[#6e3769]">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-white/70 text-[#d63bea]">
           <PiggyBank className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
@@ -836,12 +836,12 @@ function PreviewBusinessPlan() {
 function PreviewCalendar() {
   return (
     <div>
-      <PreviewSectionHeader title="Calendar" subtitle="Dates & schedule" action={<span className="rounded-xl bg-[#6e3769] px-3 py-2 text-[8px] font-bold text-white">+ Event</span>} />
+      <PreviewSectionHeader title="Calendar" subtitle="Dates & schedule" action={<span className="rounded-xl bg-[#d63bea] px-3 py-2 text-[8px] font-bold text-white">+ Event</span>} />
       <div className="rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
         <div className="grid grid-cols-7 gap-1 text-center text-[7px] font-bold text-slate-400">
           {["S","M","T","W","T","F","S"].map((d,i)=><span key={d+i}>{d}</span>)}
           {Array.from({length:35},(_,i)=>i<2 ? "" : i-1).map((day,i)=>(
-            <span key={i} className={`grid h-7 place-items-center rounded-lg ${day===24 ? "bg-[#6e3769] text-white" : "text-slate-600"}`}>{day}</span>
+            <span key={i} className={`grid h-7 place-items-center rounded-lg ${day===24 ? "bg-[#d63bea] text-white" : "text-slate-600"}`}>{day}</span>
           ))}
         </div>
       </div>
@@ -1288,7 +1288,7 @@ function DesktopDashboard({ activeTab, onTabChange }) {
                   key={label}
                   onClick={() => onTabChange(key)}
                   aria-pressed={active}
-                  className={`w-full rounded-xl px-2.5 py-1.5 text-left text-[6.5px] font-semibold transition ${active ? "bg-[#6e3769] text-white shadow-sm" : "text-slate-500 hover:bg-purple-50"}`}
+                  className={`w-full rounded-xl px-2.5 py-1.5 text-left text-[6.5px] font-semibold transition ${active ? "bg-[#d63bea] text-white shadow-sm" : "text-slate-500 hover:bg-purple-50"}`}
                 >
                   {label}
                 </button>
@@ -1303,7 +1303,7 @@ function DesktopDashboard({ activeTab, onTabChange }) {
           <div className="mb-3 flex items-center justify-end gap-2">
             <div className="flex gap-2">
               <div className="h-8 w-[180px] rounded-full border border-slate-200 bg-white px-3 text-[7px] leading-8 text-slate-400">Search orders by product or order ID...</div>
-              <div className="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-[#6e3769]">•</div>
+              <div className="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-[#d63bea]">•</div>
             </div>
           </div>
           <PreviewTabContent activeTab={activeTab} onTabChange={onTabChange} />
@@ -1389,7 +1389,7 @@ function DevicePreview() {
 
       <div className="relative mx-auto hidden w-full max-w-[760px] pb-20 pt-2 sm:block lg:pb-10">
         <div className="relative ml-auto w-[93%]">
-          <div className="rounded-[24px] bg-[#2a2030] p-[10px] shadow-[0_38px_80px_rgba(19,9,26,.40)]">
+          <div className="rounded-[24px] bg-[#171719] p-[10px] shadow-[0_38px_80px_rgba(19,9,26,.40)]">
             <DesktopDashboard activeTab={activeTab} onTabChange={setActiveTab} />
           </div>
           <div className="mx-auto h-3 w-[78%] rounded-b-[90%] bg-[#3a303f]" />
@@ -1417,9 +1417,9 @@ export default function AboutArtFlow() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-[#1b1122] text-white">
+    <main className="min-h-screen bg-[#0b0b0c] text-white">
       <section className="relative overflow-hidden bg-[#4b2470]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_45%,rgba(160,99,202,.24),transparent_36%),linear-gradient(180deg,#4b2470_0%,#4a236f_72%,#1b1122_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_45%,rgba(160,99,202,.24),transparent_36%),linear-gradient(180deg,#4b2470_0%,#4a236f_72%,#0b0b0c_100%)]" />
         <div className="relative mx-auto max-w-7xl px-4 sm:px-8 lg:px-10">
           <nav className="flex items-center justify-between py-5 sm:py-7">
             <Link to="/" className="flex items-center gap-3">
@@ -1478,10 +1478,10 @@ export default function AboutArtFlow() {
         </div>
       </section>
 
-      <section id="what-we-do" className="border-t border-white/5 bg-[#17101c] px-5 py-16 sm:px-8 sm:py-20">
+      <section id="what-we-do" className="border-t border-white/5 bg-[#080809] px-5 py-16 sm:px-8 sm:py-20">
         <div className="mx-auto max-w-6xl">
           <div className="mx-auto max-w-3xl text-center">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#b995d0]">What Art Flow Creative does</p>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#f06add]">What Art Flow Creative does</p>
             <h2 className="mt-4 [font-family:'Fraunces',serif] text-4xl font-semibold text-white sm:text-5xl">
               One workspace for the business side of your art.
             </h2>
@@ -1503,7 +1503,7 @@ export default function AboutArtFlow() {
                 key={title}
                 className="rounded-[26px] border border-white/8 bg-gradient-to-br from-white/[0.07] to-white/[0.025] p-6 shadow-[0_18px_44px_rgba(0,0,0,.16)]"
               >
-                <div className="mb-4 h-10 w-10 rounded-2xl bg-[#2a2030] ring-1 ring-white/8">
+                <div className="mb-4 h-10 w-10 rounded-2xl bg-[#171719] ring-1 ring-white/8">
                   <div className="h-full w-full rounded-2xl bg-[radial-gradient(circle_at_30%_30%,rgba(200,120,220,.32),transparent_55%)]" />
                 </div>
                 <h3 className="text-base font-black text-white">{title}</h3>
@@ -1521,9 +1521,9 @@ export default function AboutArtFlow() {
         </div>
       </section>
 
-      <section className="relative -mt-2 border-t border-white/5 bg-[#1b1122] px-5 pb-14 pt-10 sm:px-8">
+      <section className="relative -mt-2 border-t border-white/5 bg-[#0b0b0c] px-5 pb-14 pt-10 sm:px-8">
         <div className="mx-auto max-w-5xl text-center">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#b995d0]">Supported marketplaces</p>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#f06add]">Supported marketplaces</p>
           <p className="mx-auto mt-3 max-w-2xl text-sm font-semibold leading-6 text-white/55">Track orders and sales from the marketplaces Art Flow Creative supports.</p>
           <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             {["Poshmark", "Vinted", "Depop", "Etsy", "eBay"].map((name) => {
@@ -1558,7 +1558,7 @@ export default function AboutArtFlow() {
       <section id="features" className="bg-[#21152a] px-5 py-20 sm:px-8">
         <div className="mx-auto max-w-6xl">
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#b995d0]">Features</p>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#f06add]">Features</p>
             <h2 className="mt-4 [font-family:'Fraunces',serif] text-4xl font-semibold text-white">Your creative business, in one place.</h2>
           </div>
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -1580,9 +1580,9 @@ export default function AboutArtFlow() {
         </div>
       </section>
 
-      <section id="how-it-works" className="bg-[#1b1122] px-5 py-20 sm:px-8">
+      <section id="how-it-works" className="bg-[#0b0b0c] px-5 py-20 sm:px-8">
         <div className="mx-auto max-w-5xl text-center">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-[#b995d0]">How it works</p>
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-[#f06add]">How it works</p>
           <h2 className="mt-4 [font-family:'Fraunces',serif] text-4xl font-semibold">Start simple. Add what you need.</h2>
           <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-white/55">
             Create your account, connect the services you choose, and keep your orders, products, expenses, and reports together in your private Art Flow workspace.
@@ -1601,7 +1601,7 @@ export default function AboutArtFlow() {
         </div>
       </section>
 
-      <section className="bg-[#17101c] px-5 py-14 sm:px-8">
+      <section className="bg-[#080809] px-5 py-14 sm:px-8">
         <div className="mx-auto max-w-5xl rounded-3xl border border-white/6 bg-white/[0.035] p-7">
           <h2 className="text-lg font-black">Google connections are optional</h2>
           <p className="mt-3 text-sm leading-7 text-white/50">
@@ -1615,7 +1615,7 @@ export default function AboutArtFlow() {
         </div>
       </section>
 
-      <footer className="border-t border-white/5 bg-[#17101c] px-5 py-8 sm:px-8">
+      <footer className="border-t border-white/5 bg-[#080809] px-5 py-8 sm:px-8">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 text-xs text-white/40 sm:flex-row sm:items-center sm:justify-between">
           <span>© Art Flow Creative</span>
           <span>Business management for independent artists and online sellers.</span>
