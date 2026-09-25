@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ShoppingBag, Receipt, Package, MoreHorizontal, RefreshCw, Home, Car, Palette, UserRound, BarChart3, Calculator, CalendarDays, Target, Store, ShoppingCart, Save, TrendingUp, BadgeDollarSign, WalletCards, PiggyBank, ArrowRight } from "lucide-react";
+import { ShoppingBag, Receipt, Package, MoreHorizontal, RefreshCw, Home, Car, Palette, UserRound, BarChart3, Calculator, CalendarDays, Target, Store, ShoppingCart, Save, TrendingUp, BadgeDollarSign, WalletCards, PiggyBank, ArrowRight, ArrowUpRight, Images, Activity, Plus } from "lucide-react";
 
 const MiniArt = ({ variant = 1 }) => {
   const classes = {
@@ -951,38 +951,233 @@ function PreviewMoreMenu({ onSelect, onClose, compact = false }) {
   );
 }
 
-function PreviewDashboardHome({ onTabChange }) {
+function PreviewExpenseOverview() {
+  const rows = [
+    ["Supplies", "$126.40", "bg-purple-400"],
+    ["Packaging", "$74.20", "bg-pink-400"],
+    ["Software", "$60.00", "bg-cyan-400"],
+    ["Fees", "$35.40", "bg-amber-400"],
+    ["Other", "$20.00", "bg-emerald-400"],
+  ];
+
+  return (
+    <div className="flex flex-col items-center gap-3 sm:flex-row">
+      <div className="relative h-24 w-24 shrink-0 rounded-full bg-[conic-gradient(#a78bfa_0_40%,#f472b6_40%_63%,#67e8f9_63%_82%,#fbbf24_82%_93%,#34d399_93%_100%)]">
+        <div className="absolute inset-[14px] flex flex-col items-center justify-center rounded-full bg-white">
+          <span className="text-[6px] text-slate-400">Total</span>
+          <strong className="mt-0.5 text-[8px] text-slate-800">$316.00</strong>
+        </div>
+      </div>
+      <div className="w-full space-y-1.5">
+        {rows.map(([name, value, tone]) => (
+          <div key={name} className="flex items-center gap-1.5">
+            <span className={`h-2 w-2 rounded-full ${tone}`} />
+            <span className="min-w-0 flex-1 truncate text-[6.5px] text-slate-500">{name}</span>
+            <span className="text-[6.5px] font-bold text-slate-700">{value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PreviewDashboardHome({ onTabChange, compact = false }) {
+  const sectionCard = "rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm";
+
   return (
     <>
-      <PreviewHero onTabChange={onTabChange} />
-      <div className="mt-3 grid grid-cols-[1.45fr_.8fr] gap-3">
-        <div className="rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
+      <PreviewHero compact={compact} onTabChange={onTabChange} />
+
+      <div className={`mt-3 grid gap-3 ${compact ? "grid-cols-1" : "grid-cols-[1.45fr_.8fr]"}`}>
+        <div className={sectionCard}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[9px] font-bold">Sales Overview</p>
+              <p className={`${compact ? "text-[10px]" : "text-[9px]"} font-bold`}>Sales Overview</p>
               <p className="mt-0.5 text-[7px] text-slate-400">Revenue over the last several months</p>
             </div>
             <span className="text-[7px] font-semibold text-purple-600">● Sales</span>
           </div>
           <PreviewLineChart />
         </div>
-        <div className="rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
-          <p className="text-[9px] font-bold">Market Performance</p>
+
+        <div className={sectionCard}>
+          <p className={`${compact ? "text-[10px]" : "text-[9px]"} font-bold`}>Market Performance</p>
           <p className="mb-3 mt-0.5 text-[7px] text-slate-400">Sales across all marketplaces</p>
-          <PreviewMarketPerformance />
+          <PreviewMarketPerformance compact={compact} />
         </div>
       </div>
-      <div className="mt-3 rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-[9px] font-bold">Recent Orders</p>
-            <p className="mt-0.5 text-[7px] text-slate-400">Latest sales across your connected shops</p>
+
+      <div className={`mt-3 grid gap-3 ${compact ? "grid-cols-1" : "grid-cols-[1.65fr_1fr]"}`}>
+        <div className="overflow-hidden rounded-[20px] border border-[#eeeaf1] bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-purple-100/60 px-3 py-3">
+            <div>
+              <p className="text-[9px] font-bold">Recent Orders</p>
+              <p className="mt-0.5 text-[7px] text-slate-400">Latest sales across your connected shops</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onTabChange("Orders")}
+              className="flex items-center gap-1 text-[7px] font-bold text-purple-600"
+            >
+              View all <ArrowUpRight className="h-3 w-3" />
+            </button>
           </div>
-          <button type="button" onClick={() => onTabChange("Orders")} className="text-[7px] font-bold text-purple-600">View all ↗</button>
+          <div className="px-3">
+            <PreviewOrder image="bundle" title="Bundle Order" platform="Depop" amount="$42.00" />
+            <PreviewOrder image={2} title="Framed Art Print" platform="Poshmark" amount="$28.00" />
+            <PreviewOrder image={3} title="Botanical Art Print" platform="Vinted" amount="$18.00" />
+            <PreviewOrder image={4} title="Skeleton Butterfly Print" platform="Etsy" amount="$24.00" />
+            <PreviewOrder image={1} title="Vintage Floral Print" platform="eBay" amount="$22.00" />
+          </div>
         </div>
-        <div className="mt-2">
-          <PreviewOrder image="bundle" title="Bundle Order" platform="Depop" amount="$42.00" />
-          <PreviewOrder image={2} title="Framed Art Print" platform="Poshmark" amount="$28.00" />
+
+        <div className={sectionCard}>
+          <div className="mb-3">
+            <p className="text-[9px] font-bold">Expenses Overview</p>
+            <p className="mt-0.5 text-[7px] text-slate-400">Deductible business spending</p>
+          </div>
+          <PreviewExpenseOverview />
+        </div>
+      </div>
+
+      <div className={`mt-3 ${sectionCard}`}>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div>
+            <p className="text-[9px] font-bold">Inventory Preview</p>
+            <p className="mt-0.5 text-[7px] text-slate-400">Your saved products and artwork</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => onTabChange("Inventory")}
+            className="flex items-center gap-1 text-[7px] font-bold text-purple-600"
+          >
+            View inventory <ArrowUpRight className="h-3 w-3" />
+          </button>
+        </div>
+
+        <div className={`grid gap-2 ${compact ? "grid-cols-2" : "grid-cols-4"}`}>
+          {[
+            ["5x7 Art Prints", "32 in stock", 2],
+            ["8x10 Art Prints", "18 in stock", 1],
+            ["Rigid Mailers", "46 in stock", 4],
+            ["11x14 Art Prints", "2 in stock", 3],
+          ].map(([name, stock, image]) => (
+            <button
+              type="button"
+              key={name}
+              onClick={() => onTabChange("Inventory")}
+              className="overflow-hidden rounded-2xl border border-purple-100/70 bg-purple-50/40 text-left"
+            >
+              <div className="grid h-20 place-items-center bg-gradient-to-br from-purple-100 via-pink-50 to-cyan-50">
+                <MiniArt variant={image} />
+              </div>
+              <div className="p-2.5">
+                <p className="truncate text-[7.5px] font-bold text-slate-800">{name}</p>
+                <p className="mt-1 text-[6px] text-slate-400">{stock}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className={`mt-3 grid gap-3 ${compact ? "grid-cols-1" : "grid-cols-3"}`}>
+        <div className={sectionCard}>
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <p className="text-[9px] font-bold">Top Listings</p>
+              <p className="mt-0.5 text-[7px] text-slate-400">Best-performing artwork</p>
+            </div>
+            <Images className="h-4 w-4 text-purple-500" />
+          </div>
+          <div className="space-y-2">
+            {[
+              ["Framed Floral Print", "18 sold", "$432", 2],
+              ["Skeleton Butterfly Print", "14 sold", "$336", 1],
+              ["Botanical Art Print", "11 sold", "$198", 3],
+              ["Digital Art Download", "9 sold", "$72", 4],
+            ].map(([name, sold, value, image], index) => (
+              <div key={name} className="flex items-center gap-2 rounded-2xl bg-purple-50/55 p-2">
+                <MiniArt variant={image} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[7px] font-bold text-slate-800">{name}</p>
+                  <p className="mt-1 text-[6px] text-slate-400">{sold}</p>
+                </div>
+                <span className="text-[7px] font-bold text-slate-700">{value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className={sectionCard}>
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <p className="text-[9px] font-bold">Recent Activity</p>
+              <p className="mt-0.5 text-[7px] text-slate-400">Latest changes in Art Flow</p>
+            </div>
+            <Activity className="h-4 w-4 text-pink-500" />
+          </div>
+
+          <div className="space-y-3">
+            {[
+              ["order", "New order", "Depop · Bundle Order", "+$42.00"],
+              ["expense", "Expense added", "Supplies", "-$24.80"],
+              ["order", "New order", "Poshmark · Framed Art Print", "+$28.00"],
+              ["expense", "Expense added", "Printer ink", "-$18.25"],
+            ].map(([type, title, detail, amount]) => (
+              <div key={title + detail} className="flex items-start gap-2">
+                <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl ${type === "order" ? "bg-purple-100 text-purple-600" : "bg-pink-100 text-pink-600"}`}>
+                  {type === "order" ? <ShoppingBag className="h-4 w-4" /> : <Receipt className="h-4 w-4" />}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[7px] font-bold text-slate-800">{title}</p>
+                  <p className="mt-1 truncate text-[6px] text-slate-400">{detail}</p>
+                </div>
+                <span className={`text-[6.5px] font-bold ${type === "order" ? "text-emerald-600" : "text-pink-500"}`}>
+                  {amount}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className={sectionCard}>
+          <div className="mb-3">
+            <p className="text-[9px] font-bold">Quick Actions</p>
+            <p className="mt-0.5 text-[7px] text-slate-400">Jump right to common tasks</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              ["Orders", "View sales", ShoppingBag, "Orders", "bg-purple-100 text-purple-600"],
+              ["Expense", "Add spending", Plus, "Expenses", "bg-pink-100 text-pink-600"],
+              ["Inventory", "Manage costs", Package, "Inventory", "bg-cyan-100 text-cyan-600"],
+              ["Reports", "See analytics", BarChart3, "Reports", "bg-amber-100 text-amber-600"],
+            ].map(([label, sub, Icon, target, tone]) => (
+              <button
+                type="button"
+                key={label}
+                onClick={() => onTabChange(target)}
+                className={`rounded-2xl p-3 text-left ${tone.split(" ")[0]}`}
+              >
+                <Icon className={`h-4 w-4 ${tone.split(" ")[1]}`} />
+                <p className="mt-2 text-[7px] font-bold text-slate-800">{label}</p>
+                <p className="mt-1 text-[6px] text-slate-400">{sub}</p>
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onTabChange("Business Plan")}
+            className="mt-3 flex w-full items-center gap-2 rounded-2xl border border-purple-100/70 bg-white/60 p-3 text-left"
+          >
+            <Target className="h-4 w-4 text-purple-500" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[7px] font-bold text-slate-800">September business plan</p>
+              <p className="mt-1 text-[6px] text-slate-400">$1,284 sales · $968 net</p>
+            </div>
+            <ArrowUpRight className="h-3 w-3 text-slate-400" />
+          </button>
         </div>
       </div>
     </>
@@ -1003,36 +1198,7 @@ function PreviewTabContent({ activeTab, onTabChange, compact = false }) {
   if (activeTab === "Store Orders") return <PreviewStoreOrders />;
   if (activeTab === "More") return <PreviewMoreHub onSelect={onTabChange} />;
   if (compact) {
-    return (
-      <>
-        <PreviewHero compact onTabChange={onTabChange} />
-        <div className="mt-3 rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[10px] font-bold">Sales Overview</p>
-              <p className="mt-0.5 text-[7px] text-slate-400">Revenue over the last several months</p>
-            </div>
-            <span className="text-[7px] font-semibold text-purple-600">● Sales</span>
-          </div>
-          <PreviewLineChart />
-        </div>
-        <div className="mt-3 rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
-          <p className="text-[10px] font-bold">Market Performance</p>
-          <p className="mb-3 mt-0.5 text-[7px] text-slate-400">Sales across all marketplaces</p>
-          <PreviewMarketPerformance compact />
-        </div>
-        <div className="mt-3 rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] font-bold">Recent Orders</p>
-            <button type="button" onClick={() => onTabChange("Orders")} className="text-[7px] font-bold text-purple-600">View all ↗</button>
-          </div>
-          <div className="mt-2">
-            <PreviewOrder image="bundle" title="Bundle Order" platform="Depop" amount="$42.00" />
-            <PreviewOrder image={2} title="Framed Art Print" platform="Poshmark" amount="$28.00" />
-          </div>
-        </div>
-      </>
-    );
+    return <PreviewDashboardHome onTabChange={onTabChange} compact />;
   }
   return <PreviewDashboardHome onTabChange={onTabChange} />;
 }
