@@ -885,6 +885,48 @@ export default function Dashboard() {
     }
   };
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const syncEbayOnDashboardOpen = async () => {
+      const key = "artflow_ebay_dashboard_sync_at";
+      try {
+        const last = Number(localStorage.getItem(key) || 0);
+        if (Date.now() - last < 2 * 60 * 1000) return;
+        localStorage.setItem(key, String(Date.now()));
+      } catch {}
+
+      try {
+        const response = await fetch("/api/ebay-official", {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "sync" }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || cancelled) return;
+
+        if (Number(data?.saved || 0) > 0) {
+          await Promise.all([
+            reloadOrders?.(),
+            loadServerMetrics(),
+          ]);
+          window.dispatchEvent(new CustomEvent("artflow:data-synced", {
+            detail: { status: "ok", at: new Date().toISOString() },
+          }));
+        }
+      } catch (error) {
+        console.warn("Dashboard eBay sync skipped:", error?.message || error);
+      }
+    };
+
+    syncEbayOnDashboardOpen();
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadOrders, loadServerMetrics]);
+
   // Use the normalized client ledger for sales KPIs. It includes historical
   // Poshmark gross-sale recovery for rows that were imported with a $0 total.
   const kpis = {
