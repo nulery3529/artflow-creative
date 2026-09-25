@@ -184,7 +184,7 @@ function EmptyState({ text }) {
   );
 }
 
-function ProgressBar({ value, max, className }) {
+function ProgressBar({ value, max, className = "", color }) {
   const width =
     max > 0 ? Math.max(4, (value / max) * 100) : 0;
 
@@ -194,6 +194,7 @@ function ProgressBar({ value, max, className }) {
         className={`h-full rounded-full ${className}`}
         style={{
           width: `${Math.min(width, 100)}%`,
+          backgroundColor: color || undefined,
         }}
       />
     </div>
@@ -1069,20 +1070,25 @@ export default function Dashboard() {
             <div className="space-y-4">
               {dashboard.platforms
                 .slice(0, 6)
-                .map((row, index) => {
-                  const barColors = [
-                    "bg-purple-500",
-                    "bg-pink-400",
-                    "bg-cyan-400",
-                    "bg-amber-400",
-                    "bg-emerald-400",
-                    "bg-fuchsia-400",
-                  ];
+                .map((row) => {
+                  const brandColors = {
+                    Poshmark: "#D6249F",
+                    Vinted: "#007782",
+                    Depop: "#111111",
+                    Etsy: "#F1641E",
+                    eBay: "#3665F3",
+                  };
+                  const color = brandColors[row.name] || "#8B5CF6";
 
                   return (
                     <div key={row.name}>
                       <div className="flex items-center justify-between gap-3 mb-2">
-                        <span className="text-xs font-medium">
+                        <span className="flex items-center gap-2 text-xs font-medium">
+                          <span
+                            className="h-2.5 w-2.5 rounded-full ring-2 ring-white/70 dark:ring-black/20"
+                            style={{ backgroundColor: color }}
+                            aria-hidden="true"
+                          />
                           {row.name}
                         </span>
 
@@ -1096,12 +1102,7 @@ export default function Dashboard() {
                       <ProgressBar
                         value={row.value}
                         max={maxPlatform}
-                        className={
-                          barColors[
-                            index %
-                              barColors.length
-                          ]
-                        }
+                        color={color}
                       />
                     </div>
                   );
