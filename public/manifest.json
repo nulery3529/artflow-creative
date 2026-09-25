@@ -8,9 +8,9 @@
   "theme_color": "#140f15",
   "icons": [
     {
-      "src": "/artflow-logo-exact.jpg?v=4",
-      "sizes": "113x113",
-      "type": "image/jpeg",
+      "src": "/artflow-icon.svg?v=5",
+      "sizes": "any",
+      "type": "image/svg+xml",
       "purpose": "any"
     }
   ]
