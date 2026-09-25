@@ -28,28 +28,28 @@ function htmlPage({ error = "", returnTo = "/dashboard", nativeIOS = false } = {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#140f15" />
+  <meta name="theme-color" content="#080809" />
   <title>Log in — Art Flow Creative</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
-    body { margin:0; min-height:100vh; display:grid; place-items:center; padding:24px; background:#140f15; color:#f7f2fb; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
-    .card { width:min(100%,420px); background:#211727; border:1px solid #4a3354; border-radius:24px; padding:28px; box-shadow:0 20px 70px rgba(0,0,0,.35); }
+    body { margin:0; min-height:100vh; display:grid; place-items:center; padding:24px; background:#080809; color:#f7f2fb; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    .card { width:min(100%,420px); background:#121213; border:1px solid #3a233d; border-radius:24px; padding:28px; box-shadow:0 20px 70px rgba(0,0,0,.35); }
     h1 { margin:0 0 8px; font-size:30px; }
-    .sub { margin:0 0 22px; color:#c8b8d0; line-height:1.45; }
+    .sub { margin:0 0 22px; color:#c8c3cb; line-height:1.45; }
     .error { margin:0 0 16px; padding:12px 14px; border-radius:14px; background:#4a1f2e; color:#ffd9e1; border:1px solid #7d334d; }
     label { display:block; margin:14px 0 6px; font-size:14px; font-weight:650; }
-    input { width:100%; height:48px; border-radius:14px; border:1px solid #5d4667; background:#171019; color:#fff; padding:0 14px; font-size:16px; outline:none; }
-    input:focus { border-color:#a875cf; box-shadow:0 0 0 3px rgba(168,117,207,.18); }
+    input { width:100%; height:48px; border-radius:14px; border:1px solid #4b324e; background:#171019; color:#fff; padding:0 14px; font-size:16px; outline:none; }
+    input:focus { border-color:#e247c5; box-shadow:0 0 0 3px rgba(226,71,197,.18); }
     button,.google { width:100%; height:48px; border:0; border-radius:14px; font-size:16px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; text-decoration:none; }
-    button { margin-top:18px; background:#8d5cb2; color:white; }
-    .google { background:#f6f2f8; color:#211727; margin-bottom:10px; }
+    button { margin-top:18px; background:#d63bea; color:white; }
+    .google { background:#f6f2f8; color:#121213; margin-bottom:10px; }
     .apple { background:#fff; color:#000; margin-bottom:18px; font-size:20px; font-weight:500; }
     .apple img { width:28px; height:28px; margin-right:8px; flex:0 0 auto; }
-    .sep { display:flex; align-items:center; gap:12px; color:#9e8ca7; font-size:12px; margin:8px 0 2px; }
-    .sep:before,.sep:after { content:""; height:1px; background:#4a3354; flex:1; }
-    .links { margin-top:18px; text-align:center; font-size:13px; color:#baa9c3; line-height:1.7; }
-    .links a { color:#d5a8f5; }
+    .sep { display:flex; align-items:center; gap:12px; color:#9c98a0; font-size:12px; margin:8px 0 2px; }
+    .sep:before,.sep:after { content:""; height:1px; background:#3a233d; flex:1; }
+    .links { margin-top:18px; text-align:center; font-size:13px; color:#b9b5bc; line-height:1.7; }
+    .links a { color:#f06add; }
   </style>
 </head>
 <body>
