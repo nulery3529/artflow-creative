@@ -36,7 +36,7 @@ const OrderRow = ({ variant, title, platform, amount }) => (
   </div>
 );
 
-function PreviewHero({ compact = false }) {
+function PreviewHero({ compact = false, onTabChange }) {
   return (
     <div className={`relative overflow-hidden bg-[radial-gradient(circle_at_88%_12%,rgba(206,67,255,.30),transparent_8rem),radial-gradient(circle_at_-2%_0%,rgba(255,255,255,.14),transparent_7rem),linear-gradient(145deg,#171719_0%,#070708_76%)] text-white shadow-[0_18px_44px_rgba(17,12,21,.20)] ${compact ? "rounded-[24px] p-4" : "rounded-[26px] p-4"}`}>
       <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,.04),transparent_38%,transparent_72%,rgba(216,72,255,.08))]" />
@@ -54,17 +54,23 @@ function PreviewHero({ compact = false }) {
 
         <div className="mt-5 grid grid-cols-4 gap-2">
           {[
-            ["Orders", ShoppingBag, false],
-            ["Expenses", Receipt, false],
-            ["Inventory", Package, false],
-            ["More", MoreHorizontal, true],
-          ].map(([label, Icon, accent]) => (
-            <div key={label} className="flex min-w-0 flex-col items-center gap-1.5">
-              <span className={`grid rounded-full shadow-md ${compact ? "h-10 w-10" : "h-11 w-11"} place-items-center ${accent ? "bg-gradient-to-br from-[#c53bff] to-[#e948c5] text-white" : "bg-white text-[#111]"}`}>
+            ["Orders", "Orders", ShoppingBag, false],
+            ["Expenses", "Expenses", Receipt, false],
+            ["Inventory", "Inventory", Package, false],
+            ["More", "Reports", MoreHorizontal, true],
+          ].map(([label, target, Icon, accent]) => (
+            <button
+              type="button"
+              key={label}
+              onClick={() => onTabChange?.(target)}
+              className="flex min-w-0 flex-col items-center gap-1.5 transition active:scale-95"
+              aria-label={`Open ${label}`}
+            >
+              <span className={`grid rounded-full shadow-md transition hover:-translate-y-0.5 ${compact ? "h-10 w-10" : "h-11 w-11"} place-items-center ${accent ? "bg-gradient-to-br from-[#c53bff] to-[#e948c5] text-white" : "bg-white text-[#111]"}`}>
                 <Icon className="h-4 w-4" />
               </span>
               <span className="text-[8px] font-semibold text-white/72">{label}</span>
-            </div>
+            </button>
           ))}
         </div>
 
@@ -294,7 +300,7 @@ function PreviewReports() {
 function PreviewDashboardHome({ onTabChange }) {
   return (
     <>
-      <PreviewHero />
+      <PreviewHero onTabChange={onTabChange} />
       <div className="mt-3 grid grid-cols-[1.45fr_.8fr] gap-3">
         <div className="rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
           <div className="flex items-center justify-between">
@@ -337,7 +343,7 @@ function PreviewTabContent({ activeTab, onTabChange, compact = false }) {
   if (compact) {
     return (
       <>
-        <PreviewHero compact />
+        <PreviewHero compact onTabChange={onTabChange} />
         <div className="mt-3 rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
