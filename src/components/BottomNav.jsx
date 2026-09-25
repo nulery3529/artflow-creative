@@ -7,20 +7,14 @@ import {
   Receipt,
   MoreHorizontal,
   Calendar as CalendarIcon,
-  Percent,
   Car,
   UserRound,
   Palette,
   BarChart3,
   Target,
+  Calculator,
+  Store,
 } from "lucide-react";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerDescription,
-} from "@/components/ui/drawer";
 
 const primary = [
   { label: "Home", to: "/dashboard", icon: Home },
@@ -30,12 +24,13 @@ const primary = [
 ];
 
 const more = [
-  { label: "Products", to: "/store-products", icon: Palette },
   { label: "Reports", to: "/reports", icon: BarChart3 },
+  { label: "Mileage", to: "/mileage", icon: Car },
+  { label: "Products", to: "/store-products", icon: Palette },
+  { label: "Taxes", to: "/taxes", icon: Calculator },
   { label: "Business Plan", to: "/planning", icon: Target },
   { label: "Calendar", to: "/calendar", icon: CalendarIcon },
-  { label: "Mileage", to: "/mileage", icon: Car },
-  { label: "Taxes", to: "/taxes", icon: Percent },
+  { label: "Store Orders", to: "/store-orders", icon: Store },
   { label: "Account", to: "/account", icon: UserRound },
 ];
 
@@ -46,56 +41,125 @@ export default function BottomNav() {
   const [lastTap, setLastTap] = useState({});
 
   const isActive = (to) =>
-    to === "/dashboard" ? pathname === "/dashboard" : pathname === to || pathname.startsWith(to + "/");
-  const moreActive = more.some((m) => isActive(m.to));
+    to === "/dashboard"
+      ? pathname === "/dashboard"
+      : pathname === to || pathname.startsWith(to + "/");
+
+  const moreActive = more.some((item) => isActive(item.to));
 
   const handleTab = (to) => {
     const now = Date.now();
-    // Double-tap on the active tab resets to that tab's root path.
+
     if (isActive(to) && lastTap[to] && now - lastTap[to] < 300) {
       navigate(to);
       window.scrollTo({ top: 0, behavior: "smooth" });
-      setLastTap((s) => ({ ...s, [to]: 0 }));
+      setLastTap((state) => ({ ...state, [to]: 0 }));
       return;
     }
-    setLastTap((s) => ({ ...s, [to]: now }));
+
+    setLastTap((state) => ({ ...state, [to]: now }));
+    setMoreOpen(false);
     navigate(to);
   };
 
   const go = (to) => {
     setMoreOpen(false);
     navigate(to);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const tabs = [...primary, { label: "More", to: "__more", icon: MoreHorizontal }];
 
   return (
     <>
-      <nav className="fixed bottom-0 inset-x-0 z-40 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 pointer-events-none">
-        <div className="max-w-md mx-auto pointer-events-auto">
-          <div className="artflow-bottom-nav backdrop-blur-xl border rounded-[1.75rem] px-2 py-2 flex items-center justify-between">
+      {moreOpen && (
+        <button
+          type="button"
+          aria-label="Close More menu"
+          onClick={() => setMoreOpen(false)}
+          className="fixed inset-0 z-[44] bg-black/5"
+        />
+      )}
+
+      {moreOpen && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-[calc(max(1rem,env(safe-area-inset-bottom))+6.15rem)] z-[55] px-4">
+          <div className="mx-auto flex max-w-md justify-end">
+            <div
+              className="pointer-events-auto w-[calc(100%-1.1rem)] max-w-[360px] rounded-[2rem] border border-white/5 p-3 shadow-[0_24px_70px_rgba(0,0,0,.52)] backdrop-blur-2xl"
+              style={{
+                background:
+                  "linear-gradient(180deg, rgba(31,24,33,.97) 0%, rgba(26,20,29,.98) 100%)",
+              }}
+            >
+              <div className="grid grid-cols-2 gap-3">
+                {more.map((item) => {
+                  const Icon = item.icon;
+                  const active = isActive(item.to);
+
+                  return (
+                    <button
+                      type="button"
+                      key={item.to}
+                      onClick={() => go(item.to)}
+                      className={`flex min-h-[108px] flex-col items-center justify-center gap-3 rounded-[1.7rem] border px-3 py-4 text-center transition active:scale-[0.98] ${
+                        active
+                          ? "border-white/16 bg-white/14 text-white"
+                          : "border-white/[0.035] bg-white/[0.075] text-white/90"
+                      }`}
+                    >
+                      <Icon
+                        className="h-7 w-7 text-white/85"
+                        strokeWidth={1.8}
+                      />
+                      <span className="text-[15px] font-semibold leading-tight text-white/90">
+                        {item.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2">
+        <div className="pointer-events-auto mx-auto max-w-md">
+          <div className="flex items-center justify-between rounded-[1.75rem] border border-white/5 bg-[#050506] px-2 py-2 shadow-[0_16px_42px_rgba(0,0,0,.42)]">
             {tabs.map((item) => {
               const isMore = item.to === "__more";
               const active = isMore ? moreActive || moreOpen : isActive(item.to);
               const Icon = item.icon;
-              const onClick = isMore ? () => setMoreOpen(true) : () => handleTab(item.to);
+
               return (
                 <button
                   type="button"
                   key={item.label}
-                  onClick={onClick}
-                  className="flex flex-col items-center justify-center gap-0.5 flex-1 min-w-0 py-1.5"
+                  onClick={
+                    isMore
+                      ? () => setMoreOpen((open) => !open)
+                      : () => handleTab(item.to)
+                  }
+                  className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 py-1.5"
                   aria-label={item.label}
+                  aria-expanded={isMore ? moreOpen : undefined}
                 >
-                  <span className={`bottom-nav-icon ${active ? "is-active" : ""}`}>
+                  <span
+                    className={`grid h-11 w-12 place-items-center rounded-full transition ${
+                      active
+                        ? "bg-white text-black shadow-[0_8px_22px_rgba(255,255,255,.12)]"
+                        : "text-[#8d8990]"
+                    }`}
+                  >
                     <Icon
-                      className="w-[22px] h-[22px] transition-colors"
-                      strokeWidth={active ? 2.6 : 2}
+                      className="h-[22px] w-[22px]"
+                      strokeWidth={active ? 2.45 : 2}
                     />
                   </span>
+
                   <span
                     className={`text-xs font-medium transition-colors ${
-                      active ? "text-white" : "text-[hsl(var(--muted-foreground))]"
+                      active ? "text-white" : "text-[#9b97a0]"
                     }`}
                   >
                     {item.label}
@@ -106,36 +170,6 @@ export default function BottomNav() {
           </div>
         </div>
       </nav>
-
-      <Drawer open={moreOpen} onOpenChange={setMoreOpen}>
-        <DrawerContent className="max-w-md mx-auto rounded-t-[2rem]">
-          <DrawerHeader className="text-center">
-            <DrawerTitle className="font-heading text-xl">More</DrawerTitle>
-            <DrawerDescription>Jump to another section</DrawerDescription>
-          </DrawerHeader>
-          <div className="grid grid-cols-2 gap-3 p-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-            {more.map((m) => {
-              const Icon = m.icon;
-              const active = isActive(m.to);
-              return (
-                <button
-                  type="button"
-                  key={m.to}
-                  onClick={() => go(m.to)}
-                  className={`flex flex-col items-center justify-center gap-2 h-24 rounded-3xl border transition-colors ${
-                    active
-                      ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] border-transparent"
-                      : "bg-card text-foreground border-[hsl(var(--border))]"
-                  }`}
-                >
-                  <Icon className="w-6 h-6" />
-                  <span className="text-sm font-medium">{m.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </DrawerContent>
-      </Drawer>
     </>
   );
 }
