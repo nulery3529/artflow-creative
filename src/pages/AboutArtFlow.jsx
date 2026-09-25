@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ShoppingBag, Receipt, Package, MoreHorizontal, RefreshCw, Home } from "lucide-react";
 
@@ -147,8 +147,240 @@ function PreviewOrder({ image = "bundle", title, platform, amount }) {
   );
 }
 
-function DesktopDashboard() {
-  const sideItems = ["Dashboard", "Orders", "Expenses", "Inventory", "Reports", "Business Plan", "Taxes", "Mileage"];
+function PreviewSectionHeader({ title, subtitle, action }) {
+  return (
+    <div className="mb-3 flex items-start justify-between gap-3">
+      <div>
+        <h3 className="text-[13px] font-black text-slate-900">{title}</h3>
+        {subtitle && <p className="mt-1 text-[8px] text-slate-400">{subtitle}</p>}
+      </div>
+      {action}
+    </div>
+  );
+}
+
+function PreviewOrders() {
+  return (
+    <div>
+      <PreviewSectionHeader title="Orders" subtitle="Sold items across platforms" />
+      <div className="mb-3 flex gap-1.5 overflow-hidden">
+        {["All", "Poshmark", "Vinted", "Depop", "Etsy", "eBay", "Bundles"].map((item, i) => (
+          <span key={item} className={`shrink-0 rounded-full px-2.5 py-1.5 text-[7px] font-bold ${i === 0 ? "bg-[#6e3769] text-white" : "bg-white text-slate-500 border border-slate-200"}`}>
+            {item}
+          </span>
+        ))}
+      </div>
+      <div className="rounded-[20px] border border-[#eeeaf1] bg-white px-3 shadow-sm">
+        <PreviewOrder image="bundle" title="Bundle Order" platform="Depop · Qty 3" amount="$42.00" />
+        <PreviewOrder image={2} title="Framed Art Print" platform="Poshmark · Qty 1" amount="$28.00" />
+        <PreviewOrder image={3} title="Botanical Print" platform="Vinted · Qty 1" amount="$19.00" />
+        <PreviewOrder image={4} title="Digital Art Download" platform="Etsy · Qty 1" amount="$8.00" />
+        <PreviewOrder image={1} title="Skeleton Art Print" platform="eBay · Qty 1" amount="$24.00" />
+      </div>
+    </div>
+  );
+}
+
+function PreviewInventory() {
+  const cards = [
+    ["5x7 Art Prints", "Print", "32 in stock", 2],
+    ["8x10 Frames", "Frame", "18 in stock", 3],
+    ["Rigid Mailers", "Packaging", "46 in stock", 4],
+    ["11x14 Art Prints", "Print", "12 in stock", 1],
+  ];
+  return (
+    <div>
+      <PreviewSectionHeader title="Inventory" subtitle="Stock across all categories" action={<span className="rounded-xl bg-[#6e3769] px-3 py-2 text-[8px] font-bold text-white">+ Add</span>} />
+      <div className="mb-3 grid grid-cols-3 gap-2">
+        {[["All", "108"], ["Supplies", "62"], ["Packaging", "46"]].map(([label, count], i) => (
+          <div key={label} className={`rounded-2xl border p-2.5 ${i === 0 ? "border-transparent bg-[#6e3769] text-white" : "border-slate-200 bg-white text-slate-700"}`}>
+            <p className="text-[7px] font-bold">{label}</p>
+            <p className="mt-1 text-[14px] font-black">{count}</p>
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {cards.map(([title, category, stock, image]) => (
+          <div key={title} className="overflow-hidden rounded-[18px] border border-[#eeeaf1] bg-white shadow-sm">
+            <div className="grid h-20 place-items-center bg-gradient-to-br from-purple-100 via-pink-50 to-cyan-50">
+              <MiniArt variant={image} />
+            </div>
+            <div className="p-2.5">
+              <span className="rounded-full bg-slate-100 px-2 py-1 text-[6px] font-bold uppercase text-slate-500">{category}</span>
+              <p className="mt-2 truncate text-[8px] font-black text-slate-800">{title}</p>
+              <p className="mt-1 text-[7px] text-slate-400">{stock}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PreviewExpenses() {
+  const rows = [
+    ["Shipping supplies", "Supplies", "$24.80"],
+    ["Printer ink", "Printing", "$18.25"],
+    ["11x14 mailing boxes", "Packaging", "$16.00"],
+    ["Marketplace fees", "Fees", "$12.40"],
+  ];
+  return (
+    <div>
+      <PreviewSectionHeader title="Expenses" subtitle="Track business deductions" action={<span className="rounded-xl bg-[#6e3769] px-3 py-2 text-[8px] font-bold text-white">+ Add</span>} />
+      <div className="mb-3 rounded-[18px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
+        <p className="text-[9px] font-bold text-slate-800">Expense records</p>
+        <p className="mt-1 text-[7px] leading-4 text-slate-400">Saved business expenses from connected inboxes and manual entries.</p>
+      </div>
+      <div className="mb-3 flex gap-1.5 overflow-hidden">
+        {["All", "Supplies", "Packaging", "Fees", "Software"].map((item, i) => (
+          <span key={item} className={`shrink-0 rounded-full px-2.5 py-1.5 text-[7px] font-bold ${i === 0 ? "bg-[#6e3769] text-white" : "bg-white text-slate-500 border border-slate-200"}`}>
+            {item}
+          </span>
+        ))}
+      </div>
+      <div className="rounded-[20px] border border-[#eeeaf1] bg-white px-3 shadow-sm">
+        {rows.map(([name, cat, amount]) => (
+          <div key={name} className="flex items-center gap-3 border-b border-slate-100 py-3 last:border-b-0">
+            <div className="grid h-9 w-9 place-items-center rounded-xl bg-pink-100 text-pink-600">
+              <Receipt className="h-4 w-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[8px] font-bold text-slate-800">{name}</p>
+              <p className="mt-1 text-[7px] text-slate-400">{cat}</p>
+            </div>
+            <p className="text-[8px] font-black text-slate-800">{amount}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PreviewReports() {
+  const stats = [
+    ["Gross Sales", "$3,842.60", "bg-purple-50"],
+    ["Number of Orders", "187", "bg-blue-50"],
+    ["Items Sold", "214", "bg-emerald-50"],
+    ["Product Costs", "$746.20", "bg-orange-50"],
+    ["Business Expenses", "$316.00", "bg-yellow-50"],
+    ["Net Profit", "$2,780.40", "bg-emerald-50"],
+  ];
+  return (
+    <div>
+      <PreviewSectionHeader title="Reports" subtitle="Performance over time" />
+      <div className="mb-3 flex gap-1.5 overflow-hidden">
+        {["This Month", "Last Month", "Last 3 Months", "This Year", "All Time"].map((item, i) => (
+          <span key={item} className={`shrink-0 rounded-full px-2.5 py-1.5 text-[7px] font-bold ${i === 0 ? "bg-[#6e3769] text-white" : "bg-white text-slate-500 border border-slate-200"}`}>
+            {item}
+          </span>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {stats.map(([label, value, tone]) => (
+          <div key={label} className={`rounded-[18px] border border-[#eeeaf1] p-3 shadow-sm ${tone}`}>
+            <p className="text-[7px] font-bold text-slate-500">{label}</p>
+            <p className="mt-2 text-[14px] font-black text-slate-900">{value}</p>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
+        <p className="mb-3 text-[9px] font-black text-slate-800">Sales Split</p>
+        <PreviewMarketPerformance />
+      </div>
+    </div>
+  );
+}
+
+function PreviewDashboardHome({ onTabChange }) {
+  return (
+    <>
+      <PreviewHero />
+      <div className="mt-3 grid grid-cols-[1.45fr_.8fr] gap-3">
+        <div className="rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[9px] font-bold">Sales Overview</p>
+              <p className="mt-0.5 text-[7px] text-slate-400">Revenue over the last several months</p>
+            </div>
+            <span className="text-[7px] font-semibold text-purple-600">● Sales</span>
+          </div>
+          <PreviewLineChart />
+        </div>
+        <div className="rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
+          <p className="text-[9px] font-bold">Market Performance</p>
+          <p className="mb-3 mt-0.5 text-[7px] text-slate-400">Sales across all marketplaces</p>
+          <PreviewMarketPerformance />
+        </div>
+      </div>
+      <div className="mt-3 rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[9px] font-bold">Recent Orders</p>
+            <p className="mt-0.5 text-[7px] text-slate-400">Latest sales across your connected shops</p>
+          </div>
+          <button type="button" onClick={() => onTabChange("Orders")} className="text-[7px] font-bold text-purple-600">View all ↗</button>
+        </div>
+        <div className="mt-2">
+          <PreviewOrder image="bundle" title="Bundle Order" platform="Depop" amount="$42.00" />
+          <PreviewOrder image={2} title="Framed Art Print" platform="Poshmark" amount="$28.00" />
+        </div>
+      </div>
+    </>
+  );
+}
+
+function PreviewTabContent({ activeTab, onTabChange, compact = false }) {
+  if (activeTab === "Orders") return <PreviewOrders />;
+  if (activeTab === "Inventory") return <PreviewInventory />;
+  if (activeTab === "Expenses") return <PreviewExpenses />;
+  if (activeTab === "Reports") return <PreviewReports />;
+  if (compact) {
+    return (
+      <>
+        <PreviewHero compact />
+        <div className="mt-3 rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-bold">Sales Overview</p>
+              <p className="mt-0.5 text-[7px] text-slate-400">Revenue over the last several months</p>
+            </div>
+            <span className="text-[7px] font-semibold text-purple-600">● Sales</span>
+          </div>
+          <PreviewLineChart />
+        </div>
+        <div className="mt-3 rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
+          <p className="text-[10px] font-bold">Market Performance</p>
+          <p className="mb-3 mt-0.5 text-[7px] text-slate-400">Sales across all marketplaces</p>
+          <PreviewMarketPerformance compact />
+        </div>
+        <div className="mt-3 rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold">Recent Orders</p>
+            <button type="button" onClick={() => onTabChange("Orders")} className="text-[7px] font-bold text-purple-600">View all ↗</button>
+          </div>
+          <div className="mt-2">
+            <PreviewOrder image="bundle" title="Bundle Order" platform="Depop" amount="$42.00" />
+            <PreviewOrder image={2} title="Framed Art Print" platform="Poshmark" amount="$28.00" />
+          </div>
+        </div>
+      </>
+    );
+  }
+  return <PreviewDashboardHome onTabChange={onTabChange} />;
+}
+
+function DesktopDashboard({ activeTab, onTabChange }) {
+  const sideItems = [
+    ["Dashboard", "Dashboard"],
+    ["Orders", "Orders"],
+    ["Expenses", "Expenses"],
+    ["Inventory", "Inventory"],
+    ["Reports", "Reports"],
+    ["Business Plan", null],
+    ["Taxes", null],
+    ["Mileage", null],
+  ];
+
   return (
     <div className="overflow-hidden rounded-[18px] bg-[#f5f3f7] text-slate-900">
       <div className="grid min-h-[430px] grid-cols-[120px_1fr]">
@@ -161,128 +393,83 @@ function DesktopDashboard() {
             </div>
           </div>
           <div className="space-y-1">
-            {sideItems.map((item, i) => (
-              <div key={item} className={`rounded-xl px-2.5 py-2 text-[7px] font-semibold ${i === 0 ? "bg-[#6e3769] text-white shadow-sm" : "text-slate-500"}`}>
-                {item}
-              </div>
-            ))}
+            {sideItems.map(([label, key]) => {
+              const active = key === activeTab;
+              return key ? (
+                <button
+                  type="button"
+                  key={label}
+                  onClick={() => onTabChange(key)}
+                  aria-pressed={active}
+                  className={`w-full rounded-xl px-2.5 py-2 text-left text-[7px] font-semibold transition ${active ? "bg-[#6e3769] text-white shadow-sm" : "text-slate-500 hover:bg-purple-50"}`}
+                >
+                  {label}
+                </button>
+              ) : (
+                <div key={label} className="rounded-xl px-2.5 py-2 text-[7px] font-semibold text-slate-300">{label}</div>
+              );
+            })}
           </div>
         </aside>
 
         <section className="p-3">
-          <div className="mb-3 flex justify-end gap-2">
-            <div className="h-8 w-[180px] rounded-full border border-slate-200 bg-white px-3 text-[7px] leading-8 text-slate-400">Search orders by product or order ID...</div>
-            <div className="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-[#6e3769]">•</div>
-          </div>
-
-          <PreviewHero />
-
-          <div className="mt-3 grid grid-cols-[1.45fr_.8fr] gap-3">
-            <div className="rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[9px] font-bold">Sales Overview</p>
-                  <p className="mt-0.5 text-[7px] text-slate-400">Revenue over the last several months</p>
-                </div>
-                <span className="text-[7px] font-semibold text-purple-600">● Sales</span>
-              </div>
-              <PreviewLineChart />
-            </div>
-
-            <div className="rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
-              <p className="text-[9px] font-bold">Market Performance</p>
-              <p className="mb-3 mt-0.5 text-[7px] text-slate-400">Sales across all marketplaces</p>
-              <PreviewMarketPerformance />
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <span className="text-[8px] font-black text-[#6e3769]">{activeTab}</span>
+            <div className="flex gap-2">
+              <div className="h-8 w-[180px] rounded-full border border-slate-200 bg-white px-3 text-[7px] leading-8 text-slate-400">Search orders by product or order ID...</div>
+              <div className="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-[#6e3769]">•</div>
             </div>
           </div>
-
-          <div className="mt-3 grid grid-cols-[1.45fr_.8fr] gap-3">
-            <div className="rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[9px] font-bold">Recent Orders</p>
-                  <p className="mt-0.5 text-[7px] text-slate-400">Latest sales across your connected shops</p>
-                </div>
-                <span className="text-[7px] font-bold text-purple-600">View all ↗</span>
-              </div>
-              <div className="mt-2">
-                <PreviewOrder image="bundle" title="Bundle Order" platform="Depop" amount="$42.00" />
-                <PreviewOrder image={2} title="Framed Art Print" platform="Poshmark" amount="$28.00" />
-              </div>
-            </div>
-
-            <div className="rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
-              <p className="text-[9px] font-bold">Expenses Overview</p>
-              <p className="mt-0.5 text-[7px] text-slate-400">Deductible business spending</p>
-              <div className="mt-3 grid place-items-center">
-                <div className="grid h-20 w-20 place-items-center rounded-full bg-[conic-gradient(#a78bfa_0_35%,#f472b6_35%_60%,#67e8f9_60%_82%,#fbbf24_82%_100%)]">
-                  <div className="grid h-12 w-12 place-items-center rounded-full bg-white text-center">
-                    <span className="text-[6px] text-slate-400">Total</span>
-                    <strong className="text-[8px]">$316</strong>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <PreviewTabContent activeTab={activeTab} onTabChange={onTabChange} />
         </section>
       </div>
     </div>
   );
 }
 
-function MobileDashboard() {
+function MobileDashboard({ activeTab, onTabChange }) {
+  const tabs = [
+    ["Home", "Dashboard", Home],
+    ["Orders", "Orders", ShoppingBag],
+    ["Inventory", "Inventory", Package],
+    ["Expenses", "Expenses", Receipt],
+    ["More", "Reports", MoreHorizontal],
+  ];
+
   return (
     <div className="mx-auto w-full max-w-[330px] rounded-[34px] bg-[#201821] p-[8px] shadow-[0_30px_70px_rgba(15,7,20,.48)]">
       <div className="relative min-h-[600px] overflow-hidden rounded-[27px] bg-[#f5f3f7] px-3 pb-20 pt-3 text-slate-900">
-        <PreviewHero compact />
-
-        <div className="mt-3 rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
-          <div className="flex items-center justify-between">
+        {activeTab !== "Dashboard" && (
+          <div className="mb-3 flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-bold">Sales Overview</p>
-              <p className="mt-0.5 text-[7px] text-slate-400">Revenue over the last several months</p>
+              <p className="text-[8px] font-black uppercase tracking-[0.14em] text-[#6e3769]">Art Flow Creative</p>
+              <p className="mt-1 text-[13px] font-black text-slate-900">{activeTab}</p>
             </div>
-            <span className="text-[7px] font-semibold text-purple-600">● Sales</span>
+            <img src="/artflow-icon.svg" alt="" className="h-8 w-8" />
           </div>
-          <PreviewLineChart />
-        </div>
+        )}
 
-        <div className="mt-3 rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
-          <p className="text-[10px] font-bold">Market Performance</p>
-          <p className="mb-3 mt-0.5 text-[7px] text-slate-400">Sales across all marketplaces</p>
-          <PreviewMarketPerformance compact />
-        </div>
-
-        <div className="mt-3 rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[10px] font-bold">Recent Orders</p>
-              <p className="mt-0.5 text-[7px] text-slate-400">Latest sales across your connected shops</p>
-            </div>
-            <span className="text-[7px] font-bold text-purple-600">View all ↗</span>
-          </div>
-          <div className="mt-2">
-            <PreviewOrder image="bundle" title="Bundle Order" platform="Depop" amount="$42.00" />
-            <PreviewOrder image={2} title="Framed Art Print" platform="Poshmark" amount="$28.00" />
-          </div>
-        </div>
+        <PreviewTabContent activeTab={activeTab} onTabChange={onTabChange} compact />
 
         <div className="absolute inset-x-3 bottom-3">
           <div className="flex items-center justify-between rounded-[22px] border border-[#19191b] bg-[#050506] px-2 py-2 text-white shadow-[0_16px_38px_rgba(8,7,10,.25)]">
-            {[
-              ["Home", Home, true],
-              ["Orders", ShoppingBag, false],
-              ["Inventory", Package, false],
-              ["Expenses", Receipt, false],
-              ["More", MoreHorizontal, false],
-            ].map(([label, Icon, active]) => (
-              <div key={label} className="flex flex-1 flex-col items-center gap-0.5">
-                <span className={`grid h-8 w-9 place-items-center rounded-full ${active ? "bg-white text-black" : "text-[#8d8990]"}`}>
-                  <Icon className="h-4 w-4" />
-                </span>
-                <span className={`text-[7px] font-semibold ${active ? "text-white" : "text-[#9b97a0]"}`}>{label}</span>
-              </div>
-            ))}
+            {tabs.map(([label, key, Icon]) => {
+              const active = activeTab === key;
+              return (
+                <button
+                  type="button"
+                  key={label}
+                  onClick={() => onTabChange(key)}
+                  aria-pressed={active}
+                  className="flex flex-1 flex-col items-center gap-0.5"
+                >
+                  <span className={`grid h-8 w-9 place-items-center rounded-full ${active ? "bg-white text-black" : "text-[#8d8990]"}`}>
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <span className={`text-[7px] font-semibold ${active ? "text-white" : "text-[#9b97a0]"}`}>{label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -291,23 +478,38 @@ function MobileDashboard() {
 }
 
 function DevicePreview() {
+  const [activeTab, setActiveTab] = useState("Dashboard");
+
   return (
     <>
+      <div className="mb-3 flex justify-center gap-1.5 sm:hidden">
+        {["Dashboard", "Orders", "Inventory", "Expenses", "Reports"].map((tab) => (
+          <button
+            type="button"
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`rounded-full px-2.5 py-1.5 text-[9px] font-bold transition ${activeTab === tab ? "bg-white text-[#4a236f]" : "bg-white/10 text-white/65"}`}
+          >
+            {tab === "Dashboard" ? "Home" : tab}
+          </button>
+        ))}
+      </div>
+
       <div className="sm:hidden">
-        <MobileDashboard />
+        <MobileDashboard activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
 
       <div className="relative mx-auto hidden w-full max-w-[760px] pb-20 pt-2 sm:block lg:pb-10">
         <div className="relative ml-auto w-[93%]">
           <div className="rounded-[24px] bg-[#2a2030] p-[10px] shadow-[0_38px_80px_rgba(19,9,26,.40)]">
-            <DesktopDashboard />
+            <DesktopDashboard activeTab={activeTab} onTabChange={setActiveTab} />
           </div>
           <div className="mx-auto h-3 w-[78%] rounded-b-[90%] bg-[#3a303f]" />
           <div className="mx-auto h-2 w-[62%] rounded-b-full bg-[#281f2d]/90" />
         </div>
 
         <div className="absolute bottom-0 left-0 w-[31%] min-w-[145px] max-w-[205px]">
-          <MobileDashboard />
+          <MobileDashboard activeTab={activeTab} onTabChange={setActiveTab} />
         </div>
       </div>
     </>
