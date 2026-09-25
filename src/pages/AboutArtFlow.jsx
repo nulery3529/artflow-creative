@@ -182,6 +182,25 @@ function PreviewMarketPerformance({ compact = false }) {
   );
 }
 
+function PreviewOrder({ image = 1, title, platform, amount }) {
+  return (
+    <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 border-b border-purple-100/60 py-2 last:border-b-0">
+      <div className="h-10 w-10 overflow-hidden rounded-xl border border-purple-100 bg-gradient-to-br from-purple-100 via-pink-50 to-cyan-50">
+        {image === "bundle" ? (
+          <img src="/bundle-placeholder.svg" alt="" className="h-full w-full object-cover" />
+        ) : (
+          <MiniArt variant={image} />
+        )}
+      </div>
+      <div className="min-w-0">
+        <p className="truncate text-[8px] font-bold text-slate-800">{title}</p>
+        <p className="mt-1 text-[7px] text-slate-400">{platform}</p>
+      </div>
+      <p className="text-[8px] font-black text-slate-800">{amount}</p>
+    </div>
+  );
+}
+
 function PreviewOrderCard({ image = 1, title, platform, size, qty, date, sale, cost, profit }) {
   const tone = {
     Poshmark: "bg-pink-50 text-pink-800",
