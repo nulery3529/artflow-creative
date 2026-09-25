@@ -1024,6 +1024,10 @@ export default function Dashboard() {
               <span>Orders</span>
               <strong>{loading ? "—" : String(kpis.totalOrders)}</strong>
             </div>
+            <div>
+              <span>Avg. order revenue</span>
+              <strong>{loading ? "—" : formatMoney(kpis.averageOrder)}</strong>
+            </div>
           </div>
         </div>
       </section>
