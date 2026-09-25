@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ShoppingBag, Receipt, Package, MoreHorizontal, RefreshCw, Home, Car, Palette, UserRound, BarChart3 } from "lucide-react";
+import { ShoppingBag, Receipt, Package, MoreHorizontal, RefreshCw, Home, Car, Palette, UserRound, BarChart3, Calculator, CalendarDays, Target, Store, ShoppingCart } from "lucide-react";
 
 const MiniArt = ({ variant = 1 }) => {
   const classes = {
@@ -57,7 +57,7 @@ function PreviewHero({ compact = false, onTabChange }) {
             ["Orders", "Orders", ShoppingBag, false],
             ["Expenses", "Expenses", Receipt, false],
             ["Inventory", "Inventory", Package, false],
-            ["More", "Reports", MoreHorizontal, true],
+            ["More", "More", MoreHorizontal, true],
           ].map(([label, target, Icon, accent]) => (
             <button
               type="button"
@@ -396,15 +396,171 @@ function PreviewAccount() {
   );
 }
 
+function PreviewTaxes() {
+  return (
+    <div>
+      <PreviewSectionHeader title="Taxes" subtitle="2026 tax overview" />
+      <div className="grid grid-cols-2 gap-2">
+        {[
+          ["Business Profit", "$3,126.40", "bg-purple-50"],
+          ["Deductions", "$316.00", "bg-yellow-50"],
+          ["Taxable Profit", "$2,810.40", "bg-blue-50"],
+          ["Suggested Reserve", "$702.60", "bg-pink-50"],
+        ].map(([label, value, tone]) => (
+          <div key={label} className={`rounded-[18px] border border-[#eeeaf1] p-3 shadow-sm ${tone}`}>
+            <p className="text-[7px] font-bold text-slate-500">{label}</p>
+            <p className="mt-2 text-[14px] font-black text-slate-900">{value}</p>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 rounded-[20px] border border-[#eeeaf1] bg-white p-4 shadow-sm">
+        <p className="text-[9px] font-black text-slate-800">Tax Reserve Rate</p>
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-purple-100">
+          <div className="h-full w-1/4 rounded-full bg-purple-500" />
+        </div>
+        <div className="mt-2 flex justify-between text-[7px] text-slate-400"><span>0%</span><span className="font-bold text-purple-600">25%</span><span>40%</span></div>
+      </div>
+    </div>
+  );
+}
+
+function PreviewBusinessPlan() {
+  return (
+    <div>
+      <PreviewSectionHeader title="Business Plan" subtitle="Goals and cash-flow guidance from your real sales" />
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-[18px] border border-[#eeeaf1] bg-purple-50 p-3 shadow-sm">
+          <p className="text-[7px] font-bold text-slate-500">Monthly sales</p>
+          <p className="mt-2 text-[14px] font-black text-slate-900">$1,284 / $2,000</p>
+          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white"><div className="h-full w-[64%] rounded-full bg-purple-500" /></div>
+        </div>
+        <div className="rounded-[18px] border border-[#eeeaf1] bg-emerald-50 p-3 shadow-sm">
+          <p className="text-[7px] font-bold text-slate-500">Monthly profit</p>
+          <p className="mt-2 text-[14px] font-black text-slate-900">$968 / $1,000</p>
+          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white"><div className="h-full w-[97%] rounded-full bg-emerald-500" /></div>
+        </div>
+      </div>
+      <div className="mt-3 rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
+        <p className="text-[9px] font-black text-slate-800">Plan settings</p>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {[
+            ["Sales goal", "$2,000"],
+            ["Profit goal", "$1,000"],
+            ["Fixed costs", "$220"],
+            ["Tax reserve", "25%"],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-xl bg-slate-50 p-2.5">
+              <p className="text-[7px] text-slate-400">{label}</p>
+              <p className="mt-1 text-[9px] font-black text-slate-800">{value}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PreviewCalendar() {
+  return (
+    <div>
+      <PreviewSectionHeader title="Calendar" subtitle="Dates & schedule" action={<span className="rounded-xl bg-[#6e3769] px-3 py-2 text-[8px] font-bold text-white">+ Event</span>} />
+      <div className="rounded-[20px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
+        <div className="grid grid-cols-7 gap-1 text-center text-[7px] font-bold text-slate-400">
+          {["S","M","T","W","T","F","S"].map((d,i)=><span key={d+i}>{d}</span>)}
+          {Array.from({length:35},(_,i)=>i<2 ? "" : i-1).map((day,i)=>(
+            <span key={i} className={`grid h-7 place-items-center rounded-lg ${day===24 ? "bg-[#6e3769] text-white" : "text-slate-600"}`}>{day}</span>
+          ))}
+        </div>
+      </div>
+      <div className="mt-3 rounded-[20px] border border-[#eeeaf1] bg-white px-3 shadow-sm">
+        {[
+          ["10:00 AM", "Ship marketplace orders"],
+          ["1:30 PM", "Pick up art supplies"],
+          ["4:00 PM", "Update inventory"],
+        ].map(([time,event])=>(
+          <div key={event} className="flex items-center gap-3 border-b border-slate-100 py-3 last:border-b-0">
+            <div className="grid h-9 w-9 place-items-center rounded-xl bg-purple-100 text-purple-600"><CalendarDays className="h-4 w-4" /></div>
+            <div><p className="text-[8px] font-bold text-slate-800">{event}</p><p className="mt-1 text-[7px] text-slate-400">{time}</p></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PreviewStoreOrders() {
+  return (
+    <div>
+      <PreviewSectionHeader title="Store Orders" subtitle="Orders placed through your storefront" />
+      <div className="mb-3 grid grid-cols-3 gap-2">
+        {[
+          ["Pending","3","bg-amber-50"],
+          ["Processing","5","bg-purple-50"],
+          ["Completed","28","bg-emerald-50"],
+        ].map(([label,value,tone])=>(
+          <div key={label} className={`rounded-[18px] border border-[#eeeaf1] p-3 shadow-sm ${tone}`}>
+            <p className="text-[7px] font-bold text-slate-500">{label}</p>
+            <p className="mt-1 text-[14px] font-black text-slate-900">{value}</p>
+          </div>
+        ))}
+      </div>
+      <div className="rounded-[20px] border border-[#eeeaf1] bg-white px-3 shadow-sm">
+        {[
+          ["#1048", "Framed Floral Print", "$24.00", "Pending"],
+          ["#1047", "2 Art Prints", "$36.00", "Processing"],
+          ["#1046", "Digital Download", "$8.00", "Completed"],
+        ].map(([id,item,amount,status])=>(
+          <div key={id} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 border-b border-slate-100 py-3 last:border-b-0">
+            <div className="grid h-9 w-9 place-items-center rounded-xl bg-pink-100 text-pink-600"><ShoppingCart className="h-4 w-4" /></div>
+            <div className="min-w-0"><p className="truncate text-[8px] font-bold text-slate-800">{item}</p><p className="mt-1 text-[7px] text-slate-400">{id} · {status}</p></div>
+            <p className="text-[8px] font-black text-slate-800">{amount}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PreviewMoreHub({ onSelect }) {
+  const options = [
+    ["Reports", "Performance & profit", BarChart3],
+    ["Mileage", "Business drives", Car],
+    ["Products", "Available & sold products", Palette],
+    ["Taxes", "Tax reserve overview", Calculator],
+    ["Business Plan", "Goals & cash flow", Target],
+    ["Calendar", "Dates & schedule", CalendarDays],
+    ["Store Orders", "Storefront purchases", Store],
+    ["Account", "Profile & settings", UserRound],
+  ];
+  return (
+    <div>
+      <PreviewSectionHeader title="More" subtitle="Explore the rest of Art Flow Creative" />
+      <div className="grid grid-cols-2 gap-2">
+        {options.map(([label, sub, Icon]) => (
+          <button key={label} type="button" onClick={() => onSelect(label)} className="rounded-[18px] border border-[#eeeaf1] bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 active:scale-[.98]">
+            <div className="grid h-9 w-9 place-items-center rounded-xl bg-purple-100 text-purple-600"><Icon className="h-4 w-4" /></div>
+            <p className="mt-2 text-[9px] font-black text-slate-800">{label}</p>
+            <p className="mt-1 text-[7px] leading-4 text-slate-400">{sub}</p>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function PreviewMoreMenu({ onSelect, onClose, compact = false }) {
   const options = [
     ["Reports", BarChart3],
     ["Mileage", Car],
     ["Products", Palette],
+    ["Taxes", Calculator],
+    ["Business Plan", Target],
+    ["Calendar", CalendarDays],
+    ["Store Orders", Store],
     ["Account", UserRound],
   ];
   return (
-    <div className={`absolute z-30 rounded-[20px] border border-[#2a2230] bg-[#171219]/95 p-2.5 text-white shadow-2xl backdrop-blur ${compact ? "bottom-16 right-0 w-[175px]" : "bottom-16 right-0 w-[200px]"}`}>
+    <div className={`absolute z-30 rounded-[20px] border border-[#2a2230] bg-[#171219]/95 p-2.5 text-white shadow-2xl backdrop-blur ${compact ? "bottom-16 right-0 max-h-[250px] w-[185px] overflow-y-auto" : "bottom-16 right-0 max-h-[290px] w-[220px] overflow-y-auto"}`}>
       <div className="grid grid-cols-2 gap-2">
         {options.map(([label, Icon]) => (
           <button
@@ -468,6 +624,11 @@ function PreviewTabContent({ activeTab, onTabChange, compact = false }) {
   if (activeTab === "Mileage") return <PreviewMileage />;
   if (activeTab === "Products") return <PreviewProducts />;
   if (activeTab === "Account") return <PreviewAccount />;
+  if (activeTab === "Taxes") return <PreviewTaxes />;
+  if (activeTab === "Business Plan") return <PreviewBusinessPlan />;
+  if (activeTab === "Calendar") return <PreviewCalendar />;
+  if (activeTab === "Store Orders") return <PreviewStoreOrders />;
+  if (activeTab === "More") return <PreviewMoreHub onSelect={onTabChange} />;
   if (compact) {
     return (
       <>
@@ -511,7 +672,7 @@ function PreviewBottomTabs({ activeTab, onTabChange, compact = false }) {
     ["Inventory", Package],
     ["Expenses", Receipt],
   ];
-  const moreActive = ["Reports", "Mileage", "Products", "Account"].includes(activeTab);
+  const moreActive = ["Reports", "Mileage", "Products", "Taxes", "Business Plan", "Calendar", "Store Orders", "Account", "More"].includes(activeTab);
 
   return (
     <div className={`relative mt-3 rounded-[20px] border border-[#19191b] bg-[#050506] px-2 py-2 text-white shadow-[0_12px_28px_rgba(8,7,10,.18)] ${compact ? "" : "mx-auto max-w-[430px]"}`}>
@@ -545,7 +706,7 @@ function PreviewBottomTabs({ activeTab, onTabChange, compact = false }) {
           <span className={`grid h-8 w-9 place-items-center rounded-full transition ${moreActive || moreOpen ? "bg-white text-black" : "text-[#8d8990]"}`}>
             <MoreHorizontal className="h-4 w-4" />
           </span>
-          <span className={`text-[7px] font-semibold transition ${moreActive || moreOpen ? "text-white" : "text-[#9b97a0]"}`}>Reports</span>
+          <span className={`text-[7px] font-semibold transition ${moreActive || moreOpen ? "text-white" : "text-[#9b97a0]"}`}>More</span>
         </button>
       </div>
     </div>
@@ -559,9 +720,13 @@ function DesktopDashboard({ activeTab, onTabChange }) {
     ["Expenses", "Expenses"],
     ["Inventory", "Inventory"],
     ["Reports", "Reports"],
-    ["Business Plan", null],
-    ["Taxes", null],
-    ["Mileage", null],
+    ["Mileage", "Mileage"],
+    ["Products", "Products"],
+    ["Business Plan", "Business Plan"],
+    ["Taxes", "Taxes"],
+    ["Calendar", "Calendar"],
+    ["Store Orders", "Store Orders"],
+    ["Account", "Account"],
   ];
 
   return (
@@ -584,7 +749,7 @@ function DesktopDashboard({ activeTab, onTabChange }) {
                   key={label}
                   onClick={() => onTabChange(key)}
                   aria-pressed={active}
-                  className={`w-full rounded-xl px-2.5 py-2 text-left text-[7px] font-semibold transition ${active ? "bg-[#6e3769] text-white shadow-sm" : "text-slate-500 hover:bg-purple-50"}`}
+                  className={`w-full rounded-xl px-2.5 py-1.5 text-left text-[6.5px] font-semibold transition ${active ? "bg-[#6e3769] text-white shadow-sm" : "text-slate-500 hover:bg-purple-50"}`}
                 >
                   {label}
                 </button>
@@ -618,7 +783,7 @@ function MobileDashboard({ activeTab, onTabChange }) {
     ["Inventory", "Inventory", Package],
     ["Expenses", "Expenses", Receipt],
   ];
-  const moreActive = ["Reports", "Mileage", "Products", "Account"].includes(activeTab);
+  const moreActive = ["Reports", "Mileage", "Products", "Taxes", "Business Plan", "Calendar", "Store Orders", "Account", "More"].includes(activeTab);
 
   return (
     <div className="mx-auto w-full max-w-[330px] rounded-[34px] bg-[#201821] p-[8px] shadow-[0_30px_70px_rgba(15,7,20,.48)]">
@@ -654,7 +819,7 @@ function MobileDashboard({ activeTab, onTabChange }) {
               <span className={`grid h-8 w-9 place-items-center rounded-full ${moreActive || moreOpen ? "bg-white text-black" : "text-[#8d8990]"}`}>
                 <MoreHorizontal className="h-4 w-4" />
               </span>
-              <span className={`text-[7px] font-semibold ${moreActive || moreOpen ? "text-white" : "text-[#9b97a0]"}`}>Reports</span>
+              <span className={`text-[7px] font-semibold ${moreActive || moreOpen ? "text-white" : "text-[#9b97a0]"}`}>More</span>
             </button>
           </div>
         </div>
