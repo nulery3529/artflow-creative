@@ -13,7 +13,6 @@ import {
   BarChart3,
   Target,
   Calculator,
-  Store,
 } from "lucide-react";
 
 const primary = [
@@ -30,7 +29,6 @@ const more = [
   { label: "Taxes", to: "/taxes", icon: Calculator },
   { label: "Business Plan", to: "/planning", icon: Target },
   { label: "Calendar", to: "/calendar", icon: CalendarIcon },
-  { label: "Store Orders", to: "/store-orders", icon: Store },
   { label: "Account", to: "/account", icon: UserRound },
 ];
 
