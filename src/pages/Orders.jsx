@@ -93,13 +93,36 @@ export default function Orders() {
         });
         return { response, data: await response.json().catch(() => ({})) };
       };
+
       const gmail = await runSync("/api/gmail-sales-sync", { force: true });
-      if (!gmail.response.ok && gmail.response.status !== 409) {
-        throw new Error(gmail.data?.error || "Sales sync failed");
+      const yahoo = await runSync("/api/yahoo-mail", { action: "sync" });
+      const ebay = await runSync("/api/ebay-official", { action: "sync" });
+      const results = [gmail, yahoo, ebay];
+
+      const hardFailure = results.find(
+        ({ response }) => !response.ok && ![400, 409].includes(response.status)
+      );
+      if (hardFailure) {
+        throw new Error(hardFailure.data?.error || "Sales sync failed");
       }
+
       await reloadOrders();
-      if (gmail.response.ok) toast.success(gmail.data?.message || "Sales are up to date");
-      else toast.info(gmail.data?.error || "Reconnect Gmail to resume automatic sales sync");
+
+      const ebaySaved = Number(ebay.data?.saved || 0);
+      if (ebaySaved > 0) {
+        toast.success("Sales are up to date", {
+          description: `${ebaySaved} new eBay order${ebaySaved === 1 ? "" : "s"} imported.`,
+        });
+      } else if (results.some(({ response }) => response.ok)) {
+        toast.success("Sales are up to date", {
+          description: "Gmail, Yahoo, and eBay were checked.",
+        });
+      } else {
+        const message = results
+          .map(({ data }) => data?.error)
+          .find(Boolean);
+        toast.info(message || "No connected sales source needed an update.");
+      }
     } catch (e) {
       toast.error("Sales sync failed", { description: e?.message });
     } finally {
