@@ -945,11 +945,30 @@ export default function AboutArtFlow() {
         <div className="mx-auto max-w-5xl text-center">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-[#b995d0]">Supported marketplaces</p>
           <p className="mx-auto mt-3 max-w-2xl text-sm font-semibold leading-6 text-white/55">Track orders and sales from the marketplaces Art Flow Creative supports.</p>
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
-            {["Poshmark", "Vinted", "Depop", "Etsy", "eBay"].map((name) => (
-              <span key={name} className="rounded-full bg-white/8 px-4 py-2 text-[11px] font-extrabold tracking-wide text-white/65 ring-1 ring-white/5">
-                {name}
-              </span>
+          <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            {[
+              ["Poshmark", "https://cdn.simpleicons.org/poshmark/ffffff"],
+              ["Vinted", "https://cdn.simpleicons.org/vinted/ffffff"],
+              ["Depop", "https://cdn.simpleicons.org/depop/ffffff"],
+              ["Etsy", "https://cdn.simpleicons.org/etsy/ffffff"],
+              ["eBay", "https://cdn.simpleicons.org/ebay/ffffff"],
+            ].map(([name, logo]) => (
+              <div
+                key={name}
+                className="group flex min-h-[104px] flex-col items-center justify-center rounded-2xl border border-white/8 bg-white/[0.055] px-4 py-4 shadow-[0_10px_28px_rgba(0,0,0,.08)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/[0.08]"
+              >
+                <div className="grid h-11 w-11 place-items-center rounded-xl bg-white/10 ring-1 ring-white/10">
+                  <img
+                    src={logo}
+                    alt={`${name} logo`}
+                    loading="lazy"
+                    className="h-6 w-6 object-contain"
+                  />
+                </div>
+                <span className="mt-3 text-[12px] font-extrabold tracking-wide text-white/80">
+                  {name}
+                </span>
+              </div>
             ))}
           </div>
           <div className="mx-auto mt-8 h-px max-w-4xl bg-gradient-to-r from-transparent via-white/10 to-transparent" />
