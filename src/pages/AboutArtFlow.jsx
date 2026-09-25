@@ -369,6 +369,42 @@ function PreviewTabContent({ activeTab, onTabChange, compact = false }) {
   return <PreviewDashboardHome onTabChange={onTabChange} />;
 }
 
+function PreviewBottomTabs({ activeTab, onTabChange, compact = false }) {
+  const tabs = [
+    ["Dashboard", Home],
+    ["Orders", ShoppingBag],
+    ["Inventory", Package],
+    ["Expenses", Receipt],
+    ["Reports", MoreHorizontal],
+  ];
+
+  return (
+    <div className={`mt-3 rounded-[20px] border border-[#19191b] bg-[#050506] px-2 py-2 text-white shadow-[0_12px_28px_rgba(8,7,10,.18)] ${compact ? "" : "mx-auto max-w-[430px]"}`}>
+      <div className="flex items-center justify-between">
+        {tabs.map(([key, Icon]) => {
+          const active = activeTab === key;
+          return (
+            <button
+              type="button"
+              key={key}
+              onClick={() => onTabChange(key)}
+              aria-pressed={active}
+              className="flex flex-1 flex-col items-center gap-0.5"
+            >
+              <span className={`grid h-8 w-9 place-items-center rounded-full transition ${active ? "bg-white text-black" : "text-[#8d8990]"}`}>
+                <Icon className="h-4 w-4" />
+              </span>
+              <span className={`text-[7px] font-semibold transition ${active ? "text-white" : "text-[#9b97a0]"}`}>
+                {key === "Dashboard" ? "Home" : key}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function DesktopDashboard({ activeTab, onTabChange }) {
   const sideItems = [
     ["Dashboard", "Dashboard"],
@@ -421,6 +457,7 @@ function DesktopDashboard({ activeTab, onTabChange }) {
             </div>
           </div>
           <PreviewTabContent activeTab={activeTab} onTabChange={onTabChange} />
+          <PreviewBottomTabs activeTab={activeTab} onTabChange={onTabChange} />
         </section>
       </div>
     </div>
