@@ -930,6 +930,11 @@ export default function AboutArtFlow() {
             </div>
 
             <div className="relative">
+              <div className="mb-3 flex justify-center lg:justify-end">
+                <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white/70 backdrop-blur">
+                  Interactive demo — sample data
+                </span>
+              </div>
               <DevicePreview />
             </div>
           </div>
