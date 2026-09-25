@@ -182,21 +182,58 @@ function PreviewMarketPerformance({ compact = false }) {
   );
 }
 
-function PreviewOrder({ image = "bundle", title, platform, amount }) {
+function PreviewOrderCard({ image = 1, title, platform, size, qty, date, sale, cost, profit }) {
+  const tone = {
+    Poshmark: "bg-pink-50 text-pink-800",
+    Vinted: "bg-cyan-50 text-cyan-800",
+    Depop: "bg-red-50 text-red-700",
+    Etsy: "bg-orange-50 text-orange-700",
+    eBay: "bg-blue-50 text-blue-700",
+  }[platform] || "bg-slate-100 text-slate-600";
+
   return (
-    <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 border-b border-purple-100/60 py-2 last:border-b-0">
-      <div className="h-10 w-10 overflow-hidden rounded-xl border border-purple-100 bg-gradient-to-br from-purple-100 via-pink-50 to-cyan-50">
-        {image === "bundle" ? (
-          <img src="/bundle-placeholder.svg" alt="" className="h-full w-full object-cover" />
-        ) : (
-          <MiniArt variant={image} />
-        )}
+    <div className="rounded-[18px] border border-[#e7e2eb] bg-white p-2.5 shadow-sm">
+      <div className="flex items-start gap-2.5">
+        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-[12px] border border-[#e7e2eb] bg-slate-100">
+          {image === "bundle" ? (
+            <img src="/bundle-placeholder.svg" alt="" className="h-full w-full object-cover" />
+          ) : (
+            <MiniArt variant={image} />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="truncate text-[8px] font-bold text-slate-900">{title}</p>
+              <p className="mt-1 text-[6.5px] text-slate-400">
+                <span className="text-slate-600">{size}</span> · Qty <span className="text-slate-600">{qty}</span> · <span className="text-slate-600">{date}</span>
+              </p>
+            </div>
+            <span className={`shrink-0 rounded-full px-2 py-1 text-[6px] font-bold ${tone}`}>
+              {platform}
+            </span>
+          </div>
+        </div>
       </div>
-      <div className="min-w-0">
-        <p className="truncate text-[8px] font-bold text-slate-800">{title}</p>
-        <p className="mt-1 text-[7px] text-slate-400">{platform}</p>
+
+      <div className="mt-2 grid grid-cols-3 gap-1 border-t border-slate-100 pt-2 text-center">
+        <div>
+          <p className="text-[5.5px] font-bold uppercase text-slate-400">Sale</p>
+          <p className="mt-0.5 text-[7px] font-black text-slate-800">{sale}</p>
+        </div>
+        <div>
+          <p className="text-[5.5px] font-bold uppercase text-slate-400">Cost</p>
+          <p className="mt-0.5 text-[7px] font-black text-slate-800">{cost}</p>
+        </div>
+        <div>
+          <p className="text-[5.5px] font-bold uppercase text-slate-400">Profit</p>
+          <p className="mt-0.5 text-[7px] font-black text-slate-800">{profit}</p>
+        </div>
       </div>
-      <p className="text-[8px] font-black text-slate-800">{amount}</p>
+
+      <div className="mt-2 flex h-7 items-center justify-center rounded-xl bg-slate-100 text-[6.5px] font-bold text-slate-700">
+        ↗ Open on {platform}
+      </div>
     </div>
   );
 }
@@ -217,94 +254,215 @@ function PreviewOrders() {
   return (
     <div>
       <PreviewSectionHeader title="Orders" subtitle="Sold items across platforms" />
-      <div className="mb-3 flex gap-1.5 overflow-hidden">
-        {["All", "Poshmark", "Vinted", "Depop", "Etsy", "eBay", "Bundles"].map((item, i) => (
-          <span key={item} className={`shrink-0 rounded-full px-2.5 py-1.5 text-[7px] font-bold ${i === 0 ? "bg-[#6e3769] text-white" : "bg-white text-slate-500 border border-slate-200"}`}>
+
+      <div className="mb-2 flex gap-1.5 overflow-hidden">
+        {["All months", "Sep", "Aug", "Jul"].map((item, i) => (
+          <span key={item} className={`shrink-0 rounded-full px-2.5 py-1.5 text-[6.5px] font-bold ${i === 0 ? "bg-[#6e3769] text-white" : "bg-slate-100 text-slate-600"}`}>
             {item}
           </span>
         ))}
       </div>
-      <div className="rounded-[20px] border border-[#eeeaf1] bg-white px-3 shadow-sm">
-        <PreviewOrder image="bundle" title="Bundle Order" platform="Depop · Qty 3" amount="$42.00" />
-        <PreviewOrder image={2} title="Framed Art Print" platform="Poshmark · Qty 1" amount="$28.00" />
-        <PreviewOrder image={3} title="Botanical Print" platform="Vinted · Qty 1" amount="$19.00" />
-        <PreviewOrder image={4} title="Digital Art Download" platform="Etsy · Qty 1" amount="$8.00" />
-        <PreviewOrder image={1} title="Skeleton Art Print" platform="eBay · Qty 1" amount="$24.00" />
+
+      <div className="mb-2 grid grid-cols-3 gap-1.5">
+        {[
+          ["SALES", "$3,842", "bg-purple-50"],
+          ["ORDERS", "187", "bg-blue-50"],
+          ["PROFIT", "$2,780", "bg-emerald-50"],
+        ].map(([label, value, tone]) => (
+          <div key={label} className={`rounded-2xl border border-[#e7e2eb] p-2 ${tone}`}>
+            <p className="text-[5.5px] font-bold text-slate-400">{label}</p>
+            <p className="mt-1 text-[10px] font-black text-slate-900">{value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mb-2 grid grid-cols-1 gap-1.5">
+        <div className="flex h-8 items-center justify-center rounded-xl bg-slate-100 text-[6.5px] font-bold text-slate-700">
+          Send Sale from Phone / iPad
+        </div>
+        <div className="flex h-8 items-center justify-center rounded-xl bg-[#6e3769] text-[6.5px] font-bold text-white">
+          ↻ Sync All Sales Now
+        </div>
+      </div>
+
+      <div className="mb-2 flex h-8 items-center rounded-xl border border-slate-200 bg-white px-3 text-[6.5px] text-slate-400">
+        Search product or order ID
+      </div>
+
+      <div className="mb-2 flex gap-1 overflow-hidden">
+        {["All (187)", "Poshmark (64)", "Vinted (51)", "Depop (39)", "Etsy (21)", "eBay (12)", "Bundles (18)"].map((item, i) => (
+          <span key={item} className={`shrink-0 rounded-full px-2 py-1.5 text-[5.5px] font-bold ${i === 0 ? "bg-[#6e3769] text-white" : "bg-slate-100 text-slate-600"}`}>
+            {item}
+          </span>
+        ))}
+      </div>
+
+      <div className="space-y-2">
+        <PreviewOrderCard image="bundle" title="Bundle Order" platform="Depop" size="Other" qty="3" date="Sep 24" sale="$42.00" cost="$5.17" profit="$36.83" />
+        <PreviewOrderCard image={2} title="Framed Art Print" platform="Poshmark" size="8x10" qty="1" date="Sep 24" sale="$28.00" cost="$2.49" profit="$25.51" />
+      </div>
+
+      <div className="pointer-events-none absolute bottom-[68px] right-5 grid h-10 w-10 place-items-center rounded-full bg-[#6e3769] text-lg font-bold text-white shadow-lg">
+        +
+      </div>
+    </div>
+  );
+}
+
+function PreviewInventoryItem({ title, category, size, base, unit, qty, image = 1, tone = "normal" }) {
+  const cardTone =
+    tone === "low"
+      ? "bg-amber-50 border-amber-200"
+      : tone === "out"
+      ? "bg-rose-50 border-rose-200"
+      : "bg-white border-[#e7e2eb]";
+
+  return (
+    <div className={`rounded-[20px] border p-3 shadow-sm ${cardTone}`}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 items-start gap-2">
+          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+            <MiniArt variant={image} />
+          </div>
+          <div className="min-w-0">
+            <div className="mb-1 flex items-center gap-1">
+              <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[5.5px] font-bold uppercase text-slate-500">{category}</span>
+              {size && <span className="text-[6px] text-slate-500">{size}</span>}
+            </div>
+            <p className="truncate text-[9px] font-black text-slate-900">{title}</p>
+            <p className="mt-1 text-[6.5px] text-slate-600">Base {base} · Unit cost {unit}</p>
+          </div>
+        </div>
+        <div className="flex gap-1">
+          <span className="grid h-7 w-7 place-items-center rounded-full border border-rose-200 bg-white text-[10px] text-rose-600">×</span>
+          <span className="grid h-7 w-7 place-items-center rounded-full bg-white text-[9px] text-slate-500">✎</span>
+        </div>
+      </div>
+
+      <div className="mt-3 flex items-end justify-between">
+        <div>
+          <p className="text-[5.5px] font-bold uppercase text-slate-400">On Hand</p>
+          <p className="text-[14px] font-black text-slate-900">{qty}</p>
+          {tone === "low" && <p className="text-[5.5px] font-bold text-amber-700">Low stock</p>}
+          {tone === "out" && <p className="text-[5.5px] font-bold text-rose-700">Out of stock</p>}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="grid h-8 w-8 place-items-center rounded-full border border-slate-200 bg-white text-[13px]">−</span>
+          <span className="grid h-8 w-8 place-items-center rounded-full bg-[#6e3769] text-[13px] font-bold text-white">+</span>
+        </div>
       </div>
     </div>
   );
 }
 
 function PreviewInventory() {
-  const cards = [
-    ["5x7 Art Prints", "Print", "32 in stock", 2],
-    ["8x10 Frames", "Frame", "18 in stock", 3],
-    ["Rigid Mailers", "Packaging", "46 in stock", 4],
-    ["11x14 Art Prints", "Print", "12 in stock", 1],
-  ];
   return (
     <div>
-      <PreviewSectionHeader title="Inventory" subtitle="Stock across all categories" action={<span className="rounded-xl bg-[#6e3769] px-3 py-2 text-[8px] font-bold text-white">+ Add</span>} />
-      <div className="mb-3 grid grid-cols-3 gap-2">
-        {[["All", "108"], ["Supplies", "62"], ["Packaging", "46"]].map(([label, count], i) => (
-          <div key={label} className={`rounded-2xl border p-2.5 ${i === 0 ? "border-transparent bg-[#6e3769] text-white" : "border-slate-200 bg-white text-slate-700"}`}>
-            <p className="text-[7px] font-bold">{label}</p>
-            <p className="mt-1 text-[14px] font-black">{count}</p>
+      <PreviewSectionHeader title="Inventory" subtitle="Stock across all categories" />
+      <div className="mb-3 grid grid-cols-3 gap-1.5">
+        {[["ALL", "4"], ["PACKAGING", "1"], ["SUPPLIES", "3"]].map(([label, count], i) => (
+          <div key={label} className={`flex h-14 flex-col items-center justify-center rounded-2xl border ${i === 0 ? "border-transparent bg-[#6e3769] text-white" : "border-slate-200 bg-white text-slate-700"}`}>
+            <p className="text-[5.5px] font-bold tracking-wide">{label}</p>
+            <p className="mt-1 text-[12px] font-black">{count}</p>
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        {cards.map(([title, category, stock, image]) => (
-          <div key={title} className="overflow-hidden rounded-[18px] border border-[#eeeaf1] bg-white shadow-sm">
-            <div className="grid h-20 place-items-center bg-gradient-to-br from-purple-100 via-pink-50 to-cyan-50">
-              <MiniArt variant={image} />
-            </div>
-            <div className="p-2.5">
-              <span className="rounded-full bg-slate-100 px-2 py-1 text-[6px] font-bold uppercase text-slate-500">{category}</span>
-              <p className="mt-2 truncate text-[8px] font-black text-slate-800">{title}</p>
-              <p className="mt-1 text-[7px] text-slate-400">{stock}</p>
-            </div>
-          </div>
-        ))}
+
+      <div className="space-y-2">
+        <PreviewInventoryItem title="5x7 Art Prints" category="Print" size="5x7" base="$1.50" unit="$1.99" qty="32" image={2} />
+        <PreviewInventoryItem title="Rigid Mailers" category="Packaging" size="" base="$0.40" unit="$0.40" qty="46" image={4} />
+        <PreviewInventoryItem title="11x14 Art Prints" category="Print" size="11x14" base="$3.00" unit="$5.09" qty="2" image={1} tone="low" />
+      </div>
+
+      <div className="pointer-events-none absolute bottom-[68px] right-5 grid h-10 w-10 place-items-center rounded-full bg-[#6e3769] text-lg font-bold text-white shadow-lg">
+        +
+      </div>
+    </div>
+  );
+}
+
+function PreviewExpenseRow({ name, category, date, amount, deduction = "100% ded.", recurring = false }) {
+  return (
+    <div className="flex items-center justify-between rounded-2xl border border-[#e7e2eb] bg-white p-3 shadow-sm">
+      <div className="min-w-0">
+        <p className="truncate text-[8px] font-bold text-slate-900">{name}</p>
+        <p className="mt-1 text-[6px] text-slate-400">
+          {category} · <span className="text-slate-600">{date}</span>
+          {recurring && <span className="ml-1 font-bold text-[#6e3769]">↻ Monthly</span>}
+        </p>
+      </div>
+      <div className="ml-3 shrink-0 text-right">
+        <p className="text-[9px] font-black text-slate-900">{amount}</p>
+        <p className="mt-1 text-[5.5px] text-slate-400"><span className="text-slate-600">{deduction.split(" ")[0]}</span> ded.</p>
       </div>
     </div>
   );
 }
 
 function PreviewExpenses() {
-  const rows = [
-    ["Shipping supplies", "Supplies", "$24.80"],
-    ["Printer ink", "Printing", "$18.25"],
-    ["11x14 mailing boxes", "Packaging", "$16.00"],
-    ["Marketplace fees", "Fees", "$12.40"],
-  ];
   return (
     <div>
-      <PreviewSectionHeader title="Expenses" subtitle="Track business deductions" action={<span className="rounded-xl bg-[#6e3769] px-3 py-2 text-[8px] font-bold text-white">+ Add</span>} />
-      <div className="mb-3 rounded-[18px] border border-[#eeeaf1] bg-white p-3 shadow-sm">
-        <p className="text-[9px] font-bold text-slate-800">Expense records</p>
-        <p className="mt-1 text-[7px] leading-4 text-slate-400">Saved business expenses from connected inboxes and manual entries.</p>
+      <PreviewSectionHeader
+        title="Expenses"
+        subtitle="Track business deductions"
+        action={
+          <div className="flex gap-1">
+            <span className="rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-[6px] font-bold text-slate-600">Export</span>
+            <span className="rounded-xl bg-[#6e3769] px-2.5 py-2 text-[6px] font-bold text-white">+ Add</span>
+          </div>
+        }
+      />
+
+      <div className="mb-2 rounded-[18px] border border-[#e7e2eb] bg-white p-3 shadow-sm">
+        <p className="text-[8px] font-bold text-slate-800">Expense records</p>
+        <p className="mt-1 text-[6px] leading-3 text-slate-400">Your saved business expenses are stored securely with Art Flow.</p>
+        <div className="mt-2 flex h-8 items-center justify-center rounded-xl bg-[#6e3769] text-[6.5px] font-bold text-white">
+          ↻ Refresh Expenses
+        </div>
       </div>
-      <div className="mb-3 flex gap-1.5 overflow-hidden">
+
+      <div className="mb-2 rounded-[18px] border border-[#eadfd9] bg-orange-50 p-3">
+        <p className="text-[5.5px] font-bold uppercase text-slate-600">Total Business Expenses</p>
+        <p className="mt-1 text-[15px] font-black text-slate-900">$316.00</p>
+      </div>
+
+      <div className="mb-2 flex gap-1 overflow-hidden">
         {["All", "Supplies", "Packaging", "Fees", "Software"].map((item, i) => (
-          <span key={item} className={`shrink-0 rounded-full px-2.5 py-1.5 text-[7px] font-bold ${i === 0 ? "bg-[#6e3769] text-white" : "bg-white text-slate-500 border border-slate-200"}`}>
+          <span key={item} className={`shrink-0 rounded-full px-2 py-1.5 text-[5.5px] font-bold ${i === 0 ? "bg-[#6e3769] text-white" : "bg-slate-100 text-slate-600"}`}>
             {item}
           </span>
         ))}
       </div>
-      <div className="rounded-[20px] border border-[#eeeaf1] bg-white px-3 shadow-sm">
-        {rows.map(([name, cat, amount]) => (
-          <div key={name} className="flex items-center gap-3 border-b border-slate-100 py-3 last:border-b-0">
-            <div className="grid h-9 w-9 place-items-center rounded-xl bg-pink-100 text-pink-600">
-              <Receipt className="h-4 w-4" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[8px] font-bold text-slate-800">{name}</p>
-              <p className="mt-1 text-[7px] text-slate-400">{cat}</p>
-            </div>
-            <p className="text-[8px] font-black text-slate-800">{amount}</p>
+
+      <div className="mb-2">
+        <div className="mb-1 flex items-end justify-between">
+          <div>
+            <p className="text-[8px] font-black text-slate-900">Frame Inventory on Hand</p>
+            <p className="text-[5.5px] text-slate-400">Asset value — not added again to expenses</p>
           </div>
-        ))}
+          <span className="text-[7px] font-bold text-slate-700">$54.00</span>
+        </div>
+        <div className="flex items-center justify-between rounded-2xl border border-[#e7e2eb] bg-white p-2.5">
+          <div>
+            <p className="text-[7px] font-bold text-slate-900">Frames — 8x10</p>
+            <p className="mt-1 text-[5.5px] text-slate-400"><span className="text-slate-600">18</span> on hand × <span className="text-slate-600">$3.00</span></p>
+          </div>
+          <span className="text-[8px] font-black text-slate-800">$54.00</span>
+        </div>
+      </div>
+
+      <div className="mb-1 flex items-center justify-between px-0.5">
+        <p className="text-[8px] font-black text-slate-900">September 2026</p>
+        <span className="text-[7px] font-bold text-slate-700">$71.45</span>
+      </div>
+      <div className="space-y-1.5">
+        <PreviewExpenseRow name="Shipping supplies" category="Supplies" date="Sep 24" amount="$24.80" />
+        <PreviewExpenseRow name="Printer ink" category="Printing" date="Sep 22" amount="$18.25" />
+        <PreviewExpenseRow name="ChatGPT" category="Software" date="Sep 20" amount="$20.00" recurring />
+      </div>
+
+      <div className="pointer-events-none absolute bottom-[68px] right-5 grid h-10 w-10 place-items-center rounded-full bg-[#6e3769] text-lg font-bold text-white shadow-lg">
+        +
       </div>
     </div>
   );
