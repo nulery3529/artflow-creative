@@ -175,7 +175,7 @@ export async function syncConnectedEbayOrders(client,business){
   const seen=new Set();
   let more=false;
 
-  for(const status of ['COMPLETED','IN_PROGRESS']){
+  for(const status of ['NOT_STARTED','IN_PROGRESS','FULFILLED']){
     let pages=0, continuation='';
     while(pages<20){
       const url=continuation
