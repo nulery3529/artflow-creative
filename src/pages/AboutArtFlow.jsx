@@ -37,38 +37,49 @@ const OrderRow = ({ variant, title, platform, amount }) => (
 );
 
 const MARKETPLACE_STYLES = {
-  Poshmark: { color: "#D6249F", soft: "rgba(214,36,159,.18)", mark: "P" },
-  Vinted: { color: "#007782", soft: "rgba(0,119,130,.20)", mark: "V" },
-  Depop: { color: "#111111", soft: "rgba(255,255,255,.08)", mark: "D" },
-  Etsy: { color: "#F1641E", soft: "rgba(241,100,30,.18)", mark: "E" },
-  eBay: { color: "#3665F3", soft: "rgba(54,101,243,.18)", mark: "eBay" },
+  Poshmark: {
+    color: "#610721",
+    soft: "rgba(97,7,33,.20)",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/4/44/Poshmark_logo.png",
+    logoClass: "w-[86px] h-auto",
+  },
+  Vinted: {
+    color: "#027783",
+    soft: "rgba(2,119,131,.20)",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/b/b8/Vinted_Logo_2022.svg",
+    logoClass: "w-[76px] h-auto",
+  },
+  Depop: {
+    color: "#E4001D",
+    soft: "rgba(228,0,29,.18)",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/f/fb/Depop_logo.svg",
+    logoClass: "w-[76px] h-auto",
+  },
+  Etsy: {
+    color: "#F16521",
+    soft: "rgba(241,101,33,.18)",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/8/89/Etsy_logo.svg",
+    logoClass: "w-[66px] h-auto",
+  },
+  eBay: {
+    color: "#0064D2",
+    soft: "rgba(0,100,210,.16)",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/1/1b/EBay_logo.svg",
+    logoClass: "w-[76px] h-auto",
+  },
 };
 
 function MarketplaceMark({ name }) {
   const style = MARKETPLACE_STYLES[name] || MARKETPLACE_STYLES.eBay;
 
-  if (name === "eBay") {
-    return (
-      <div className="grid h-11 w-11 place-items-center rounded-xl bg-white shadow-sm ring-1 ring-white/40">
-        <span className="flex items-baseline text-[12px] font-black tracking-[-0.12em]" aria-label="eBay">
-          <span className="text-[#E53238]">e</span>
-          <span className="text-[#0064D2]">b</span>
-          <span className="text-[#F5AF02]">a</span>
-          <span className="text-[#86B817]">y</span>
-        </span>
-      </div>
-    );
-  }
-
   return (
-    <div
-      className="grid h-11 w-11 place-items-center rounded-xl text-white shadow-sm ring-1 ring-white/15"
-      style={{ backgroundColor: style.color }}
-      aria-label={name}
-    >
-      <span className={`font-black ${name === "Etsy" ? "[font-family:Georgia,serif] text-[27px]" : name === "Vinted" ? "text-[25px] italic" : "text-[22px]"}`}>
-        {style.mark}
-      </span>
+    <div className="grid h-14 w-[104px] place-items-center rounded-xl bg-white px-2 shadow-sm ring-1 ring-black/5">
+      <img
+        src={style.logo}
+        alt={`${name} logo`}
+        className={`max-h-9 object-contain ${style.logoClass}`}
+        loading="eager"
+      />
     </div>
   );
 }
