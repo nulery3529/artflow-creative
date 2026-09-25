@@ -4,89 +4,89 @@
 
 @layer base {
   :root {
-    --background: 315 16% 7%;
-    --foreground: 300 20% 96%;
-    --card: 312 17% 12%;
-    --card-foreground: 300 20% 96%;
-    --popover: 312 18% 10%;
-    --popover-foreground: 300 20% 96%;
-    --primary: 310 47% 52%;
+    --background: 0 0% 6%;
+    --foreground: 0 0% 97%;
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 97%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 97%;
+    --primary: 297 82% 58%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 310 18% 18%;
-    --secondary-foreground: 300 18% 94%;
-    --muted: 312 14% 16%;
-    --muted-foreground: 304 10% 66%;
-    --accent: 286 47% 57%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 96%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 66%;
+    --accent: 318 78% 58%;
     --accent-foreground: 0 0% 100%;
     --destructive: 350 88% 63%;
     --destructive-foreground: 0 0% 100%;
-    --border: 312 17% 24%;
-    --input: 312 15% 20%;
-    --ring: 310 47% 52%;
+    --border: 0 0% 23%;
+    --input: 0 0% 18%;
+    --ring: 297 82% 58%;
     --radius: 1.15rem;
     --font-heading: 'Plus Jakarta Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --font-body: 'Plus Jakarta Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --font-display: 'Fraunces', Georgia, serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    --lavender: 292 25% 19%;
-    --mint: 331 18% 17%;
-    --peach: 319 28% 19%;
-    --paleyellow: 26 24% 18%;
-    --lightblue: 276 22% 19%;
+    --lavender: 0 0% 14%;
+    --mint: 0 0% 13%;
+    --peach: 0 0% 14%;
+    --paleyellow: 0 0% 13%;
+    --lightblue: 0 0% 14%;
   }
 
   .dark {
-    --background: 315 16% 7%;
-    --foreground: 300 20% 96%;
-    --card: 312 17% 12%;
-    --card-foreground: 300 20% 96%;
-    --popover: 312 18% 10%;
-    --popover-foreground: 300 20% 96%;
-    --primary: 310 47% 52%;
+    --background: 0 0% 6%;
+    --foreground: 0 0% 97%;
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 97%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 97%;
+    --primary: 297 82% 58%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 310 18% 18%;
-    --secondary-foreground: 300 18% 94%;
-    --muted: 312 14% 16%;
-    --muted-foreground: 304 10% 66%;
-    --accent: 286 47% 57%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 96%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 66%;
+    --accent: 318 78% 58%;
     --accent-foreground: 0 0% 100%;
     --destructive: 350 88% 63%;
     --destructive-foreground: 0 0% 100%;
-    --border: 312 17% 24%;
-    --input: 312 15% 20%;
-    --ring: 310 47% 52%;
-    --lavender: 292 25% 19%;
-    --mint: 331 18% 17%;
-    --peach: 319 28% 19%;
-    --paleyellow: 26 24% 18%;
-    --lightblue: 276 22% 19%;
+    --border: 0 0% 23%;
+    --input: 0 0% 18%;
+    --ring: 297 82% 58%;
+    --lavender: 0 0% 14%;
+    --mint: 0 0% 13%;
+    --peach: 0 0% 14%;
+    --paleyellow: 0 0% 13%;
+    --lightblue: 0 0% 14%;
   }
 
   .light {
-    --background: 310 24% 97%;
-    --foreground: 315 18% 10%;
+    --background: 0 0% 97%;
+    --foreground: 0 0% 8%;
     --card: 0 0% 100%;
-    --card-foreground: 315 18% 10%;
+    --card-foreground: 0 0% 8%;
     --popover: 0 0% 100%;
-    --popover-foreground: 315 18% 10%;
-    --primary: 310 49% 43%;
+    --popover-foreground: 0 0% 8%;
+    --primary: 300 74% 47%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 310 24% 92%;
-    --secondary-foreground: 315 18% 14%;
-    --muted: 310 18% 93%;
-    --muted-foreground: 312 10% 42%;
-    --accent: 286 48% 45%;
+    --secondary: 0 0% 93%;
+    --secondary-foreground: 0 0% 12%;
+    --muted: 0 0% 93%;
+    --muted-foreground: 0 0% 42%;
+    --accent: 318 72% 48%;
     --accent-foreground: 0 0% 100%;
     --destructive: 350 84% 55%;
     --destructive-foreground: 0 0% 100%;
-    --border: 310 20% 86%;
-    --input: 310 18% 89%;
-    --ring: 310 49% 43%;
-    --lavender: 292 52% 94%;
-    --mint: 335 42% 94%;
-    --peach: 318 62% 95%;
+    --border: 0 0% 86%;
+    --input: 0 0% 89%;
+    --ring: 300 74% 47%;
+    --lavender: 305 72% 95%;
+    --mint: 318 62% 95%;
+    --peach: 323 72% 95%;
     --paleyellow: 30 70% 94%;
-    --lightblue: 278 50% 95%;
+    --lightblue: 292 62% 96%;
   }
 }
 
@@ -177,7 +177,7 @@
   animation: screen-slide 0.22s ease-out;
 }
 
-/* Art Flow Creative — charcoal black + plum theme */
+/* Art Flow Creative — black + bright magenta dashboard theme */
 
 html {
   background: hsl(var(--background));
@@ -186,10 +186,10 @@ html {
 body {
   min-height: 100vh;
   background:
-    radial-gradient(circle at 8% 4%, rgba(151, 69, 134, 0.18), transparent 28rem),
-    radial-gradient(circle at 92% 10%, rgba(94, 43, 103, 0.20), transparent 30rem),
+    radial-gradient(circle at 8% 4%, rgba(201, 60, 255, 0.14), transparent 28rem),
+    radial-gradient(circle at 92% 10%, rgba(226, 71, 197, 0.15), transparent 30rem),
     linear-gradient(135deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(45deg, rgba(171, 94, 158, 0.04) 1px, transparent 1px),
+    linear-gradient(45deg, rgba(226, 71, 197, 0.04) 1px, transparent 1px),
     hsl(var(--background));
   background-size: auto, auto, 44px 44px, 44px 44px, auto;
   background-attachment: fixed;
@@ -197,11 +197,11 @@ body {
 
 .light body {
   background:
-    radial-gradient(circle at 12% 3%, rgba(151, 69, 134, 0.10), transparent 28rem),
-    radial-gradient(circle at 88% 8%, rgba(104, 55, 112, 0.10), transparent 30rem),
-    radial-gradient(circle at 55% 92%, rgba(195, 137, 183, 0.09), transparent 28rem),
-    linear-gradient(135deg, rgba(112, 61, 107, 0.045) 1px, transparent 1px),
-    linear-gradient(45deg, rgba(165, 84, 143, 0.035) 1px, transparent 1px),
+    radial-gradient(circle at 12% 3%, rgba(201, 60, 255, 0.08), transparent 28rem),
+    radial-gradient(circle at 88% 8%, rgba(226, 71, 197, 0.08), transparent 30rem),
+    radial-gradient(circle at 55% 92%, rgba(226, 71, 197, 0.07), transparent 28rem),
+    linear-gradient(135deg, rgba(201, 60, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(45deg, rgba(226, 71, 197, 0.03) 1px, transparent 1px),
     hsl(var(--background));
   background-size: auto, auto, auto, 44px 44px, 44px 44px, auto;
   background-attachment: fixed;
@@ -268,18 +268,18 @@ body {
 
 .artflow-bottom-nav {
   background: rgba(18, 13, 19, 0.94);
-  border-color: rgba(154, 87, 143, 0.28);
+  border-color: rgba(226, 71, 197, 0.26);
   box-shadow:
     0 12px 42px rgba(0, 0, 0, 0.42),
-    0 0 28px rgba(146, 74, 134, 0.12);
+    0 0 28px rgba(201, 60, 255, 0.12);
 }
 
 .light .artflow-bottom-nav {
   background: rgba(255, 251, 254, 0.94);
-  border-color: rgba(133, 85, 127, 0.22);
+  border-color: rgba(226, 71, 197, 0.18);
   box-shadow:
     0 12px 34px rgba(78, 38, 72, 0.14),
-    0 0 26px rgba(145, 75, 133, 0.10);
+    0 0 26px rgba(201, 60, 255, 0.09);
 }
 
 .dark body::before {
@@ -292,13 +292,13 @@ body {
     linear-gradient(
       90deg,
       transparent 0 7%,
-      rgba(177, 91, 160, 0.07) 7% 7.12%,
+      rgba(226, 71, 197, 0.06) 7% 7.12%,
       transparent 7.12% 100%
     ),
     linear-gradient(
       0deg,
       transparent 0 13%,
-      rgba(119, 58, 126, 0.07) 13% 13.12%,
+      rgba(201, 60, 255, 0.06) 13% 13.12%,
       transparent 13.12% 100%
     );
   mask-image: linear-gradient(to bottom, black, transparent 72%);
@@ -309,27 +309,27 @@ body {
   font-weight: 700;
 }
 
-/* Primary gradient — plum to mulberry, applied everywhere primary fill is used */
+/* Primary gradient — bright dashboard magenta/pink, applied everywhere primary fill is used */
 [class~="bg-[hsl(var(--primary))]"],
 [class*=":bg-[hsl(var(--primary))]"]:not([class*="bg-[hsl(var(--primary))]/"]) {
-  background: linear-gradient(135deg, #b64f91 0%, #713f78 100%) !important;
+  background: linear-gradient(135deg, #c93cff 0%, #e247c5 100%) !important;
   color: #ffffff !important;
   border-color: transparent;
 }
 
 [class~="text-[hsl(var(--primary))]"],
 [class*=":text-[hsl(var(--primary))]"]:not([class*="text-[hsl(var(--primary))]/"]) {
-  color: #d175b9 !important;
+  color: #f06add !important;
 }
 
 .light [class~="text-[hsl(var(--primary))]"],
 .light [class*=":text-[hsl(var(--primary))]"]:not([class*="text-[hsl(var(--primary))]/"]) {
-  color: #8f3f7e !important;
+  color: #b51fbd !important;
 }
 
 [role="switch"][data-state="checked"],
 [data-state="checked"][role="switch"] {
-  background: linear-gradient(135deg, #b64f91 0%, #713f78 100%) !important;
+  background: linear-gradient(135deg, #c93cff 0%, #e247c5 100%) !important;
 }
 
 .bg-card,
@@ -439,7 +439,7 @@ textarea {
 }
 
 .artflow-gradient-text {
-  background: linear-gradient(90deg, #ed9bd7 0%, #c366aa 50%, #8f4a97 100%);
+  background: linear-gradient(90deg, #ff7be7 0%, #e247c5 48%, #c93cff 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -456,8 +456,8 @@ textarea {
 }
 
 .dark .artflow-glass {
-  background: rgba(27, 19, 27, 0.88);
-  border-color: rgba(150, 83, 139, 0.25);
+  background: rgba(10, 10, 11, 0.94);
+  border-color: rgba(226, 71, 197, 0.22);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.045),
     0 18px 48px rgba(0, 0, 0, 0.32);
@@ -475,8 +475,8 @@ textarea {
 }
 
 .dark .artflow-panel {
-  background: linear-gradient(145deg, rgba(36, 24, 36, 0.95), rgba(23, 17, 23, 0.93));
-  border-color: rgba(152, 84, 140, 0.22);
+  background: linear-gradient(145deg, rgba(22,22,23,.97), rgba(8,8,9,.96));
+  border-color: rgba(226, 71, 197, 0.18);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.035),
     0 16px 44px rgba(0, 0, 0, 0.30);
@@ -825,8 +825,8 @@ textarea {
 }
 
 .dark .dashboard-page .artflow-panel {
-  background: linear-gradient(145deg, rgba(38,26,39,.97), rgba(24,17,25,.96)) !important;
-  border-color: rgba(159,102,151,.20) !important;
+  background: linear-gradient(145deg, rgba(22,22,23,.98), rgba(8,8,9,.97)) !important;
+  border-color: rgba(226,71,197,.18) !important;
   box-shadow: 0 16px 42px rgba(0,0,0,.25) !important;
 }
 
@@ -885,7 +885,7 @@ textarea {
 }
 
 
-/* Art Flow v59 — black/plum section headers to carry the dashboard look through the app */
+/* Art Flow v60 — black/magenta section headers to carry the dashboard look through the app */
 .artflow-section-header {
   position: relative;
   overflow: hidden;
@@ -957,3 +957,36 @@ textarea {
     font-size: .78rem !important;
   }
 }
+
+
+/* v60 — no plum: neutral black surfaces with bright dashboard pink accents */
+.dark .pastel-lavender,
+.dark .pastel-mint,
+.dark .pastel-peach,
+.dark .pastel-yellow,
+.dark .pastel-blue {
+  background: linear-gradient(145deg, rgba(24,24,25,.96), rgba(10,10,11,.95)) !important;
+  border-color: rgba(226,71,197,.16) !important;
+}
+
+.dark .bg-card {
+  background: rgba(16,16,17,.96) !important;
+  border-color: rgba(255,255,255,.09) !important;
+}
+
+.dark [role="dialog"] {
+  background: rgba(12,12,13,.985) !important;
+  border-color: rgba(226,71,197,.20) !important;
+}
+
+.artflow-section-header {
+  background:
+    radial-gradient(circle at 88% 5%, rgba(201,60,255,.25), transparent 8rem),
+    radial-gradient(circle at -4% -10%, rgba(255,255,255,.10), transparent 7rem),
+    linear-gradient(145deg, #151516 0%, #050506 78%) !important;
+}
+
+.artflow-section-header::after {
+  border-color: rgba(226,71,197,.10) !important;
+}
+
