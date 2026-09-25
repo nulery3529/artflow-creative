@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }) => {
 
   const triggerLoginSync = useCallback(async () => {
     const now = Date.now();
-    if (syncInFlight.current || now - lastAutoSyncAt.current < 14 * 60 * 1000) return;
+    if (syncInFlight.current || now - lastAutoSyncAt.current < 4 * 60 * 1000) return;
     syncInFlight.current = true;
     publishSyncState({ status: 'syncing', at: new Date().toISOString() });
     try {
@@ -66,16 +66,21 @@ export const AuthProvider = ({ children }) => {
       // checkpoints cannot race each other during login.
       const gmail = await runSync('/api/gmail-sales-sync');
       const expenses = await runSync('/api/gmail-expense-sync');
-      const yahoo = await runSync('/api/yahoo-mail', {
-        action: 'sync',
-      });
+
+      // Official marketplace APIs should refresh before optional mailbox
+      // imports so a Yahoo credential problem can never delay current eBay orders.
       const ebay = await runSync('/api/ebay-official', {
         action: 'sync',
       });
-      const results = [gmail, expenses, yahoo, ebay];
-      const hardFailure = results.find(({ response }) => !response.ok && ![400, 409].includes(response.status));
+      const yahoo = await runSync('/api/yahoo-mail', {
+        action: 'sync',
+      });
+
+      const primaryResults = [gmail, expenses, ebay];
+      const results = [gmail, expenses, ebay, yahoo];
+      const hardFailure = primaryResults.find(({ response }) => !response.ok && ![400, 409].includes(response.status));
       const connectorMessage = results
-        .filter(({ response }) => [400, 409].includes(response.status))
+        .filter(({ response }) => !response.ok)
         .map(({ data }) => data?.error)
         .filter(Boolean)[0];
       const state = {
@@ -103,11 +108,11 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (!isAuthenticated) return undefined;
 
-    // Run once after login and then every 15 minutes while the app is open.
+    // Run once after login and then every 5 minutes while the app is open.
     // Individual connectors remain isolated so one unavailable service never
     // blocks the rest of the app.
     triggerLoginSync();
-    const syncId = window.setInterval(() => triggerLoginSync(), 15 * 60 * 1000);
+    const syncId = window.setInterval(() => triggerLoginSync(), 5 * 60 * 1000);
     const syncWhenActive = () => {
       if (document.visibilityState === 'visible') triggerLoginSync();
     };
