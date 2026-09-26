@@ -560,46 +560,64 @@ async function yahooMessages(email, appPassword, afterUid=0) {
         continue;
       }
 
-      const found = new Set();
-      const searches = [
-        `SINCE ${recentStart} HEADER FROM "ebay"`,
+      const priorityFound = new Set();
+      const broadFound = new Set();
+      const prioritySearches = [
         `SINCE ${recentStart} HEADER SUBJECT "sale"`,
         `SINCE ${recentStart} HEADER SUBJECT "sold"`,
         `SINCE ${recentStart} HEADER SUBJECT "payment"`,
+        `SINCE ${recentStart} HEADER SUBJECT "paid"`,
         `SINCE ${recentStart} HEADER SUBJECT "ship"`,
+        `SINCE ${recentStart} HEADER SUBJECT "buyer"`,
+        `SINCE ${recentStart} HEADER SUBJECT "order"`,
       ];
 
-      for (const criteria of searches) {
+      for (const criteria of prioritySearches) {
         try {
           const searchResponse = await imap.command(`UID SEARCH ${criteria}`);
           const text = searchResponse.toString('utf8');
-          const searchLine = text.match(/^\* SEARCH(?:\s+([0-9 ]+))?/mi)?.[1] || '';
-          for (const uid of searchLine.split(/\s+/).map(Number).filter((n) => Number.isFinite(n) && n > 0)) {
-            found.add(uid);
+          const searchLine = text.match(/^\\* SEARCH(?:\\s+([0-9 ]+))?/mi)?.[1] || '';
+          for (const uid of searchLine.split(/\\s+/).map(Number).filter((n) => Number.isFinite(n) && n > 0)) {
+            priorityFound.add(uid);
           }
         } catch {}
       }
 
-      // If filtered searches return nothing, scan recent mail in this folder.
-      // parseSaleEmail() still requires seller-side eBay wording, so ordinary
-      // Yahoo mail will not be imported as an order.
-      if (!found.size) {
+      // Also scan eBay sender traffic, but do not let high-volume listing and
+      // promotional mail crowd seller-order subjects out of the 300-message cap.
+      try {
+        const searchResponse = await imap.command(`UID SEARCH SINCE ${recentStart} HEADER FROM "ebay"`);
+        const text = searchResponse.toString('utf8');
+        const searchLine = text.match(/^\\* SEARCH(?:\\s+([0-9 ]+))?/mi)?.[1] || '';
+        for (const uid of searchLine.split(/\\s+/).map(Number).filter((n) => Number.isFinite(n) && n > 0)) {
+          broadFound.add(uid);
+        }
+      } catch {}
+
+      // If Yahoo's indexed searches return nothing, scan recent mail in this
+      // folder. parseSaleEmail() still requires seller-side eBay wording.
+      if (!priorityFound.size && !broadFound.size) {
         try {
           const response = await imap.command(`UID SEARCH SINCE ${recentStart}`);
           const text = response.toString('utf8');
-          const searchLine = text.match(/^\* SEARCH(?:\s+([0-9 ]+))?/mi)?.[1] || '';
+          const searchLine = text.match(/^\\* SEARCH(?:\\s+([0-9 ]+))?/mi)?.[1] || '';
           const recent = searchLine
-            .split(/\s+/)
+            .split(/\\s+/)
             .map(Number)
             .filter((n) => Number.isFinite(n) && n > 0)
             .slice(-75);
-          recent.forEach((uid) => found.add(uid));
+          recent.forEach((uid) => broadFound.add(uid));
         } catch {}
       }
 
-      const uids = [...found]
-        .sort((a, b) => a - b)
-        .slice(-Math.max(0, MAX_MESSAGES_PER_RUN - messages.length));
+      const capacity = Math.max(0, MAX_MESSAGES_PER_RUN - messages.length);
+      const priorityUids = [...priorityFound].sort((a, b) => b - a);
+      const broadUids = [...broadFound]
+        .filter((uid) => !priorityFound.has(uid))
+        .sort((a, b) => b - a);
+      const uids = [...priorityUids, ...broadUids]
+        .slice(0, capacity)
+        .sort((a, b) => a - b);
 
       candidateCount += uids.length;
 
