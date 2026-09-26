@@ -17,7 +17,14 @@ const post = async (body) => {
 };
 
 export default function YahooInboxCard() {
-  const [status, setStatus] = useState(null);
+  const [status, setStatus] = useState(() => {
+    try {
+      const saved = window.sessionStorage.getItem("artflow:yahoo-status");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [email, setEmail] = useState(DEFAULT_YAHOO);
   const [appPassword, setAppPassword] = useState("");
   const [loading, setLoading] = useState(true);
@@ -26,30 +33,49 @@ export default function YahooInboxCard() {
   const load = async () => {
     setLoading(true);
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 8000);
+    let timeoutId;
     try {
-      const response = await fetch("/api/yahoo-mail", {
+      const request = fetch("/api/yahoo-mail", {
         credentials:"include",
         cache:"no-store",
         signal:controller.signal,
       });
+
+      const response = await Promise.race([
+        request,
+        new Promise((_, reject) => {
+          timeoutId = window.setTimeout(() => {
+            controller.abort();
+            const error = new Error("Yahoo status timed out");
+            error.name = "TimeoutError";
+            reject(error);
+          }, 5000);
+        }),
+      ]);
+
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Could not check Yahoo inbox");
       setStatus(data);
+      try {
+        window.sessionStorage.setItem("artflow:yahoo-status", JSON.stringify(data));
+      } catch {}
       if (data.email) setEmail(data.email);
       return data;
     } catch (error) {
-      const message = error?.name === "AbortError"
-        ? "Yahoo status took too long to load. Tap Retry Yahoo Status."
+      const timedOut = error?.name === "AbortError" || error?.name === "TimeoutError";
+      const message = timedOut
+        ? "Yahoo status took too long to load. You can still tap Check Yahoo Now."
         : error?.message || "Could not check Yahoo inbox";
-      setStatus((current) => ({
-        ...(current || {}),
-        connected: current?.connected === true,
+      setStatus((current) => current ? ({
+        ...current,
+        last_error: message,
+      }) : ({
+        connected:false,
         last_error: message,
       }));
       return null;
     } finally {
-      window.clearTimeout(timeout);
+      if (timeoutId) window.clearTimeout(timeoutId);
       setLoading(false);
     }
   };
@@ -135,13 +161,24 @@ export default function YahooInboxCard() {
             : null}
       </div>
 
-      {loading ? (
-        <div className="rounded-2xl bg-muted/60 p-4 flex items-center gap-3 text-foreground min-h-[92px]">
-          <RefreshCw className="w-4 h-4 animate-spin shrink-0 text-foreground" />
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-foreground">Checking Yahoo connection…</p>
-            <p className="text-xs text-muted-foreground mt-1">Your saved Yahoo connection is being verified.</p>
+      {loading && !status ? (
+        <div className="rounded-2xl bg-muted/60 p-4 text-foreground min-h-[116px] space-y-3">
+          <div className="flex items-center gap-3">
+            <RefreshCw className="w-4 h-4 animate-spin shrink-0 text-foreground" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">Checking Yahoo connection…</p>
+              <p className="text-xs text-muted-foreground mt-1">You do not have to wait for this check to finish.</p>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={sync}
+            disabled={Boolean(busy)}
+            className="w-full h-11 rounded-xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
+          >
+            <RefreshCw className={`w-4 h-4 ${busy === "sync" ? "animate-spin" : ""}`} />
+            {busy === "sync" ? "Checking…" : "Check Yahoo Now"}
+          </button>
         </div>
       ) : connected ? (
         <div className="space-y-3">
