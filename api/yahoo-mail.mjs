@@ -640,6 +640,34 @@ async function yahooMessages(email, appPassword, afterUid=0) {
         }
       } catch {}
 
+      // Yahoo's SUBJECT index can miss messages that are clearly visible in the
+      // mailbox. Inspect headers from all recent eBay messages locally before
+      // applying the 300-message full-body cap, then promote exact sale emails.
+      const headerPromoted = new Set();
+      const recentEbayUids = [...broadFound].sort((a, b) => b - a).slice(0, 2000);
+      for (let i = 0; i < recentEbayUids.length; i += 100) {
+        const batch = recentEbayUids.slice(i, i + 100);
+        try {
+          const response = await imap.command(
+            `UID FETCH ${batch.join(',')} (UID BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID)])`
+          );
+          for (const item of literalMessages(response)) {
+            const parsedHeader = parseRawMessage(item.raw);
+            if (/\byou made (?:a|the) sale(?: for)?\b/i.test(parsedHeader.subject || '')) {
+              headerPromoted.add(item.uid);
+            }
+          }
+        } catch {}
+      }
+      for (const uid of headerPromoted) priorityFound.add(uid);
+      if (headerPromoted.size) {
+        console.log('Yahoo promoted eBay sale headers', JSON.stringify({
+          mailbox,
+          promoted: headerPromoted.size,
+          recent_ebay_headers_checked: recentEbayUids.length,
+        }));
+      }
+
       // If Yahoo's indexed searches return nothing, scan recent mail in this
       // folder. parseSaleEmail() still requires seller-side eBay wording.
       if (!priorityFound.size && !broadFound.size) {
