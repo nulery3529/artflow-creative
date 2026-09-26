@@ -271,14 +271,21 @@ export default async function handler(req,res){
     const oauth=business.data?.ebay_oauth||{};
 
     if(req.method==='GET'){
-      return res.status(200).json({
+      const connectionStatus={
         configured:configured(),
         connected:Boolean(oauth.connected&&oauth.refresh_token_enc),
         username:clean(oauth.username),
         redirect_uri:REDIRECT_ENDPOINT,
         runame_configured:Boolean(ebayRuName()),
         runame_valid:validRuName(),
-      });
+      };
+      console.log('eBay connection status', JSON.stringify({
+        configured:connectionStatus.configured,
+        connected:connectionStatus.connected,
+        username_present:Boolean(connectionStatus.username),
+        runame_valid:connectionStatus.runame_valid,
+      }));
+      return res.status(200).json(connectionStatus);
     }
     if(req.method!=='POST') return res.status(405).json({error:'Method not allowed'});
     const body=parseBody(req), action=clean(body.action);
@@ -340,12 +347,21 @@ export default async function handler(req,res){
     if(action==='sync'){
       if(!configured()) return res.status(503).json({error:'eBay connection is temporarily unavailable. Please try again later.'});
       const result=await syncConnectedEbayOrders(client,business);
+      console.log('eBay order sync summary', JSON.stringify({
+        connected:Boolean(business.data?.ebay_oauth?.connected && business.data?.ebay_oauth?.refresh_token_enc),
+        skipped:Boolean(result.skipped),
+        checked:Number(result.checked||0),
+        saved:Number(result.saved||0),
+        more_possible:Boolean(result.more_possible),
+      }));
       return res.status(200).json({
         ok:true,
         ...result,
         message:result.saved>0
           ? `eBay synced: ${result.saved} new sale${result.saved===1?'':'s'} imported.`
-          : 'eBay orders are up to date.',
+          : result.skipped
+            ? 'eBay is not connected yet.'
+            : 'eBay orders are up to date.',
       });
     }
 
