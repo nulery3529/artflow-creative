@@ -10,6 +10,7 @@ import BusinessManager from "@/components/BusinessManager";
 import ThemeSettings from "@/components/ThemeSettings";
 import GmailSyncCard from "@/components/GmailSyncCard";
 import YahooInboxCard from "@/components/YahooInboxCard";
+import EbayConnectionCard from "@/components/EbayConnectionCard";
 import { isAppleApp, manageAppleSubscriptions } from "@/lib/appleSubscription";
 import SubscriptionPlansCard from "@/components/SubscriptionPlansCard";
 
@@ -91,6 +92,8 @@ export default function Account() {
       <GmailSyncCard />
 
       <YahooInboxCard />
+
+      <EbayConnectionCard />
 
       <ThemeSettings />
 
