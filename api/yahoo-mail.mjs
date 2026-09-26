@@ -567,6 +567,7 @@ async function yahooMessages(email, appPassword, afterUid=0) {
       // orders are not missed. Keep the broad eBay sender scan on the recent
       // window below so listing confirmations cannot crowd out actual sales.
       const prioritySearches = [
+        `SINCE ${yearStart} HEADER SUBJECT "You made the sale for"`,
         `SINCE ${yearStart} HEADER SUBJECT "sale"`,
         `SINCE ${yearStart} HEADER SUBJECT "sold"`,
         `SINCE ${yearStart} HEADER SUBJECT "payment"`,
