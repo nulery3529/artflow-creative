@@ -136,20 +136,20 @@ export default function YahooInboxCard() {
       </div>
 
       {loading ? (
-        <div className="rounded-2xl bg-muted/60 p-4 flex items-center gap-3">
-          <RefreshCw className="w-4 h-4 animate-spin shrink-0" />
+        <div className="rounded-2xl bg-muted/60 p-4 flex items-center gap-3 text-foreground min-h-[92px]">
+          <RefreshCw className="w-4 h-4 animate-spin shrink-0 text-foreground" />
           <div className="min-w-0">
-            <p className="text-sm font-semibold">Checking Yahoo connection…</p>
+            <p className="text-sm font-semibold text-foreground">Checking Yahoo connection…</p>
             <p className="text-xs text-muted-foreground mt-1">Your saved Yahoo connection is being verified.</p>
           </div>
         </div>
       ) : connected ? (
         <div className="space-y-3">
-          <div className="rounded-2xl bg-muted/60 p-3">
+          <div className="rounded-2xl bg-muted/60 p-3 text-foreground">
             <p className="text-sm font-semibold">Yahoo connected directly</p>
             <p className="text-xs text-foreground mt-1 break-all">{status?.email}</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Art Flow checks this inbox automatically every 15 minutes for new eBay sales and business expense receipts.
+              Art Flow checks this inbox automatically for new eBay sales and business expense receipts.
             </p>
             {status?.last_sync_at && (
               <>
