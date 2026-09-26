@@ -576,8 +576,8 @@ async function yahooMessages(email, appPassword, afterUid=0) {
         try {
           const searchResponse = await imap.command(`UID SEARCH ${criteria}`);
           const text = searchResponse.toString('utf8');
-          const searchLine = text.match(/^\\* SEARCH(?:\\s+([0-9 ]+))?/mi)?.[1] || '';
-          for (const uid of searchLine.split(/\\s+/).map(Number).filter((n) => Number.isFinite(n) && n > 0)) {
+          const searchLine = text.match(/^\* SEARCH(?:\s+([0-9 ]+))?/mi)?.[1] || '';
+          for (const uid of searchLine.split(/\s+/).map(Number).filter((n) => Number.isFinite(n) && n > 0)) {
             priorityFound.add(uid);
           }
         } catch {}
@@ -588,8 +588,8 @@ async function yahooMessages(email, appPassword, afterUid=0) {
       try {
         const searchResponse = await imap.command(`UID SEARCH SINCE ${recentStart} HEADER FROM "ebay"`);
         const text = searchResponse.toString('utf8');
-        const searchLine = text.match(/^\\* SEARCH(?:\\s+([0-9 ]+))?/mi)?.[1] || '';
-        for (const uid of searchLine.split(/\\s+/).map(Number).filter((n) => Number.isFinite(n) && n > 0)) {
+        const searchLine = text.match(/^\* SEARCH(?:\s+([0-9 ]+))?/mi)?.[1] || '';
+        for (const uid of searchLine.split(/\s+/).map(Number).filter((n) => Number.isFinite(n) && n > 0)) {
           broadFound.add(uid);
         }
       } catch {}
@@ -600,9 +600,9 @@ async function yahooMessages(email, appPassword, afterUid=0) {
         try {
           const response = await imap.command(`UID SEARCH SINCE ${recentStart}`);
           const text = response.toString('utf8');
-          const searchLine = text.match(/^\\* SEARCH(?:\\s+([0-9 ]+))?/mi)?.[1] || '';
+          const searchLine = text.match(/^\* SEARCH(?:\s+([0-9 ]+))?/mi)?.[1] || '';
           const recent = searchLine
-            .split(/\\s+/)
+            .split(/\s+/)
             .map(Number)
             .filter((n) => Number.isFinite(n) && n > 0)
             .slice(-75);
