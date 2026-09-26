@@ -46,16 +46,52 @@ export default function GmailSyncCard() {
       };
       const sales = await runSync("/api/gmail-sales-sync");
       const expenses = await runSync("/api/gmail-expense-sync");
-      const hardFailure = [sales, expenses].find(({ response }) => !response.ok && response.status !== 409);
+      const yahoo = await fetch("/api/yahoo-mail", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "sync" }),
+      }).then(async (response) => ({
+        response,
+        data: await response.json().catch(() => ({})),
+      }));
+      const ebay = await fetch("/api/ebay-official", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "sync" }),
+      }).then(async (response) => ({
+        response,
+        data: await response.json().catch(() => ({})),
+      }));
+
+      const results = [sales, expenses, yahoo, ebay];
+      const hardFailure = results.find(
+        ({ response }) => !response.ok && ![400, 409].includes(response.status)
+      );
       if (hardFailure) {
-        const error = new Error(hardFailure.data?.error || "Gmail sync failed");
+        const error = new Error(hardFailure.data?.error || "Sales and expenses sync failed");
         error.code = hardFailure.data?.code;
         throw error;
       }
-      const message = [sales.data?.message, expenses.data?.message].filter(Boolean).join(" ");
-      if (!quiet) toast.success(message || "Gmail sales and expenses are up to date");
+
+      const message = [
+        sales.data?.message,
+        expenses.data?.message,
+        yahoo.response.ok ? yahoo.data?.message : "",
+        ebay.response.ok ? ebay.data?.message : "",
+      ].filter(Boolean).join(" ");
+
+      if (!quiet) toast.success(message || "Sales and expenses are up to date");
       await loadStatus();
-      const detail = { gmail: sales.data, expenses: expenses.data };
+      const detail = {
+        gmail: sales.data,
+        expenses: expenses.data,
+        yahoo: yahoo.data,
+        ebay: ebay.data,
+      };
       window.dispatchEvent(new CustomEvent("artflow:data-synced", { detail }));
       return detail;
     } catch (error) {
@@ -191,7 +227,7 @@ export default function GmailSyncCard() {
             className="w-full h-12 rounded-2xl bg-muted text-foreground font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
           >
             <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
-            {syncing ? "Checking Gmail…" : "Check Sales & Expenses Now"}
+            {syncing ? "Checking all sales…" : "Check Sales & Expenses Now"}
           </button>
           <button
             type="button"
