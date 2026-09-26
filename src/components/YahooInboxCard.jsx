@@ -24,22 +24,42 @@ export default function YahooInboxCard() {
   const [busy, setBusy] = useState("");
 
   const load = async () => {
+    setLoading(true);
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 8000);
     try {
-      const response = await fetch("/api/yahoo-mail", { credentials:"include", cache:"no-store" });
+      const response = await fetch("/api/yahoo-mail", {
+        credentials:"include",
+        cache:"no-store",
+        signal:controller.signal,
+      });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Could not check Yahoo inbox");
       setStatus(data);
       if (data.email) setEmail(data.email);
       return data;
     } catch (error) {
-      setStatus({ connected:false, last_error:error?.message || "Could not check Yahoo inbox" });
+      const message = error?.name === "AbortError"
+        ? "Yahoo status took too long to load. Tap Retry Yahoo Status."
+        : error?.message || "Could not check Yahoo inbox";
+      setStatus((current) => ({
+        ...(current || {}),
+        connected: current?.connected === true,
+        last_error: message,
+      }));
       return null;
     } finally {
+      window.clearTimeout(timeout);
       setLoading(false);
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    const refresh = () => load();
+    window.addEventListener("artflow:data-synced", refresh);
+    return () => window.removeEventListener("artflow:data-synced", refresh);
+  }, []);
 
   const connect = async () => {
     if (busy) return;
@@ -116,7 +136,13 @@ export default function YahooInboxCard() {
       </div>
 
       {loading ? (
-        <div className="h-12 rounded-2xl bg-muted animate-pulse" />
+        <div className="rounded-2xl bg-muted/60 p-4 flex items-center gap-3">
+          <RefreshCw className="w-4 h-4 animate-spin shrink-0" />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">Checking Yahoo connection…</p>
+            <p className="text-xs text-muted-foreground mt-1">Your saved Yahoo connection is being verified.</p>
+          </div>
+        </div>
       ) : connected ? (
         <div className="space-y-3">
           <div className="rounded-2xl bg-muted/60 p-3">
@@ -205,8 +231,15 @@ export default function YahooInboxCard() {
             </a>
           </div>
           {status?.last_error && (
-            <div className="rounded-2xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-950">
-              {status.last_error}
+            <div className="rounded-2xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-950 space-y-2">
+              <p>{status.last_error}</p>
+              <button
+                type="button"
+                onClick={load}
+                className="w-full h-10 rounded-xl bg-amber-100 font-semibold"
+              >
+                Retry Yahoo Status
+              </button>
             </div>
           )}
           <button
