@@ -537,6 +537,7 @@ async function yahooMessages(email, appPassword, afterUid=0) {
     since.setDate(since.getDate() - 14);
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const recentStart = `${String(since.getDate()).padStart(2,'0')}-${months[since.getMonth()]}-${since.getFullYear()}`;
+    const yearStart = `01-Jan-${new Date().getFullYear()}`;
 
     let mailboxes = ['INBOX'];
     try {
@@ -562,14 +563,17 @@ async function yahooMessages(email, appPassword, afterUid=0) {
 
       const priorityFound = new Set();
       const broadFound = new Set();
+      // Backfill seller-style sale subjects for the current year so older eBay
+      // orders are not missed. Keep the broad eBay sender scan on the recent
+      // window below so listing confirmations cannot crowd out actual sales.
       const prioritySearches = [
-        `SINCE ${recentStart} HEADER SUBJECT "sale"`,
-        `SINCE ${recentStart} HEADER SUBJECT "sold"`,
-        `SINCE ${recentStart} HEADER SUBJECT "payment"`,
-        `SINCE ${recentStart} HEADER SUBJECT "paid"`,
-        `SINCE ${recentStart} HEADER SUBJECT "ship"`,
-        `SINCE ${recentStart} HEADER SUBJECT "buyer"`,
-        `SINCE ${recentStart} HEADER SUBJECT "order"`,
+        `SINCE ${yearStart} HEADER SUBJECT "sale"`,
+        `SINCE ${yearStart} HEADER SUBJECT "sold"`,
+        `SINCE ${yearStart} HEADER SUBJECT "payment"`,
+        `SINCE ${yearStart} HEADER SUBJECT "paid"`,
+        `SINCE ${yearStart} HEADER SUBJECT "ship"`,
+        `SINCE ${yearStart} HEADER SUBJECT "buyer"`,
+        `SINCE ${yearStart} HEADER SUBJECT "order"`,
       ];
 
       for (const criteria of prioritySearches) {
