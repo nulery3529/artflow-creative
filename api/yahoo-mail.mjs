@@ -551,6 +551,47 @@ async function yahooMessages(email, appPassword, afterUid=0) {
 
     const messages = [];
     let candidateCount = 0;
+    const fetchedKeys = new Set();
+
+    // First pass: search every mailbox for the exact seller-side eBay sale
+    // subjects before any broad scan can consume the message cap.
+    for (const mailbox of mailboxes) {
+      try {
+        await imap.select(mailbox);
+      } catch {
+        continue;
+      }
+
+      const exactFound = new Set();
+      const exactSearches = [
+        `SINCE ${yearStart} HEADER SUBJECT "You made the sale for"`,
+        `SINCE ${yearStart} HEADER SUBJECT "You made a sale"`,
+      ];
+
+      for (const criteria of exactSearches) {
+        try {
+          const searchResponse = await imap.command(`UID SEARCH ${criteria}`);
+          const text = searchResponse.toString('utf8');
+          const searchLine = text.match(/^\\* SEARCH(?:\\s+([0-9 ]+))?/mi)?.[1] || '';
+          for (const uid of searchLine.split(/\\s+/).map(Number).filter((n) => Number.isFinite(n) && n > 0)) {
+            exactFound.add(uid);
+          }
+        } catch {}
+      }
+
+      const exactUids = [...exactFound].sort((a, b) => a - b);
+      candidateCount += exactUids.length;
+      for (let i = 0; i < exactUids.length; i += 20) {
+        const batch = exactUids.slice(i, i + 20);
+        const response = await imap.command(`UID FETCH ${batch.join(',')} (UID BODY.PEEK[])`);
+        for (const item of literalMessages(response)) {
+          const key = `${mailbox}:${item.uid}`;
+          if (fetchedKeys.has(key)) continue;
+          fetchedKeys.add(key);
+          messages.push({ ...item, mailbox });
+        }
+      }
+    }
 
     for (const mailbox of mailboxes) {
       if (messages.length >= MAX_MESSAGES_PER_RUN) break;
@@ -630,6 +671,9 @@ async function yahooMessages(email, appPassword, afterUid=0) {
         const batch = uids.slice(i, i + 20);
         const response = await imap.command(`UID FETCH ${batch.join(',')} (UID BODY.PEEK[])`);
         for (const item of literalMessages(response)) {
+          const key = `${mailbox}:${item.uid}`;
+          if (fetchedKeys.has(key)) continue;
+          fetchedKeys.add(key);
           messages.push({ ...item, mailbox });
         }
       }
