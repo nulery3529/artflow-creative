@@ -257,10 +257,10 @@ function ebayRows(subject, text) {
   const paymentSale = normalizedSubject.match(/The payment from\s+(.+?)\s+is confirmed:\s*(.+)$/i)
     || normalizedSubject.match(/Payment from\s+(.+?)\s+(?:is\s+)?confirmed:\s*(.+)$/i);
   const receivedPayment = normalizedSubject.match(/(?:You have received|You've received) a payment(?: from\s+(.+?))?(?::|\s+-)?\s*(.*)$/i);
-  const soldSubject = /\b(?:your eBay item sold|congratulations[,!]?(?: your)? item sold|your item (?:has )?sold|you sold (?:an|your) item|item sold|you made (?:a|the) sale|sale confirmed|ready to ship|ship your item)\b/i.test(normalizedSubject);
+  const soldSubject = /\b(?:your eBay item sold|congratulations[,!]?(?: your)? item sold|congratulations[,!]?(?: on)? your sale|your item (?:has )?sold|you sold (?:an|your) item|item sold|you made (?:a|the) sale|you have (?:a|a new) sale|sale confirmed|sale complete|ready to ship|ship your item|time to ship|paid[\s:!\-–—]+ship now|buyer (?:has )?paid|your buyer (?:has )?paid|order paid|you got paid|payment received|new order from|you have a new order|ship by)\b/i.test(normalizedSubject);
 
   const sellerBodySignal =
-    /\b(?:you (?:made|completed) (?:a|the) sale|your item (?:sold|has sold)|you sold|sold for|quantity sold|buyer paid|sale price|order paid|ready to ship|ship(?:ping)? to buyer|ship (?:this|your) item|payment from .+ (?:is )?confirmed|you(?:'ve| have) received a payment)\b/i.test(text)
+    /\b(?:you (?:made|completed) (?:a|the) sale|you have (?:a|a new) sale|your item (?:sold|has sold)|you sold|sold for|quantity sold|buyer (?:has )?paid|your buyer (?:has )?paid|sale price|order paid|you got paid|payment received|ready to ship|time to ship|ship by|ship(?:ping)? to buyer|ship (?:this|your) item|new order from|you have a new order|payment from .+ (?:is )?confirmed|you(?:'ve| have) received a payment)\b/i.test(text)
     || /(?:^|\n)\s*Buyer(?: username)?\s*(?:\n|:)\s*[^\n]+/i.test(text);
 
   // Buyer order confirmations can contain "Item", "Total", and order IDs too.
@@ -301,10 +301,16 @@ function ebayRows(subject, text) {
       || ''
   );
 
+  const uniqueDollarAmounts = Array.from(new Set(
+    Array.from(String(text || '').matchAll(/(?:US\s*)?\$\s*([\d,]+(?:\.\d{2})?)/gi))
+      .map((match) => Number(String(match[1] || '').replace(/,/g, '')))
+      .filter((value) => Number.isFinite(value) && value > 0)
+  ));
   const totalText =
-    text.match(/(?:Order total|Total paid|Buyer paid|Sale total|Sale price|Order amount|Item subtotal|Total)\s*(?:\n|:)?\s*(?:US\s*)?\$\s*([\d,.]+)/i)?.[1]
-    || text.match(/(?:Sold for|Item price|Price|Amount)\s*(?:\n|:)?\s*(?:US\s*)?\$\s*([\d,.]+)/i)?.[1]
+    text.match(/(?:Order total|Total paid|Buyer paid|Sale total|Sale price|Order amount|Order value|Item subtotal|Item total|Total amount|Your total|Subtotal|Total)\s*(?:\n|:)?\s*(?:US\s*)?\$\s*([\d,.]+)/i)?.[1]
+    || text.match(/(?:Sold for|Item price|Price|Amount|Your earnings|Earnings|Payout|Funds available)\s*(?:\n|:)?\s*(?:US\s*)?\$\s*([\d,.]+)/i)?.[1]
     || normalizedSubject.match(/(?:US\s*)?\$\s*([\d,.]+)/i)?.[1]
+    || (uniqueDollarAmounts.length === 1 ? String(uniqueDollarAmounts[0]) : '')
     || '';
   const saleTotal = Number(String(totalText).replace(/,/g, '')) || 0;
   if (saleTotal <= 0) return [];
