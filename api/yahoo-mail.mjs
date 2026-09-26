@@ -759,17 +759,29 @@ export async function syncYahooMailbox(client, business) {
   const password = decrypt(config.app_password_enc);
   const { messages, remaining, maxUid, foldersChecked = 1 } = await yahooMessages(email, password, Number(config.last_uid || 0));
   const rows = [];
+  const unmatchedEbay = [];
 
   for (const item of messages) {
     const parsed = parseRawMessage(item.raw);
     const trustedEbay = /ebay/i.test(parsed.from);
     const saleRows = parseSaleEmail(parsed.from, parsed.subject, parsed.text, trustedEbay);
+    if (!saleRows.length && trustedEbay && unmatchedEbay.length < 12) {
+      unmatchedEbay.push({
+        from: clean(parsed.from).slice(0, 160),
+        subject: clean(parsed.subject).slice(0, 220),
+        mailbox: clean(item.mailbox || '').slice(0, 80),
+      });
+    }
     for (const row of saleRows) {
       rows.push({
         ...row,
         sale_date: parsed.date || new Date().toISOString(),
       });
     }
+  }
+
+  if (unmatchedEbay.length) {
+    console.log('Yahoo unmatched eBay subjects', JSON.stringify(unmatchedEbay));
   }
 
   const saved = await insertOrders(client, business.base44_id, rows, 'yahoo_direct_sales');
