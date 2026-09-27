@@ -185,12 +185,17 @@ function ebayImageUrl(html='', title='') {
       || (height > 0 && height <= 8)
     ) continue;
 
+    // Real eBay item photos are served from ebayimg.com. Do not accept
+    // ebaystatic.com here because those images are commonly App Store /
+    // download badges, logos, and footer artwork.
     const ebayImageHost =
       host === 'i.ebayimg.com'
-      || host.endsWith('.ebayimg.com')
-      || host === 'thumbs.ebaystatic.com'
-      || host.endsWith('.ebaystatic.com');
+      || host.endsWith('.ebayimg.com');
     if (!ebayImageHost) continue;
+
+    if (/app[ _-]?store|google[ _-]?play|download(?: the)? app|mobile app|ebay app/i.test(`${alt}\n${src}`)) {
+      continue;
+    }
 
     let score = 20;
     const altKey = key(alt);
