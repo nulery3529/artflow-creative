@@ -852,6 +852,9 @@ export async function syncYahooMailbox(client, business) {
     for (const row of saleRows) {
       rows.push({
         ...row,
+        order_id: row.order_id || (row.amount_pending
+          ? `yahoo-ebay-${clean(parsed.messageId || String(item.uid)).replace(/[^a-z0-9._-]+/gi, "-").slice(0, 120)}`
+          : row.order_id),
         sale_date: parsed.date || new Date().toISOString(),
       });
     }

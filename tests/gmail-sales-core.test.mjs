@@ -274,3 +274,18 @@ test('parses the current eBay You made the sale email format', () => {
   assert.equal(rows[0].sale_total, 24);
   assert.equal(rows[0].quantity, 1);
 });
+
+
+test('keeps exact eBay sale email when the email body omits the sale amount', () => {
+  const rows = parseSaleEmail(
+    'eBay <ebay@ebay.com>',
+    'You made the sale for 5x11 Black Framed Celestial Skeleton Art',
+    'Next, pack it up and ship it out.'
+  );
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].platform, 'eBay');
+  assert.equal(rows[0].product_name, '5x11 Black Framed Celestial Skeleton Art');
+  assert.equal(rows[0].sale_total, 0);
+  assert.equal(rows[0].amount_pending, true);
+});

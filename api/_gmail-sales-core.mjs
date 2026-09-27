@@ -313,7 +313,8 @@ function ebayRows(subject, text) {
     || (uniqueDollarAmounts.length === 1 ? String(uniqueDollarAmounts[0]) : '')
     || '';
   const saleTotal = Number(String(totalText).replace(/,/g, '')) || 0;
-  if (saleTotal <= 0) return [];
+  const amountPending = saleTotal <= 0 && Boolean(oldSale);
+  if (saleTotal <= 0 && !amountPending) return [];
 
   if (!normalizedTitle || normalizedTitle.length < 3 || !/[a-z0-9]/i.test(normalizedTitle)) {
     normalizedTitle = orderId ? `eBay Order ${orderId}` : 'eBay Order';
@@ -331,6 +332,7 @@ function ebayRows(subject, text) {
     buyer,
     order_id: orderId || null,
     source_url: orderId ? `https://www.ebay.com/sh/ord/details?orderid=${encodeURIComponent(orderId)}` : '',
+    amount_pending: amountPending,
   }];
 }
 
