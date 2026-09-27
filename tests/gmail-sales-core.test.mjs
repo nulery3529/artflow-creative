@@ -326,3 +326,20 @@ test('parses eBay sale total when email uses USD without a dollar sign', () => {
   assert.equal(rows[0].sale_total, 18.5);
   assert.equal(rows[0].amount_pending, false);
 });
+
+
+test('keeps parsing eBay dollar sale totals after USD support', () => {
+  const rows = parseSaleEmail(
+    'eBay <ebay@ebay.com>',
+    'You made the sale for 5x11 Black Framed Celestial Snake Wall Art',
+    [
+      'Order total',
+      '$24.00',
+      'Ship your item',
+    ].join('\n')
+  );
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].sale_total, 24);
+  assert.equal(rows[0].amount_pending, false);
+});
