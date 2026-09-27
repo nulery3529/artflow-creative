@@ -247,7 +247,15 @@ function depopRows(subject, text) {
 
 function ebayRows(subject, text) {
   const normalizedSubject = clean(subject).replace(/^(?:(?:fwd?|fw):\s*)+/i, '');
+  const explicitSellerSaleSubject =
+    /\byou made (?:a|the) sale(?: for)?\b/i.test(normalizedSubject)
+    || /\byour (?:ebay )?item (?:has )?sold\b/i.test(normalizedSubject)
+    || /^\s*sold[:!\s-]/i.test(normalizedSubject);
+
+  // eBay sale emails can contain footer/help text mentioning "your listing".
+  // Never let those footer phrases override an explicit seller-sale subject.
   const listingNoise =
+    !explicitSellerSaleSubject &&
     /\b(?:your listing|listing (?:created|live|active|ended|renewed|updated|published|removed)|item listed|listed item|watcher|watching|listing views?|listing activity|listing performance|offer received|send offer|price drop|sell similar|relist|draft listing|promote your listing)\b/i.test(`${normalizedSubject}\n${text || ''}`);
   if (listingNoise) return [];
 
