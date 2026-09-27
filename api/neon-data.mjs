@@ -291,9 +291,15 @@ async function listOrders(client, session) {
                lower(COALESCE(v.platform,'')),
                CASE
                  WHEN NULLIF(trim(v.order_id),'') IS NOT NULL
+                      AND NOT (
+                        lower(COALESCE(v.platform,''))='ebay'
+                        AND lower(trim(v.order_id)) LIKE 'yahoo-ebay-%'
+                      )
                    THEN 'order:' || lower(trim(v.order_id))
                  WHEN NULLIF(trim(v.source_email_id),'') IS NOT NULL
                    THEN 'email:' || lower(trim(v.source_email_id))
+                 WHEN lower(COALESCE(v.platform,''))='ebay'
+                   THEN 'fallback:' || COALESCE(v.dedupe_day,'') || '|' || COALESCE(v.dedupe_title,'') || '|' || COALESCE(v.dedupe_qty,1)::text
                  ELSE 'fallback:' || COALESCE(v.dedupe_day,'') || '|' || COALESCE(v.dedupe_title,'') || '|' || COALESCE(v.dedupe_qty,1)::text || '|' || COALESCE(v.dedupe_total,0)::text
                END
              ORDER BY
