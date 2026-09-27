@@ -308,3 +308,21 @@ test('does not reject an eBay sale just because the email footer mentions a list
   assert.equal(rows[0].platform, 'eBay');
   assert.equal(rows[0].sale_total, 24);
 });
+
+
+test('parses eBay sale total when email uses USD without a dollar sign', () => {
+  const rows = parseSaleEmail(
+    'eBay <ebay@ebay.com>',
+    'You made the sale for 8x8 Black Framed Quilled Floral Skull Wall Art',
+    [
+      'Buyer paid',
+      'USD 18.50',
+      'Ship your item',
+    ].join('\n')
+  );
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].platform, 'eBay');
+  assert.equal(rows[0].sale_total, 18.5);
+  assert.equal(rows[0].amount_pending, false);
+});
