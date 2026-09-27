@@ -572,8 +572,8 @@ async function yahooMessages(email, appPassword, afterUid=0) {
         try {
           const searchResponse = await imap.command(`UID SEARCH ${criteria}`);
           const text = searchResponse.toString('utf8');
-          const searchLine = text.match(/^\\* SEARCH(?:\\s+([0-9 ]+))?/mi)?.[1] || '';
-          for (const uid of searchLine.split(/\\s+/).map(Number).filter((n) => Number.isFinite(n) && n > 0)) {
+          const searchLine = text.match(/^\* SEARCH(?:\s+([0-9 ]+))?/mi)?.[1] || '';
+          for (const uid of searchLine.split(/\s+/).map(Number).filter((n) => Number.isFinite(n) && n > 0)) {
             exactFound.add(uid);
           }
         } catch {}
@@ -660,10 +660,29 @@ async function yahooMessages(email, appPassword, afterUid=0) {
         } catch {}
       }
       for (const uid of headerPromoted) priorityFound.add(uid);
+
+      let promotedFetched = 0;
       if (headerPromoted.size) {
+        const promotedUids = [...headerPromoted].sort((a, b) => a - b);
+        candidateCount += promotedUids.length;
+        for (let i = 0; i < promotedUids.length; i += 20) {
+          const batch = promotedUids.slice(i, i + 20);
+          try {
+            const response = await imap.command(`UID FETCH ${batch.join(',')} (UID BODY.PEEK[])`);
+            for (const item of literalMessages(response)) {
+              const key = `${mailbox}:${item.uid}`;
+              if (fetchedKeys.has(key)) continue;
+              fetchedKeys.add(key);
+              messages.push({ ...item, mailbox });
+              promotedFetched += 1;
+            }
+          } catch {}
+        }
+
         console.log('Yahoo promoted eBay sale headers', JSON.stringify({
           mailbox,
           promoted: headerPromoted.size,
+          promoted_fetched: promotedFetched,
           recent_ebay_headers_checked: recentEbayUids.length,
         }));
       }
