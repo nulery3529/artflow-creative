@@ -24,7 +24,7 @@ const pool = new Pool({
 const YAHOO_HOST = 'imap.mail.yahoo.com';
 const YAHOO_PORT = 993;
 const MAX_MESSAGES_PER_RUN = 300;
-const YAHOO_EXPENSE_PARSER_VERSION = 13;
+const YAHOO_EXPENSE_PARSER_VERSION = 14;
 
 function imapQuote(value='') {
   return `"${String(value).replace(/\\/g,'\\\\').replace(/"/g,'\\"')}"`;
@@ -193,7 +193,13 @@ function ebayListingUrl(html='', raw='') {
   }
 
   candidates.sort((a,b) => b.score - a.score);
-  return candidates[0]?.url || '';
+  if (candidates[0]?.url) return candidates[0].url;
+
+  const itemId =
+    source.match(/(?:item\s*(?:number|no\.?|id)|ebay\s*item\s*(?:number|id))\s*[:#-]?\s*(\d{9,14})/i)?.[1]
+    || source.match(/\/itm\/(?:[^/?#]+\/)?(\d{9,14})(?:[/?#]|$)/i)?.[1]
+    || '';
+  return itemId ? `https://www.ebay.com/itm/${itemId}` : '';
 }
 
 function ebayImageUrl(html='', title='', raw='') {
@@ -251,20 +257,26 @@ function ebayImageUrl(html='', title='', raw='') {
 
   candidates.sort((a,b) => b.score - a.score);
   const best = candidates[0];
-  return best && best.score >= 55 ? best.src : '';
+  return best && best.score >= 30 ? best.src : '';
 }
 
 function parseRawMessage(raw='') {
   const split = String(raw).search(/\r?\n\r?\n/);
   const headerText = split >= 0 ? raw.slice(0, split) : raw;
   const headers = parseHeaders(headerText);
+  const html = mimeHtml(raw);
+  const plainText = mimeText(raw);
+  const htmlText = html ? htmlToText(html) : '';
+  const text = htmlText && normalize(htmlText) !== normalize(plainText)
+    ? `${plainText}\n${htmlText}`
+    : plainText;
   return {
     from: clean(headers.from || ''),
     subject: clean(headers.subject || ''),
     date: clean(headers.date || ''),
     messageId: clean(headers['message-id'] || ''),
-    text: mimeText(raw),
-    html: mimeHtml(raw),
+    text,
+    html,
   };
 }
 
@@ -496,21 +508,12 @@ async function yahooExpenseMessages(email, appPassword, afterUid=0) {
       }
     }
 
-    // eBay buyer order emails use many different subjects. Scan every eBay
-    // message from this year, then apply a content-level purchase/fee guard.
-    {
-      const uidRange = afterUid > 0 ? `UID ${afterUid + 1}:* ` : '';
-      const response = await imap.command(
-        `UID SEARCH ${uidRange}SINCE ${yearStart} HEADER FROM "ebay"`
-      );
-      const text = response.toString('utf8');
-      const searchLine = text.match(/^\* SEARCH(?:\s+([0-9 ]+))?/mi)?.[1] || '';
-      for (const uid of searchLine.split(/\s+/).map(Number).filter((n) => Number.isFinite(n) && n > 0)) {
-        found.add(uid);
-      }
-    }
-
-    const allUids = [...found].sort((a,b)=>a-b);
+    // Do not add every eBay message here. Listing notices, delivery updates,
+    // cancellations, and sale emails can number in the hundreds and used to
+    // crowd real purchase receipts out of the 300-message batch. The subject
+    // searches above already include "Order confirmed", receipts, fees,
+    // postage, labels, and other business-expense signals.
+    const allUids = [...found].sort((a,b)=>b-a);
     const uids = allUids.slice(0, MAX_MESSAGES_PER_RUN);
     const messages = [];
     for (let i = 0; i < uids.length; i += 20) {
