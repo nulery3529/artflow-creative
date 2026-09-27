@@ -24,7 +24,7 @@ const pool = new Pool({
 const YAHOO_HOST = 'imap.mail.yahoo.com';
 const YAHOO_PORT = 993;
 const MAX_MESSAGES_PER_RUN = 300;
-const YAHOO_EXPENSE_PARSER_VERSION = 12;
+const YAHOO_EXPENSE_PARSER_VERSION = 13;
 
 function imapQuote(value='') {
   return `"${String(value).replace(/\\/g,'\\\\').replace(/"/g,'\\"')}"`;
@@ -250,7 +250,8 @@ function ebayImageUrl(html='', title='', raw='') {
   }
 
   candidates.sort((a,b) => b.score - a.score);
-  return candidates[0]?.src || '';
+  const best = candidates[0];
+  return best && best.score >= 55 ? best.src : '';
 }
 
 function parseRawMessage(raw='') {
@@ -428,7 +429,11 @@ function looksLikeYahooExpense(parsed={}) {
   const from = normalize(parsed.from || '');
   const haystack = `${subject}\n${text}`;
 
+  const explicitBuyerReceiptSubject =
+    /\b(?:order confirmed|your order is confirmed|order confirmation|order receipt|purchase confirmation|purchase receipt|payment confirmation|payment receipt)\b/i.test(subject);
+
   const listingNoise =
+    !explicitBuyerReceiptSubject &&
     /\b(?:your listing|listing (?:created|live|active|ended|renewed|updated|published|removed)|item listed|listed item|watcher|watching|listing views?|listing activity|listing performance|offer received|send offer|price drop|sell similar|relist|draft listing|promote your listing)\b/i.test(haystack);
   if (listingNoise) return false;
 
@@ -437,7 +442,7 @@ function looksLikeYahooExpense(parsed={}) {
 
   if (/ebay/.test(from)) {
     const buyerReceipt =
-      /\b(?:your order is confirmed|order confirmation|order receipt|purchase confirmation|purchase receipt|payment confirmation|payment receipt|you paid|amount paid|total paid|thanks for your order|thank you for your purchase|thank you for your order)\b/i.test(haystack);
+      /\b(?:order confirmed|your order is confirmed|order confirmation|order receipt|purchase confirmation|purchase receipt|payment confirmation|payment receipt|you paid|amount paid|total paid|thanks for your order|thank you for your purchase|thank you for your order)\b/i.test(haystack);
     const businessCharge =
       /\b(?:seller fee|selling fee|transaction fee|service fee|ad fee|promoted listing fee|shipping label|postage|shipping charge)\b/i.test(haystack);
     return buyerReceipt || businessCharge;
@@ -546,7 +551,10 @@ async function recordYahooExpenseImport(client, business, email, uid, status, de
 async function insertYahooExpense(client, business, email, uid, parsed) {
   const messageKey = `yahoo:${email}:${uid}`;
 
+  const explicitBuyerReceiptSubject =
+    /\b(?:order confirmed|your order is confirmed|order confirmation|order receipt|purchase confirmation|purchase receipt|payment confirmation|payment receipt)\b/i.test(parsed.subject || '');
   const listingNoise =
+    !explicitBuyerReceiptSubject &&
     /\b(?:your listing|listing (?:created|live|active|ended|renewed|updated|published|removed)|item listed|listed item|watcher|watching|listing views?|listing activity|listing performance|offer received|send offer|price drop|sell similar|relist|draft listing|promote your listing)\b/i.test(`${parsed.subject || ''}\n${parsed.text || ''}`);
   if (listingNoise) {
     await recordYahooExpenseImport(client, business, email, uid, 'skipped', 'Marketplace listing/activity message was not counted as an expense');
@@ -580,6 +588,7 @@ async function insertYahooExpense(client, business, email, uid, parsed) {
     const labelledAmount =
       receiptText.match(/order\s*total[\s\S]{0,120}?(?:US\s*)?\$\s*([\d,]+\.\d{2})/i)?.[1]
       || receiptText.match(/(?:total\s*paid|amount\s*paid|you\s*paid|payment\s*total)[\s\S]{0,120}?(?:US\s*)?\$\s*([\d,]+\.\d{2})/i)?.[1]
+      || receiptText.match(/(?:order\s*total|total\s*paid|amount\s*paid|you\s*paid|payment\s*total)[\s\S]{0,120}?\bUSD\s*([\d,]+\.\d{2})/i)?.[1]
       || '';
     amount = Number(String(labelledAmount).replace(/,/g, '')) || 0;
   }
