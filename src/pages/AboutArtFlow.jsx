@@ -1436,12 +1436,12 @@ function DevicePreview() {
       </div>
 
       <div
-        className="relative mx-auto hidden w-full max-w-[760px] pb-20 pt-2 sm:block lg:pb-10"
+        className="relative mx-auto hidden w-full max-w-[760px] pb-8 pt-2 sm:block xl:pb-20"
         onTouchStart={handlePreviewTouchStart}
         onTouchEnd={handlePreviewTouchEnd}
         onTouchCancel={clearPreviewSwipe}
       >
-        <div className="relative ml-auto w-[93%]">
+        <div className="relative mx-auto w-full max-w-[720px] xl:ml-auto xl:w-[93%]">
           <div className="rounded-[24px] bg-[#171719] p-[10px] shadow-[0_38px_80px_rgba(19,9,26,.40)]">
             <DesktopDashboard activeTab={activeTab} onTabChange={setActiveTab} />
           </div>
@@ -1449,7 +1449,7 @@ function DevicePreview() {
           <div className="mx-auto h-2 w-[62%] rounded-b-full bg-[#281f2d]/90" />
         </div>
 
-        <div className="absolute bottom-0 left-0 w-[31%] min-w-[145px] max-w-[205px]">
+        <div className="absolute bottom-0 left-0 hidden w-[31%] min-w-[145px] max-w-[205px] xl:block">
           <MobileDashboard activeTab={activeTab} onTabChange={setActiveTab} />
         </div>
       </div>
@@ -1494,9 +1494,9 @@ export default function AboutArtFlow() {
             </Link>
           </nav>
 
-          <div className="grid items-center gap-8 pb-12 pt-7 sm:gap-10 sm:pb-14 sm:pt-10 lg:grid-cols-[0.78fr_1.22fr] lg:pb-24 lg:pt-20">
-            <div className="mx-auto max-w-xl pb-0 text-center sm:text-left lg:pb-16">
-              <h1 className="[font-family:'Fraunces',serif] text-[40px] font-semibold leading-[0.98] tracking-[-0.035em] text-white sm:text-[58px] lg:text-[72px]">
+          <div className="grid items-center gap-10 pb-12 pt-7 sm:gap-12 sm:pb-16 sm:pt-10 xl:grid-cols-[0.9fr_1.1fr] xl:gap-14 xl:pb-24 xl:pt-20">
+            <div className="mx-auto max-w-2xl pb-0 text-center sm:text-left xl:max-w-xl xl:pb-12">
+              <h1 className="[font-family:'Fraunces',serif] text-[40px] font-semibold leading-[1.02] tracking-[-0.035em] text-white sm:text-[54px] lg:text-[60px] xl:text-[68px]">
                 The business side of art, simplified.
               </h1>
 
@@ -1520,7 +1520,7 @@ export default function AboutArtFlow() {
             </div>
 
             <div className="relative">
-              <div className="mb-3 flex justify-center lg:justify-end">
+              <div className="mb-4 flex justify-center xl:justify-end">
                 <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white/70 backdrop-blur">
                   Interactive demo — sample data
                 </span>
