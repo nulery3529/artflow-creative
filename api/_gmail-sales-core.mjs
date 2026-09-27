@@ -314,10 +314,22 @@ function ebayRows(subject, text) {
       .map((match) => Number(String(match[1] || '').replace(/,/g, '')))
       .filter((value) => Number.isFinite(value) && value > 0)
   ));
+  const labeledAmount = (labelPattern) => {
+    const label = String(labelPattern);
+    const before = text.match(
+      new RegExp(`(?:${label})\\s*(?:\\n|:|[-–—])?\\s*(?:(?:US\\s*)?\\$|USD\\s*)?\\s*([\\d,]+(?:\\.\\d{2})?)`, 'i')
+    )?.[1];
+    if (before) return before;
+    return text.match(
+      new RegExp(`(?:${label})\\s*(?:\\n|:|[-–—])?\\s*([\\d,]+(?:\\.\\d{2})?)\\s*(?:USD|US dollars?)`, 'i')
+    )?.[1] || '';
+  };
+
   const totalText =
-    text.match(/(?:Order total|Total paid|Buyer paid|Sale total|Sale price|Order amount|Order value|Item subtotal|Item total|Total amount|Your total|Subtotal|Total)\s*(?:\n|:)?\s*(?:US\s*)?\$\s*([\d,.]+)/i)?.[1]
-    || text.match(/(?:Sold for|Item price|Price|Amount|Your earnings|Earnings|Payout|Funds available)\s*(?:\n|:)?\s*(?:US\s*)?\$\s*([\d,.]+)/i)?.[1]
-    || normalizedSubject.match(/(?:US\s*)?\$\s*([\d,.]+)/i)?.[1]
+    labeledAmount('Order total|Total paid|Buyer paid|Sale total|Sale price|Order amount|Order value|Item subtotal|Item total|Total amount|Your total|Subtotal|Total')
+    || labeledAmount('Sold for|Item price|Price|Amount|Your earnings|Earnings|Payout|Funds available')
+    || normalizedSubject.match(/(?:(?:US\s*)?\$|USD\s*)\s*([\d,.]+)/i)?.[1]
+    || normalizedSubject.match(/([\d,.]+)\s*(?:USD|US dollars?)/i)?.[1]
     || (uniqueDollarAmounts.length === 1 ? String(uniqueDollarAmounts[0]) : '')
     || '';
   const saleTotal = Number(String(totalText).replace(/,/g, '')) || 0;
