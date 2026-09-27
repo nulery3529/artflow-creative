@@ -159,45 +159,60 @@ function decodeHtmlAttribute(value='') {
     .replace(/&#x2f;/gi, '/');
 }
 
-function ebayImageUrl(html='', title='') {
-  if (!html) return '';
+function ebayListingUrl(html='', raw='') {
+  const values = [];
+  const source = `${html || ''}\n${raw || ''}`;
+
+  for (const match of source.matchAll(/href\s*=\s*["']([^"']+)["']/gi)) values.push(match[1]);
+  for (const match of source.matchAll(/https?:\/\/[^"'<>\s]+/gi)) values.push(match[0]);
+
+  const candidates = [];
+  for (let value of values) {
+    value = decodeHtmlAttribute(value).replace(/=3D/gi, '=');
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const decoded = decodeURIComponent(value);
+        if (decoded === value) break;
+        value = decoded;
+      } catch { break; }
+    }
+    const embedded = value.match(/https?:\/\/[^"'<>\s]+/gi) || [];
+    for (const candidate of [value, ...embedded]) {
+      try {
+        const url = new URL(candidate);
+        const host = url.hostname.toLowerCase();
+        if (host !== 'ebay.com' && !host.endsWith('.ebay.com')) continue;
+        if (!/\/itm\//i.test(url.pathname)) continue;
+        url.hash = '';
+        let score = 10;
+        if (/\/itm\/(?:[^/]+\/)?\d{8,}/i.test(url.pathname)) score += 20;
+        if (/viewitem|item/i.test(url.pathname + url.search)) score += 5;
+        candidates.push({ url:url.toString(), score });
+      } catch {}
+    }
+  }
+
+  candidates.sort((a,b) => b.score - a.score);
+  return candidates[0]?.url || '';
+}
+
+function ebayImageUrl(html='', title='', raw='') {
   const key = (value='') => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, '');
   const titleKey = key(title);
   const candidates = [];
-
-  for (const match of String(html).matchAll(/<img\b[^>]*>/gi)) {
-    const tag = match[0];
-    let src = decodeHtmlAttribute(tag.match(/\bsrc\s*=\s*["']([^"']+)["']/i)?.[1] || '');
-    const alt = decodeHtmlAttribute(tag.match(/\balt\s*=\s*["']([^"']*)["']/i)?.[1] || '');
-    if (!src) continue;
+  const addCandidate = (srcRaw='', alt='', bonus=0) => {
+    let src = decodeHtmlAttribute(srcRaw).replace(/=3D/gi, '=').replace(/=\r?\n/g, '');
+    if (!src) return;
     if (src.startsWith('//')) src = `https:${src}`;
-    if (!/^https:\/\//i.test(src)) continue;
+    if (!/^https:\/\//i.test(src)) return;
 
     let host = '';
-    try { host = new URL(src).hostname.toLowerCase(); } catch { continue; }
-    const lower = src.toLowerCase();
-    const width = Number(tag.match(/\bwidth\s*=\s*["']?(\d+)/i)?.[1] || 0);
-    const height = Number(tag.match(/\bheight\s*=\s*["']?(\d+)/i)?.[1] || 0);
+    try { host = new URL(src).hostname.toLowerCase(); } catch { return; }
+    if (host !== 'i.ebayimg.com' && !host.endsWith('.ebayimg.com')) return;
 
-    if (
-      /pixel|tracking|spacer|transparent|logo|icon|avatar|social/i.test(lower)
-      || (width > 0 && width <= 8)
-      || (height > 0 && height <= 8)
-    ) continue;
+    if (/app[ _-]?store|google[ _-]?play|download(?: the)? app|mobile app|ebay app|logo|icon/i.test(`${alt}\n${src}`)) return;
 
-    // Real eBay item photos are served from ebayimg.com. Do not accept
-    // ebaystatic.com here because those images are commonly App Store /
-    // download badges, logos, and footer artwork.
-    const ebayImageHost =
-      host === 'i.ebayimg.com'
-      || host.endsWith('.ebayimg.com');
-    if (!ebayImageHost) continue;
-
-    if (/app[ _-]?store|google[ _-]?play|download(?: the)? app|mobile app|ebay app/i.test(`${alt}\n${src}`)) {
-      continue;
-    }
-
-    let score = 20;
+    let score = 30 + bonus;
     const altKey = key(alt);
     if (titleKey && altKey) {
       if (altKey === titleKey) score += 80;
@@ -205,14 +220,33 @@ function ebayImageUrl(html='', title='') {
       else {
         const words = clean(title).toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length >= 4);
         const hits = words.filter((word) => alt.toLowerCase().includes(word)).length;
-        score += Math.min(30, hits * 6);
+        score += Math.min(36, hits * 6);
       }
     }
     if (/\/images\/g\//i.test(src)) score += 25;
-    if (/s-l(?:1600|1200|800|500|400|300)/i.test(src)) score += 12;
-    if (width >= 80 || height >= 80) score += 8;
-
+    if (/s-l(?:1600|1200|800|500|400|300|225)/i.test(src)) score += 12;
     candidates.push({ src, score });
+  };
+
+  for (const match of String(html || '').matchAll(/<img\b[^>]*>/gi)) {
+    const tag = match[0];
+    const alt = decodeHtmlAttribute(tag.match(/\balt\s*=\s*["']([^"']*)["']/i)?.[1] || '');
+    const attrs = [
+      tag.match(/\bsrc\s*=\s*["']([^"']+)["']/i)?.[1],
+      tag.match(/\bdata-src\s*=\s*["']([^"']+)["']/i)?.[1],
+      tag.match(/\bsrcset\s*=\s*["']([^"']+)["']/i)?.[1],
+    ].filter(Boolean);
+    for (const attr of attrs) {
+      for (const piece of String(attr).split(',').map((v) => v.trim().split(/\s+/)[0]).filter(Boolean)) {
+        addCandidate(piece, alt, 20);
+      }
+    }
+  }
+
+  const source = `${html || ''}\n${raw || ''}`;
+  for (const match of source.matchAll(/https?:\/\/[^"'<>\s=]+/gi)) addCandidate(match[0], '', 0);
+  for (const match of source.matchAll(/https?:=3D\/\/[^"'<>\s]+/gi)) {
+    addCandidate(match[0].replace(/=3D/gi, '='), '', 0);
   }
 
   candidates.sort((a,b) => b.score - a.score);
@@ -963,11 +997,16 @@ export async function syncYahooMailbox(client, business) {
     for (const row of saleRows) {
       const imageUrl =
         row.platform === 'eBay'
-          ? ebayImageUrl(parsed.html, row.product_name)
+          ? ebayImageUrl(parsed.html, row.product_name, item.raw)
+          : '';
+      const listingUrl =
+        row.platform === 'eBay'
+          ? ebayListingUrl(parsed.html, item.raw)
           : '';
       rows.push({
         ...row,
         ...(imageUrl ? { image_url:imageUrl } : {}),
+        ...(listingUrl ? { source_url:listingUrl } : {}),
         order_id: row.order_id || (row.amount_pending
           ? `yahoo-ebay-${clean(parsed.messageId || String(item.uid)).replace(/[^a-z0-9._-]+/gi, "-").slice(0, 120)}`
           : row.order_id),
@@ -979,6 +1018,16 @@ export async function syncYahooMailbox(client, business) {
   if (unmatchedEbay.length) {
     console.log('Yahoo unmatched eBay subjects', JSON.stringify(unmatchedEbay));
   }
+
+  const imageRows = rows.filter((row) => row.image_url).length;
+  const listingRows = rows.filter((row) => row.source_url && /ebay\.com\/.*\/itm\//i.test(row.source_url)).length;
+  const pendingRows = rows.filter((row) => Number(row.sale_total || 0) <= 0).length;
+  console.log('Yahoo eBay sale enrichment', JSON.stringify({
+    parsed_rows: rows.length,
+    image_rows: imageRows,
+    listing_rows: listingRows,
+    pending_amount_rows: pendingRows,
+  }));
 
   const saved = await insertOrders(client, business.base44_id, rows, 'yahoo_direct_sales');
   await saveYahooConfig(client, business, {
