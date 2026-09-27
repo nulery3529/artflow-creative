@@ -106,6 +106,17 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 9000) {
   }
 }
 
+function ebayImageFromReader(text = '') {
+  const decoded = decodeEntities(text);
+  const matches = decoded.match(/https:\/\/[^\s)"'<>]*ebayimg\.com\/[^\s)"'<>]+/gi) || [];
+  for (const raw of matches) {
+    const candidate = raw.replace(/[\\]+/g, '').replace(/[),.;]+$/, '');
+    const safe = safeHttpsUrl(candidate, IMAGE_HOST_SUFFIXES);
+    if (safe && /(^|\.)ebayimg\.com$/i.test(safe.hostname)) return safe.toString();
+  }
+  return '';
+}
+
 async function discoverImage(listingUrl) {
   try {
     const response = await fetchWithTimeout(listingUrl, {
@@ -133,6 +144,25 @@ async function discoverImage(listingUrl) {
       if (found) return clean(found);
     }
   } catch {}
+
+  // eBay often blocks server-side View Item requests even though the listing is
+  // public. As a last-resort read-only fallback, use Jina Reader to render the
+  // public page and accept only an eBay-hosted image URL from the result.
+  try {
+    const listing = new URL(listingUrl);
+    if (listing.hostname === 'ebay.com' || listing.hostname.endsWith('.ebay.com')) {
+      const readerUrl = `https://r.jina.ai/${listingUrl}`;
+      const response = await fetchWithTimeout(readerUrl, {
+        headers: { accept: 'text/plain,text/markdown;q=0.9,*/*;q=0.8' },
+      }, 15000);
+      if (response.ok) {
+        const text = await response.text();
+        const found = ebayImageFromReader(text);
+        if (found) return found;
+      }
+    }
+  } catch {}
+
   return '';
 }
 
