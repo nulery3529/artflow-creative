@@ -24,7 +24,10 @@ const SUPPORTED = new Set(PLATFORMS);
 // platforms. Historical unsupported rows appear only as Legacy in the UI.
 export function displayPlatform(value) {
   const raw = String(value || "").trim();
-  return SUPPORTED.has(raw) ? raw : "Legacy";
+  if (SUPPORTED.has(raw)) return raw;
+  const lowered = raw.toLowerCase();
+  const canonical = PLATFORMS.find((platform) => platform.toLowerCase() === lowered);
+  return canonical || "Legacy";
 }
 
 export function displayProductName(order) {
