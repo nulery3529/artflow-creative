@@ -128,6 +128,92 @@ function mimeText(raw='') {
   return '';
 }
 
+function mimeHtml(raw='') {
+  const split = String(raw).search(/\r?\n\r?\n/);
+  const headerText = split >= 0 ? raw.slice(0, split) : '';
+  const body = split >= 0 ? raw.slice(split).replace(/^\r?\n\r?\n/, '') : raw;
+  const headers = parseHeaders(headerText);
+  const type = normalize(headers['content-type'] || 'text/plain');
+  const boundary = headerParam(headers['content-type'] || '', 'boundary');
+
+  if (type.startsWith('multipart/') && boundary) {
+    return body
+      .split(`--${boundary}`)
+      .filter((part) => part && !/^--\s*$/.test(part.trim()))
+      .map((part) => mimeHtml(part.replace(/^\r?\n/, '').replace(/\r?\n$/, '')))
+      .filter(Boolean)
+      .join('\n');
+  }
+
+  if (type.startsWith('message/rfc822')) return mimeHtml(body);
+  if (!type.startsWith('text/html')) return '';
+
+  return decodeTransfer(body, headers['content-transfer-encoding'] || '');
+}
+
+function decodeHtmlAttribute(value='') {
+  return clean(value)
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&#x2f;/gi, '/');
+}
+
+function ebayImageUrl(html='', title='') {
+  if (!html) return '';
+  const key = (value='') => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const titleKey = key(title);
+  const candidates = [];
+
+  for (const match of String(html).matchAll(/<img\b[^>]*>/gi)) {
+    const tag = match[0];
+    let src = decodeHtmlAttribute(tag.match(/\bsrc\s*=\s*["']([^"']+)["']/i)?.[1] || '');
+    const alt = decodeHtmlAttribute(tag.match(/\balt\s*=\s*["']([^"']*)["']/i)?.[1] || '');
+    if (!src) continue;
+    if (src.startsWith('//')) src = `https:${src}`;
+    if (!/^https:\/\//i.test(src)) continue;
+
+    let host = '';
+    try { host = new URL(src).hostname.toLowerCase(); } catch { continue; }
+    const lower = src.toLowerCase();
+    const width = Number(tag.match(/\bwidth\s*=\s*["']?(\d+)/i)?.[1] || 0);
+    const height = Number(tag.match(/\bheight\s*=\s*["']?(\d+)/i)?.[1] || 0);
+
+    if (
+      /pixel|tracking|spacer|transparent|logo|icon|avatar|social/i.test(lower)
+      || (width > 0 && width <= 8)
+      || (height > 0 && height <= 8)
+    ) continue;
+
+    const ebayImageHost =
+      host === 'i.ebayimg.com'
+      || host.endsWith('.ebayimg.com')
+      || host === 'thumbs.ebaystatic.com'
+      || host.endsWith('.ebaystatic.com');
+    if (!ebayImageHost) continue;
+
+    let score = 20;
+    const altKey = key(alt);
+    if (titleKey && altKey) {
+      if (altKey === titleKey) score += 80;
+      else if (altKey.includes(titleKey) || titleKey.includes(altKey)) score += 55;
+      else {
+        const words = clean(title).toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length >= 4);
+        const hits = words.filter((word) => alt.toLowerCase().includes(word)).length;
+        score += Math.min(30, hits * 6);
+      }
+    }
+    if (/\/images\/g\//i.test(src)) score += 25;
+    if (/s-l(?:1600|1200|800|500|400|300)/i.test(src)) score += 12;
+    if (width >= 80 || height >= 80) score += 8;
+
+    candidates.push({ src, score });
+  }
+
+  candidates.sort((a,b) => b.score - a.score);
+  return candidates[0]?.src || '';
+}
+
 function parseRawMessage(raw='') {
   const split = String(raw).search(/\r?\n\r?\n/);
   const headerText = split >= 0 ? raw.slice(0, split) : raw;
@@ -138,6 +224,7 @@ function parseRawMessage(raw='') {
     date: clean(headers.date || ''),
     messageId: clean(headers['message-id'] || ''),
     text: mimeText(raw),
+    html: mimeHtml(raw),
   };
 }
 
@@ -869,8 +956,13 @@ export async function syncYahooMailbox(client, business) {
       });
     }
     for (const row of saleRows) {
+      const imageUrl =
+        row.platform === 'eBay'
+          ? ebayImageUrl(parsed.html, row.product_name)
+          : '';
       rows.push({
         ...row,
+        ...(imageUrl ? { image_url:imageUrl } : {}),
         order_id: row.order_id || (row.amount_pending
           ? `yahoo-ebay-${clean(parsed.messageId || String(item.uid)).replace(/[^a-z0-9._-]+/gi, "-").slice(0, 120)}`
           : row.order_id),
