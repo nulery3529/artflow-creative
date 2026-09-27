@@ -208,7 +208,18 @@ export async function insertOrders(client,businessId,rows,syncSource){
       SELECT 1 FROM artflow.orders o
       WHERE o.business_id=$2 AND (
         (x.order_id IS NOT NULL AND x.order_id<>'' AND o.order_id=x.order_id AND o.platform=x.platform) OR
-        (o.platform=x.platform AND lower(o.product_name)=lower(x.product_name) AND o.sale_date=x.sale_date AND abs(COALESCE(o.sale_total,0)-x.sale_total)<0.01)
+        (
+          o.platform=x.platform
+          AND lower(o.product_name)=lower(x.product_name)
+          AND o.sale_date=x.sale_date
+          AND (
+            abs(COALESCE(o.sale_total,0)-x.sale_total)<0.01
+            OR (
+              lower(x.platform)='ebay'
+              AND (COALESCE(o.sale_total,0)<=0 OR COALESCE(x.sale_total,0)<=0)
+            )
+          )
+        )
       )
     )
     RETURNING base44_id
