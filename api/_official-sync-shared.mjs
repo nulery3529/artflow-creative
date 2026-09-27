@@ -166,9 +166,13 @@ export async function insertOrders(client,businessId,rows,syncSource){
     ), repaired AS (
       UPDATE artflow.orders o
          SET updated_date=now(),
+             unit_price=CASE WHEN COALESCE(o.sale_total,0)<=0 AND COALESCE(x.sale_total,0)>0 THEN x.unit_price ELSE o.unit_price END,
+             sale_total=CASE WHEN COALESCE(o.sale_total,0)<=0 AND COALESCE(x.sale_total,0)>0 THEN x.sale_total ELSE o.sale_total END,
+             buyer=CASE WHEN COALESCE(o.buyer,'')='' AND COALESCE(x.buyer,'')<>'' THEN x.buyer ELSE o.buyer END,
+             estimated_profit=CASE WHEN COALESCE(o.sale_total,0)<=0 AND COALESCE(x.sale_total,0)>0 THEN x.estimated_profit ELSE o.estimated_profit END,
              data=COALESCE(o.data,'{}'::jsonb)
                || CASE WHEN COALESCE(x.source_url,'')<>'' THEN jsonb_build_object('source_url',x.source_url) ELSE '{}'::jsonb END
-               || CASE WHEN COALESCE(x.image_url,'')<>'' THEN jsonb_build_object('image_url',x.image_url,'source_image_parser_version',3) ELSE '{}'::jsonb END
+               || CASE WHEN COALESCE(x.image_url,'')<>'' THEN jsonb_build_object('image_url',x.image_url,'source_image_parser_version',4) ELSE '{}'::jsonb END
         FROM incoming x
        WHERE o.business_id=$2
          AND (
@@ -177,8 +181,11 @@ export async function insertOrders(client,businessId,rows,syncSource){
          )
          AND (
            (COALESCE(x.source_url,'')<>'' AND COALESCE(o.data->>'source_url','')='') OR
+           (COALESCE(o.sale_total,0)<=0 AND COALESCE(x.sale_total,0)>0) OR
+           (COALESCE(o.buyer,'')='' AND COALESCE(x.buyer,'')<>'') OR
            (COALESCE(x.image_url,'')<>'' AND (
              COALESCE(o.data->>'image_url','')=''
+             OR COALESCE(NULLIF(o.data->>'source_image_parser_version','')::int,0) < 4
              OR (
                lower(o.platform)='ebay'
                AND COALESCE(o.data->>'image_url','') ~* '(ebaystatic\\.com|app[ _-]?store|google[ _-]?play|download[^/ ]*app)'
@@ -194,7 +201,7 @@ export async function insertOrders(client,businessId,rows,syncSource){
     SELECT gen_random_uuid()::text,$2,x.sale_date,x.platform,false,x.order_id,null,$3,now(),now(),
       $4::jsonb
         || CASE WHEN COALESCE(x.source_url,'')<>'' THEN jsonb_build_object('source_url',x.source_url) ELSE '{}'::jsonb END
-        || CASE WHEN COALESCE(x.image_url,'')<>'' THEN jsonb_build_object('image_url',x.image_url,'source_image_parser_version',3) ELSE '{}'::jsonb END,
+        || CASE WHEN COALESCE(x.image_url,'')<>'' THEN jsonb_build_object('image_url',x.image_url,'source_image_parser_version',4) ELSE '{}'::jsonb END,
       x.product_name,x.quantity,x.size,x.unit_price,x.sale_total,x.buyer,x.base_item_cost,x.paper_ink_cost,x.packaging_cost,x.total_cost,x.estimated_profit,$5
     FROM incoming x
     WHERE NOT EXISTS (
