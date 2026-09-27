@@ -143,8 +143,9 @@ export default function Orders() {
 
   const isBundle = (o) => /bundle/i.test(o.product_name || "");
   const visiblePlatformTabs = useMemo(() => {
-    const actual = activeOrders.map((order) => displayPlatform(order.platform)).filter(Boolean);
-    return Array.from(new Set([...(trackedSites || []), ...actual]));
+    const tracked = (trackedSites || []).map((platform) => displayPlatform(platform)).filter((platform) => platform !== "Legacy");
+    const actual = activeOrders.map((order) => displayPlatform(order.platform)).filter((platform) => platform !== "Legacy");
+    return Array.from(new Set([...tracked, ...actual]));
   }, [trackedSites, activeOrders]);
 
   const platformCounts = useMemo(() => {
@@ -170,7 +171,19 @@ export default function Orders() {
     if (bundleOrder) return "/bundle-placeholder.svg";
 
     const direct = directImageUrl(order);
-    return direct || "";
+    const platform = displayPlatform(order?.platform);
+    const badEbayGraphic =
+      platform === "eBay" &&
+      /ebaystatic\.com|app[ _-]?store|google[ _-]?play|download[^/ ]*app/i.test(String(direct || ""));
+
+    if (direct && !badEbayGraphic) return direct;
+
+    const listing = String(order?.source_url || "").trim();
+    if (platform === "eBay" && /^https:\/\/(?:[^/]+\.)?ebay\.com\/.*\/itm\//i.test(listing)) {
+      return `/api/listing-image?listing=${encodeURIComponent(listing)}`;
+    }
+
+    return "";
   }, []);
 
   const filtered = useMemo(() => {
