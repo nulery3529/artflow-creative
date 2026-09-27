@@ -144,6 +144,7 @@ export async function insertOrders(client,businessId,rows,syncSource){
       total_cost:costs.total_cost,
       estimated_profit:Number((Number(row.sale_total||0)-Number(costs.total_cost||0)).toFixed(2)),
       source_url: clean(row.source_url || ''),
+      image_url: clean(row.image_url || ''),
     };
   });
   // A marketplace page can repeat an order at a pagination boundary. Remove
@@ -160,15 +161,34 @@ export async function insertOrders(client,businessId,rows,syncSource){
       SELECT * FROM jsonb_to_recordset($1::jsonb) AS x(
         platform text, sale_date text, order_id text, product_name text, quantity int, size text,
         unit_price numeric, sale_total numeric, buyer text, base_item_cost numeric, paper_ink_cost numeric,
-        packaging_cost numeric, total_cost numeric, estimated_profit numeric, source_url text
+        packaging_cost numeric, total_cost numeric, estimated_profit numeric, source_url text, image_url text
       )
+    ), repaired AS (
+      UPDATE artflow.orders o
+         SET updated_date=now(),
+             data=COALESCE(o.data,'{}'::jsonb)
+               || CASE WHEN COALESCE(x.source_url,'')<>'' THEN jsonb_build_object('source_url',x.source_url) ELSE '{}'::jsonb END
+               || CASE WHEN COALESCE(x.image_url,'')<>'' THEN jsonb_build_object('image_url',x.image_url,'source_image_parser_version',2) ELSE '{}'::jsonb END
+        FROM incoming x
+       WHERE o.business_id=$2
+         AND (
+           (x.order_id IS NOT NULL AND x.order_id<>'' AND o.order_id=x.order_id AND o.platform=x.platform) OR
+           (o.platform=x.platform AND lower(o.product_name)=lower(x.product_name) AND o.sale_date=x.sale_date)
+         )
+         AND (
+           (COALESCE(x.source_url,'')<>'' AND COALESCE(o.data->>'source_url','')='') OR
+           (COALESCE(x.image_url,'')<>'' AND COALESCE(o.data->>'image_url','')='')
+         )
+      RETURNING o.base44_id
     )
     INSERT INTO artflow.orders (
       base44_id,business_id,sale_date,platform,archived,order_id,source_email_id,created_by_id,created_date,updated_date,data,
       product_name,quantity,size,unit_price,sale_total,buyer,base_item_cost,paper_ink_cost,packaging_cost,total_cost,estimated_profit,sync_source
     )
     SELECT gen_random_uuid()::text,$2,x.sale_date,x.platform,false,x.order_id,null,$3,now(),now(),
-      $4::jsonb || CASE WHEN COALESCE(x.source_url,'')<>'' THEN jsonb_build_object('source_url',x.source_url) ELSE '{}'::jsonb END,
+      $4::jsonb
+        || CASE WHEN COALESCE(x.source_url,'')<>'' THEN jsonb_build_object('source_url',x.source_url) ELSE '{}'::jsonb END
+        || CASE WHEN COALESCE(x.image_url,'')<>'' THEN jsonb_build_object('image_url',x.image_url,'source_image_parser_version',2) ELSE '{}'::jsonb END,
       x.product_name,x.quantity,x.size,x.unit_price,x.sale_total,x.buyer,x.base_item_cost,x.paper_ink_cost,x.packaging_cost,x.total_cost,x.estimated_profit,$5
     FROM incoming x
     WHERE NOT EXISTS (
