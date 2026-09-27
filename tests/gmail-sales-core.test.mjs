@@ -289,3 +289,22 @@ test('keeps exact eBay sale email when the email body omits the sale amount', ()
   assert.equal(rows[0].sale_total, 0);
   assert.equal(rows[0].amount_pending, true);
 });
+
+
+test('does not reject an eBay sale just because the email footer mentions a listing', () => {
+  const rows = parseSaleEmail(
+    'eBay <ebay@ebay.com>',
+    'You made the sale for 5x11 Black Framed Celestial Snake Wall Art | Floral',
+    [
+      'Next, pack it up and ship it out.',
+      'Order total',
+      '$24.00',
+      'Manage your listing',
+      'Promote your listing to reach more buyers.',
+    ].join('\n')
+  );
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].platform, 'eBay');
+  assert.equal(rows[0].sale_total, 24);
+});
