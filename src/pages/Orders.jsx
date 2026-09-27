@@ -35,6 +35,11 @@ const directImageUrl = (item = {}) =>
 
 function OrderThumbnail({ src, alt }) {
   const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
+
   return (
     <div className="w-20 h-20 rounded-2xl overflow-hidden shrink-0 border border-[hsl(var(--border))] bg-muted flex items-center justify-center">
       {src && !failed ? (
@@ -170,20 +175,33 @@ export default function Orders() {
 
     if (bundleOrder) return "/bundle-placeholder.svg";
 
-    const direct = directImageUrl(order);
+    const direct = String(directImageUrl(order) || "").trim();
     const platform = displayPlatform(order?.platform);
-    const badEbayGraphic =
-      platform === "eBay" &&
-      /ebaystatic\.com|app[ _-]?store|google[ _-]?play|download[^/ ]*app/i.test(String(direct || ""));
-
-    if (direct && !badEbayGraphic) return direct;
-
     const listing = String(order?.source_url || "").trim();
-    if (platform === "eBay" && /^https:\/\/(?:[^/]+\.)?ebay\.com\/.*\/itm\//i.test(listing)) {
-      return `/api/listing-image?listing=${encodeURIComponent(listing)}`;
+
+    if (platform === "eBay") {
+      const badGraphic =
+        /ebaystatic\.com|app[ _-]?store|google[ _-]?play|download[^/ ]*app/i.test(direct);
+
+      // eBay CDN images frequently reject direct browser hotlinking. Route
+      // real ebayimg.com thumbnails through our existing safe image proxy.
+      if (!badGraphic && /^https:\/\/(?:[^/]+\.)?ebayimg\.com\//i.test(direct)) {
+        const params = new URLSearchParams({ image: direct });
+        if (/^https:\/\/(?:[^/]+\.)?ebay\.com\/.*\/itm\//i.test(listing)) {
+          params.set("listing", listing);
+        }
+        return `/api/listing-image?${params.toString()}`;
+      }
+
+      if (/^https:\/\/(?:[^/]+\.)?ebay\.com\/.*\/itm\//i.test(listing)) {
+        return `/api/listing-image?listing=${encodeURIComponent(listing)}`;
+      }
+
+      if (direct && !badGraphic) return direct;
+      return "";
     }
 
-    return "";
+    return direct || "";
   }, []);
 
   const filtered = useMemo(() => {
