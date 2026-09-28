@@ -988,6 +988,32 @@ export async function syncYahooExpenses(client, business) {
   return { connected:true, checked:messages.length, imported, skipped, remaining };
 }
 
+function normalizedOrderTitle(value='') {
+  return clean(value)
+    .toLowerCase()
+    .replace(/^\s*[0-9]+(?:\.[0-9]+)?\s*x\s*[0-9]+(?:\.[0-9]+)?\s*[-–—|:]?\s*/i, '')
+    .replace(/\b(?:of|the|a|an)\b/gi, '')
+    .replace(/[^a-z0-9]+/g, '');
+}
+
+function titleMatchScore(a='', b='') {
+  const left=normalizedOrderTitle(a);
+  const right=normalizedOrderTitle(b);
+  if(!left || !right) return 0;
+  if(left===right) return 100;
+  if(left.includes(right) || right.includes(left)) {
+    const shorter=Math.min(left.length,right.length);
+    const longer=Math.max(left.length,right.length);
+    return Math.round(80 * (shorter / Math.max(1,longer)));
+  }
+  const chunks=(text)=>new Set(String(text).match(/[a-z]+|\d+/g) || []);
+  const aa=chunks(String(a).toLowerCase());
+  const bb=chunks(String(b).toLowerCase());
+  let shared=0;
+  for(const token of aa) if(bb.has(token)) shared+=1;
+  return Math.round((shared / Math.max(1,Math.min(aa.size,bb.size))) * 60);
+}
+
 async function repairExistingEbayImages(client, businessId, rows = []) {
   const candidates = (rows || []).filter((row) =>
     String(row?.platform || '').toLowerCase() === 'ebay'
@@ -996,84 +1022,78 @@ async function repairExistingEbayImages(client, businessId, rows = []) {
   );
   if (!candidates.length) return 0;
 
-  const result = await client.query(`
-    WITH incoming AS (
-      SELECT * FROM jsonb_to_recordset($1::jsonb) AS x(
-        product_name text, sale_date text, order_id text, image_url text
-      )
-    ), normalized AS (
-      SELECT
-        x.*,
-        lower(regexp_replace(
-          regexp_replace(
-            regexp_replace(COALESCE(x.product_name,''), '^\\s*[0-9]+(?:\\.[0-9]+)?\\s*x\\s*[0-9]+(?:\\.[0-9]+)?\\s*[-–—|:]?\\s*', '', 'i'),
-            '\\m(of|the|a|an)\\M', '', 'gi'
-          ),
-          '[^a-z0-9]+', '', 'g'
-        )) AS normalized_title
-      FROM incoming x
-      WHERE COALESCE(x.image_url,'')<>''
-    )
-    UPDATE artflow.orders o
-       SET data = COALESCE(o.data,'{}'::jsonb)
-         || jsonb_build_object(
-              'image_url', n.image_url,
-              'source_image_parser_version', 5,
-              'source_image_repaired_at', now()
-            ),
-           updated_date = now()
-      FROM normalized n
-     WHERE o.business_id=$2
-       AND lower(COALESCE(o.platform,''))='ebay'
-       AND (
-         (
-           COALESCE(n.order_id,'')<>''
-           AND o.order_id=n.order_id
-         )
-         OR (
-           length(n.normalized_title)>=8
-           AND abs((COALESCE(o.sale_date,current_date) - COALESCE(NULLIF(n.sale_date,'')::date,o.sale_date))) <= 3
-           AND (
-             lower(regexp_replace(
-               regexp_replace(
-                 regexp_replace(COALESCE(o.product_name,''), '^\\s*[0-9]+(?:\\.[0-9]+)?\\s*x\\s*[0-9]+(?:\\.[0-9]+)?\\s*[-–—|:]?\\s*', '', 'i'),
-                 '\\m(of|the|a|an)\\M', '', 'gi'
-               ),
-               '[^a-z0-9]+', '', 'g'
-             )) = n.normalized_title
-             OR lower(regexp_replace(
-               regexp_replace(
-                 regexp_replace(COALESCE(o.product_name,''), '^\\s*[0-9]+(?:\\.[0-9]+)?\\s*x\\s*[0-9]+(?:\\.[0-9]+)?\\s*[-–—|:]?\\s*', '', 'i'),
-                 '\\m(of|the|a|an)\\M', '', 'gi'
-               ),
-               '[^a-z0-9]+', '', 'g'
-             )) LIKE '%' || n.normalized_title || '%'
-             OR n.normalized_title LIKE '%' || lower(regexp_replace(
-               regexp_replace(
-                 regexp_replace(COALESCE(o.product_name,''), '^\\s*[0-9]+(?:\\.[0-9]+)?\\s*x\\s*[0-9]+(?:\\.[0-9]+)?\\s*[-–—|:]?\\s*', '', 'i'),
-                 '\\m(of|the|a|an)\\M', '', 'gi'
-               ),
-               '[^a-z0-9]+', '', 'g'
-             )) || '%'
-           )
-         )
-       )
-       AND (
-         COALESCE(o.data->>'image_url','')=''
-         OR COALESCE(NULLIF(o.data->>'source_image_parser_version','')::int,0) < 5
-         OR COALESCE(o.data->>'image_url','') ~* '(ebaystatic\\.com|app[ _-]?store|google[ _-]?play|download[^/ ]*app)'
-       )
-    RETURNING o.base44_id
-  `, [
-    JSON.stringify(candidates.map((row) => ({
-      product_name: clean(row.product_name),
-      sale_date: clean(row.sale_date),
-      order_id: clean(row.order_id),
-      image_url: clean(row.image_url),
-    }))),
-    businessId,
-  ]);
-  return Number(result.rowCount || 0);
+  const recent = await client.query(`
+    SELECT base44_id, order_id, product_name, sale_date, data
+    FROM artflow.orders
+    WHERE business_id=$1
+      AND lower(COALESCE(platform,''))='ebay'
+      AND archived IS NOT TRUE
+      AND sale_date >= current_date - interval '90 days'
+    ORDER BY sale_date DESC NULLS LAST, updated_date DESC NULLS LAST
+    LIMIT 500
+  `, [businessId]);
+
+  const alreadyUsed = new Set();
+  let repaired = 0;
+
+  for (const row of candidates) {
+    const candidateDate = row.sale_date ? new Date(row.sale_date) : null;
+    const orderId = clean(row.order_id);
+    let best = null;
+    let bestScore = -1;
+
+    for (const order of recent.rows || []) {
+      if (alreadyUsed.has(order.base44_id)) continue;
+      if (orderId && clean(order.order_id) === orderId) {
+        best = order;
+        bestScore = 1000;
+        break;
+      }
+
+      let score = titleMatchScore(row.product_name, order.product_name);
+      if (score < 45) continue;
+
+      if (candidateDate && order.sale_date) {
+        const orderDate = new Date(order.sale_date);
+        const dayDiff = Math.abs(candidateDate.getTime() - orderDate.getTime()) / 86400000;
+        if (Number.isFinite(dayDiff)) {
+          if (dayDiff > 7) continue;
+          score += Math.max(0, 20 - Math.round(dayDiff * 3));
+        }
+      }
+
+      if (score > bestScore) {
+        best = order;
+        bestScore = score;
+      }
+    }
+
+    if (!best || bestScore < 45) continue;
+
+    const currentImage = clean(best?.data?.image_url || '');
+    if (currentImage && Number(best?.data?.source_image_parser_version || 0) >= 6) continue;
+
+    const result = await client.query(`
+      UPDATE artflow.orders
+         SET data = COALESCE(data,'{}'::jsonb)
+           || jsonb_build_object(
+                'image_url',$2,
+                'source_image_parser_version',6,
+                'source_image_repaired_at',now()
+              ),
+             updated_date=now()
+       WHERE base44_id=$1
+         AND business_id=$3
+      RETURNING base44_id
+    `, [best.base44_id, clean(row.image_url), businessId]);
+
+    if (result.rowCount) {
+      repaired += 1;
+      alreadyUsed.add(best.base44_id);
+    }
+  }
+
+  return repaired;
 }
 
 export async function syncYahooMailbox(client, business) {
@@ -1156,11 +1176,11 @@ export async function syncYahooMailbox(client, business) {
     pending_amount_rows: pendingRows,
   }));
 
-  const saved = await insertOrders(client, business.base44_id, rows, 'yahoo_direct_sales');
   const imageRepaired = await repairExistingEbayImages(client, business.base44_id, rows);
   if (imageRepaired > 0) {
     console.log('Yahoo eBay image repair', JSON.stringify({ repaired: imageRepaired }));
   }
+  const saved = await insertOrders(client, business.base44_id, rows, 'yahoo_direct_sales');
   await saveYahooConfig(client, business, {
     last_uid: maxUid,
     last_sync_at: new Date().toISOString(),
