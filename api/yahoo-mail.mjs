@@ -1156,11 +1156,11 @@ export async function syncYahooMailbox(client, business) {
     pending_amount_rows: pendingRows,
   }));
 
-  const saved = await insertOrders(client, business.base44_id, rows, 'yahoo_direct_sales');
   const imageRepaired = await repairExistingEbayImages(client, business.base44_id, rows);
   if (imageRepaired > 0) {
     console.log('Yahoo eBay image repair', JSON.stringify({ repaired: imageRepaired }));
   }
+  const saved = await insertOrders(client, business.base44_id, rows, 'yahoo_direct_sales');
   await saveYahooConfig(client, business, {
     last_uid: maxUid,
     last_sync_at: new Date().toISOString(),
