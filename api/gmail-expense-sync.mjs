@@ -433,6 +433,7 @@ export default async function handler(req, res) {
     let scanned = 0;
     let imported = 0;
     let skipped = 0;
+    const accountDiagnostics = [];
 
     for (const account of googleAccounts) {
       try {
@@ -442,14 +443,56 @@ export default async function handler(req, res) {
         scanned += result.scanned;
         imported += result.imported;
         skipped += result.skipped;
+        accountDiagnostics.push({
+          email: result.gmailAddress || '',
+          scanned: Number(result.scanned || 0),
+          imported: Number(result.imported || 0),
+          skipped: Number(result.skipped || 0),
+          throttled: Boolean(result.throttled),
+        });
       } catch (error) {
         if (error?.code === 'GMAIL_RECONNECT' || error?.status === 401) {
           permissionErrors += 1;
+          accountDiagnostics.push({
+            email: '',
+            reconnect_required: true,
+            code: error?.code || '',
+            status: Number(error?.status || 0),
+          });
+          console.warn('Gmail expense sync account reconnect required', JSON.stringify({
+            code: error?.code || 'GMAIL_RECONNECT',
+            status: Number(error?.status || 0),
+          }));
           continue;
         }
         hardError = error;
         console.warn('Gmail expense sync account failed', error?.message || error);
       }
+    }
+
+    console.log('Gmail expense sync summary', JSON.stringify({
+      google_accounts: googleAccounts.length,
+      matched_accounts: matchedAccounts,
+      permission_errors: permissionErrors,
+      scanned,
+      imported,
+      skipped,
+      force,
+      accounts: accountDiagnostics,
+    }));
+
+    if (permissionErrors > 0) {
+      return res.status(409).json({
+        error: permissionErrors === 1
+          ? 'One Gmail inbox needs to be reconnected before all expenses can sync.'
+          : `${permissionErrors} Gmail inboxes need to be reconnected before all expenses can sync.`,
+        code: 'GMAIL_RECONNECT',
+        accounts: matchedAccounts,
+        reconnect_required: permissionErrors,
+        scanned,
+        imported,
+        skipped,
+      });
     }
 
     if (!matchedAccounts && hardError) {
