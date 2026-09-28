@@ -386,21 +386,106 @@ async function listOrders(client, session) {
                AND COALESCE(ml.image_url,'')<>''
                AND deduped_orders.dedupe_title<>''
                AND (
-                 lower(regexp_replace(COALESCE(ml.title,''),'[^a-z0-9]+','','g')) = deduped_orders.dedupe_title
+                 lower(
+                   regexp_replace(
+                     regexp_replace(
+                       regexp_replace(
+                         COALESCE(ml.title,''),
+                         '^\\s*[0-9]+(?:\\.[0-9]+)?\\s*x\\s*[0-9]+(?:\\.[0-9]+)?\\s*[-–—|:]?\\s*',
+                         '',
+                         'i'
+                       ),
+                       '\\m(of|the|a|an)\\M',
+                       '',
+                       'gi'
+                     ),
+                     '[^a-z0-9]+',
+                     '',
+                     'g'
+                   )
+                 ) = deduped_orders.dedupe_title
                  OR (
                    length(deduped_orders.dedupe_title)>=12
-                   AND lower(regexp_replace(COALESCE(ml.title,''),'[^a-z0-9]+','','g'))
+                   AND lower(
+                   regexp_replace(
+                     regexp_replace(
+                       regexp_replace(
+                         COALESCE(ml.title,''),
+                         '^\\s*[0-9]+(?:\\.[0-9]+)?\\s*x\\s*[0-9]+(?:\\.[0-9]+)?\\s*[-–—|:]?\\s*',
+                         '',
+                         'i'
+                       ),
+                       '\\m(of|the|a|an)\\M',
+                       '',
+                       'gi'
+                     ),
+                     '[^a-z0-9]+',
+                     '',
+                     'g'
+                   )
+                 )
                        LIKE '%'||deduped_orders.dedupe_title||'%'
                  )
                  OR (
-                   length(lower(regexp_replace(COALESCE(ml.title,''),'[^a-z0-9]+','','g')))>=12
+                   length(lower(
+                   regexp_replace(
+                     regexp_replace(
+                       regexp_replace(
+                         COALESCE(ml.title,''),
+                         '^\\s*[0-9]+(?:\\.[0-9]+)?\\s*x\\s*[0-9]+(?:\\.[0-9]+)?\\s*[-–—|:]?\\s*',
+                         '',
+                         'i'
+                       ),
+                       '\\m(of|the|a|an)\\M',
+                       '',
+                       'gi'
+                     ),
+                     '[^a-z0-9]+',
+                     '',
+                     'g'
+                   )
+                 ))>=12
                    AND deduped_orders.dedupe_title
-                       LIKE '%'||lower(regexp_replace(COALESCE(ml.title,''),'[^a-z0-9]+','','g'))||'%'
+                       LIKE '%'||lower(
+                   regexp_replace(
+                     regexp_replace(
+                       regexp_replace(
+                         COALESCE(ml.title,''),
+                         '^\\s*[0-9]+(?:\\.[0-9]+)?\\s*x\\s*[0-9]+(?:\\.[0-9]+)?\\s*[-–—|:]?\\s*',
+                         '',
+                         'i'
+                       ),
+                       '\\m(of|the|a|an)\\M',
+                       '',
+                       'gi'
+                     ),
+                     '[^a-z0-9]+',
+                     '',
+                     'g'
+                   )
+                 )||'%'
                  )
                )
              ORDER BY
                CASE
-                 WHEN lower(regexp_replace(COALESCE(ml.title,''),'[^a-z0-9]+','','g')) = deduped_orders.dedupe_title THEN 0
+                 WHEN lower(
+                   regexp_replace(
+                     regexp_replace(
+                       regexp_replace(
+                         COALESCE(ml.title,''),
+                         '^\\s*[0-9]+(?:\\.[0-9]+)?\\s*x\\s*[0-9]+(?:\\.[0-9]+)?\\s*[-–—|:]?\\s*',
+                         '',
+                         'i'
+                       ),
+                       '\\m(of|the|a|an)\\M',
+                       '',
+                       'gi'
+                     ),
+                     '[^a-z0-9]+',
+                     '',
+                     'g'
+                   )
+                 ) = deduped_orders.dedupe_title THEN 0
                  ELSE 1
                END,
                CASE WHEN ml.status='Active' THEN 0 ELSE 1 END,
