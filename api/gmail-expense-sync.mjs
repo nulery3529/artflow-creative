@@ -181,7 +181,7 @@ const EXPENSE_QUERIES = [
   'newer_than:30d {subject:receipt subject:invoice subject:"order confirmation" subject:"payment confirmation" subject:"payment receipt" subject:"purchase confirmation" subject:"thanks for your order" subject:"your order" subject:"subscription renewal"} -in:sent',
   // Amazon commonly inserts "Amazon.com" between "your" and "order", so it
   // does not match Gmail's exact subject:"your order" phrase search.
-  'newer_than:30d {subject:"your amazon.com order" subject:"your amazon order" subject:"amazon.com order"} -in:sent',
+  'newer_than:30d {from:auto-confirm@amazon.com from:order-update@amazon.com} {subject:"Ordered" subject:"your amazon.com order" subject:"your amazon order" subject:"amazon.com order"} -in:sent',
 ];
 
 async function listMessageIds(accessToken) {
