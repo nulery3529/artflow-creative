@@ -988,6 +988,94 @@ export async function syncYahooExpenses(client, business) {
   return { connected:true, checked:messages.length, imported, skipped, remaining };
 }
 
+async function repairExistingEbayImages(client, businessId, rows = []) {
+  const candidates = (rows || []).filter((row) =>
+    String(row?.platform || '').toLowerCase() === 'ebay'
+    && clean(row?.image_url)
+    && clean(row?.product_name)
+  );
+  if (!candidates.length) return 0;
+
+  const result = await client.query(`
+    WITH incoming AS (
+      SELECT * FROM jsonb_to_recordset($1::jsonb) AS x(
+        product_name text, sale_date text, order_id text, image_url text
+      )
+    ), normalized AS (
+      SELECT
+        x.*,
+        lower(regexp_replace(
+          regexp_replace(
+            regexp_replace(COALESCE(x.product_name,''), '^\\s*[0-9]+(?:\\.[0-9]+)?\\s*x\\s*[0-9]+(?:\\.[0-9]+)?\\s*[-–—|:]?\\s*', '', 'i'),
+            '\\m(of|the|a|an)\\M', '', 'gi'
+          ),
+          '[^a-z0-9]+', '', 'g'
+        )) AS normalized_title
+      FROM incoming x
+      WHERE COALESCE(x.image_url,'')<>''
+    )
+    UPDATE artflow.orders o
+       SET data = COALESCE(o.data,'{}'::jsonb)
+         || jsonb_build_object(
+              'image_url', n.image_url,
+              'source_image_parser_version', 5,
+              'source_image_repaired_at', now()
+            ),
+           updated_date = now()
+      FROM normalized n
+     WHERE o.business_id=$2
+       AND lower(COALESCE(o.platform,''))='ebay'
+       AND (
+         (
+           COALESCE(n.order_id,'')<>''
+           AND o.order_id=n.order_id
+         )
+         OR (
+           length(n.normalized_title)>=8
+           AND abs((COALESCE(o.sale_date,current_date) - COALESCE(NULLIF(n.sale_date,'')::date,o.sale_date))) <= 3
+           AND (
+             lower(regexp_replace(
+               regexp_replace(
+                 regexp_replace(COALESCE(o.product_name,''), '^\\s*[0-9]+(?:\\.[0-9]+)?\\s*x\\s*[0-9]+(?:\\.[0-9]+)?\\s*[-–—|:]?\\s*', '', 'i'),
+                 '\\m(of|the|a|an)\\M', '', 'gi'
+               ),
+               '[^a-z0-9]+', '', 'g'
+             )) = n.normalized_title
+             OR lower(regexp_replace(
+               regexp_replace(
+                 regexp_replace(COALESCE(o.product_name,''), '^\\s*[0-9]+(?:\\.[0-9]+)?\\s*x\\s*[0-9]+(?:\\.[0-9]+)?\\s*[-–—|:]?\\s*', '', 'i'),
+                 '\\m(of|the|a|an)\\M', '', 'gi'
+               ),
+               '[^a-z0-9]+', '', 'g'
+             )) LIKE '%' || n.normalized_title || '%'
+             OR n.normalized_title LIKE '%' || lower(regexp_replace(
+               regexp_replace(
+                 regexp_replace(COALESCE(o.product_name,''), '^\\s*[0-9]+(?:\\.[0-9]+)?\\s*x\\s*[0-9]+(?:\\.[0-9]+)?\\s*[-–—|:]?\\s*', '', 'i'),
+                 '\\m(of|the|a|an)\\M', '', 'gi'
+               ),
+               '[^a-z0-9]+', '', 'g'
+             )) || '%'
+           )
+         )
+       )
+       AND (
+         COALESCE(o.data->>'image_url','')=''
+         OR COALESCE(NULLIF(o.data->>'source_image_parser_version','')::int,0) < 5
+         OR COALESCE(o.data->>'image_url','') ~* '(ebaystatic\\.com|app[ _-]?store|google[ _-]?play|download[^/ ]*app)'
+       )
+    RETURNING o.base44_id
+  `, [
+    JSON.stringify(candidates.map((row) => ({
+      product_name: clean(row.product_name),
+      sale_date: clean(row.sale_date),
+      order_id: clean(row.order_id),
+      image_url: clean(row.image_url),
+    }))),
+    businessId,
+  ]);
+  return Number(result.rowCount || 0);
+}
+
 export async function syncYahooMailbox(client, business) {
   await client.query(`
     DELETE FROM artflow.orders
@@ -1069,6 +1157,10 @@ export async function syncYahooMailbox(client, business) {
   }));
 
   const saved = await insertOrders(client, business.base44_id, rows, 'yahoo_direct_sales');
+  const imageRepaired = await repairExistingEbayImages(client, business.base44_id, rows);
+  if (imageRepaired > 0) {
+    console.log('Yahoo eBay image repair', JSON.stringify({ repaired: imageRepaired }));
+  }
   await saveYahooConfig(client, business, {
     last_uid: maxUid,
     last_sync_at: new Date().toISOString(),
@@ -1082,6 +1174,7 @@ export async function syncYahooMailbox(client, business) {
     saved,
     remaining,
     folders_checked: foldersChecked,
+    image_repaired: imageRepaired,
   }));
   return { connected:true, checked:messages.length, saved, remaining };
 }

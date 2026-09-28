@@ -68,6 +68,15 @@ export default function GmailSyncCard() {
       }));
 
       const results = [sales, expenses, yahoo, ebay];
+      const reconnectFailure = [sales, expenses].find(
+        ({ response, data }) => response.status === 409 && data?.code === "GMAIL_RECONNECT"
+      );
+      if (reconnectFailure) {
+        const error = new Error(reconnectFailure.data?.error || "Reconnect Gmail to finish syncing sales and expenses.");
+        error.code = "GMAIL_RECONNECT";
+        throw error;
+      }
+
       const hardFailure = results.find(
         ({ response }) => !response.ok && ![400, 409].includes(response.status)
       );
