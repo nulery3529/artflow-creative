@@ -215,6 +215,7 @@ async function countBusinessRows(client, table, ids, email, archivedColumn = fal
 
 async function listOrders(client, session) {
   const { ids, email } = await existingWorkspace(client, session.user);
+  const listingScopes = Array.from(new Set([`user:${session.user.id}`, ...ids]));
   const result = await client.query(
     `WITH scoped_orders AS (
        SELECT o.*,
@@ -375,6 +376,37 @@ async function listOrders(client, session) {
              ORDER BY img.updated_date DESC NULLS LAST, img.created_date DESC NULLS LAST
              LIMIT 1
            )
+         END,
+         CASE
+           WHEN lower(COALESCE(platform,''))='ebay' THEN (
+             SELECT NULLIF(ml.image_url,'')
+             FROM artflow.marketplace_listings ml
+             WHERE ml.business_id = ANY($3::text[])
+               AND lower(COALESCE(ml.platform,''))='ebay'
+               AND COALESCE(ml.image_url,'')<>''
+               AND deduped_orders.dedupe_title<>''
+               AND (
+                 lower(regexp_replace(COALESCE(ml.title,''),'[^a-z0-9]+','','g')) = deduped_orders.dedupe_title
+                 OR (
+                   length(deduped_orders.dedupe_title)>=12
+                   AND lower(regexp_replace(COALESCE(ml.title,''),'[^a-z0-9]+','','g'))
+                       LIKE '%'||deduped_orders.dedupe_title||'%'
+                 )
+                 OR (
+                   length(lower(regexp_replace(COALESCE(ml.title,''),'[^a-z0-9]+','','g')))>=12
+                   AND deduped_orders.dedupe_title
+                       LIKE '%'||lower(regexp_replace(COALESCE(ml.title,''),'[^a-z0-9]+','','g'))||'%'
+                 )
+               )
+             ORDER BY
+               CASE
+                 WHEN lower(regexp_replace(COALESCE(ml.title,''),'[^a-z0-9]+','','g')) = deduped_orders.dedupe_title THEN 0
+                 ELSE 1
+               END,
+               CASE WHEN ml.status='Active' THEN 0 ELSE 1 END,
+               ml.last_seen_at DESC NULLS LAST
+             LIMIT 1
+           )
          END
        ) AS image_url,
        base_item_cost,
@@ -393,7 +425,7 @@ async function listOrders(client, session) {
      FROM deduped_orders
      ORDER BY sale_date DESC NULLS LAST, created_date DESC NULLS LAST
      LIMIT 10000`,
-    [ids, email]
+    [ids, email, listingScopes]
   );
   return result.rows;
 }
