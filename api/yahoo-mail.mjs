@@ -463,7 +463,10 @@ function looksLikeYahooExpense(parsed={}) {
 
   const amazonReceipt =
     /amazon/i.test(from)
-    && /\b(?:your amazon(?:\.com)? order|amazon(?:\.com)? order|order confirmed|order confirmation)\b/i.test(haystack);
+    && (
+      /\b(?:your amazon(?:\.com)? order|amazon(?:\.com)? order|order confirmed|order confirmation)\b/i.test(haystack)
+      || /\bordered\s+\d+\s+items?\b/i.test(subject)
+    );
   if (amazonReceipt) return true;
 
   return /\b(?:receipt|invoice|order confirmation|purchase confirmation|payment receipt|subscription renewal|shipping label|postage|service fee)\b/i.test(haystack);
@@ -474,6 +477,7 @@ const YAHOO_EXPENSE_TERMS = [
   'your amazon.com order',
   'your amazon order',
   'amazon.com order',
+  'ordered',
   'receipt',
   'invoice',
   'order confirmation',
