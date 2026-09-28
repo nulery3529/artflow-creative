@@ -176,29 +176,39 @@ async function accessTokenForAccount(req, accountId) {
 const GMAIL_EXPENSE_PARSER_VERSION = 2;
 
 const EXPENSE_QUERIES = [
+  // Put Amazon first because these messages use non-generic subjects such as
+  // "Ordered 15 items: Books", and Google can rate-limit later broad queries.
+  'newer_than:30d {from:auto-confirm@amazon.com from:order-update@amazon.com} {subject:"Ordered" subject:"your amazon.com order" subject:"your amazon order" subject:"amazon.com order"} -in:sent',
   // Explicit Art Flow forwarding/labeling remains supported for up to 90 days.
   'newer_than:90d subject:"artflow expense" -in:sent',
   // New users should not have to rename every receipt. Pull common recent
   // receipt/invoice/order-payment subjects into the pending review queue.
   'newer_than:30d {subject:receipt subject:invoice subject:"order confirmation" subject:"payment confirmation" subject:"payment receipt" subject:"purchase confirmation" subject:"thanks for your order" subject:"your order" subject:"subscription renewal"} -in:sent',
-  // Amazon commonly inserts "Amazon.com" between "your" and "order", so it
-  // does not match Gmail's exact subject:"your order" phrase search.
-  'newer_than:30d {from:auto-confirm@amazon.com from:order-update@amazon.com} {subject:"Ordered" subject:"your amazon.com order" subject:"your amazon order" subject:"amazon.com order"} -in:sent',
 ];
 
 async function listMessageIds(accessToken) {
   const ids = new Set();
   for (const query of EXPENSE_QUERIES) {
     let pageToken = '';
-    for (let page = 0; page < 3; page += 1) {
-      const url = new URL('https://gmail.googleapis.com/gmail/v1/users/me/messages');
-      url.searchParams.set('q', query);
-      url.searchParams.set('maxResults', '100');
-      if (pageToken) url.searchParams.set('pageToken', pageToken);
-      const data = await googleJson(accessToken, url);
-      for (const message of data?.messages || []) if (message?.id) ids.add(message.id);
-      pageToken = clean(data?.nextPageToken || '');
-      if (!pageToken) break;
+    try {
+      for (let page = 0; page < 3; page += 1) {
+        const url = new URL('https://gmail.googleapis.com/gmail/v1/users/me/messages');
+        url.searchParams.set('q', query);
+        url.searchParams.set('maxResults', '100');
+        if (pageToken) url.searchParams.set('pageToken', pageToken);
+        const data = await googleJson(accessToken, url);
+        for (const message of data?.messages || []) if (message?.id) ids.add(message.id);
+        pageToken = clean(data?.nextPageToken || '');
+        if (!pageToken) break;
+      }
+    } catch (error) {
+      if (error?.code === 'GMAIL_RATE_LIMIT' && ids.size > 0) {
+        console.warn('Gmail expense search rate-limited after collecting messages', JSON.stringify({
+          collected: ids.size,
+        }));
+        break;
+      }
+      throw error;
     }
   }
   return [...ids];
