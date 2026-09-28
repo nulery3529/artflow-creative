@@ -179,6 +179,9 @@ const EXPENSE_QUERIES = [
   // New users should not have to rename every receipt. Pull common recent
   // receipt/invoice/order-payment subjects into the pending review queue.
   'newer_than:30d {subject:receipt subject:invoice subject:"order confirmation" subject:"payment confirmation" subject:"payment receipt" subject:"purchase confirmation" subject:"thanks for your order" subject:"your order" subject:"subscription renewal"} -in:sent',
+  // Amazon commonly inserts "Amazon.com" between "your" and "order", so it
+  // does not match Gmail's exact subject:"your order" phrase search.
+  'newer_than:30d {subject:"your amazon.com order" subject:"your amazon order" subject:"amazon.com order"} -in:sent',
 ];
 
 async function listMessageIds(accessToken) {
@@ -321,7 +324,7 @@ async function insertExpense(client, business, message, gmailAddress) {
   return { imported: result.rows[0] ? 1 : 0, skipped: result.rows[0] ? 0 : 1 };
 }
 
-export async function syncExpenseAccount(client, business, accessToken) {
+export async function syncExpenseAccount(client, business, accessToken, { force = false } = {}) {
   const profileData = await googleJson(accessToken, 'https://gmail.googleapis.com/gmail/v1/users/me/profile');
   const gmailAddress = normalize(profileData?.emailAddress || '');
   if (!gmailAddress) return { matched: 0, scanned: 0, imported: 0, skipped: 0, throttled: false };
@@ -329,7 +332,7 @@ export async function syncExpenseAccount(client, business, accessToken) {
   const syncState = business?.data?.gmail_expense_sync || {};
   const previous = syncState?.[gmailAddress] || {};
   const lastAt = previous?.last_at ? new Date(previous.last_at).getTime() : 0;
-  if (lastAt && Date.now() - lastAt < 5 * 60 * 1000) {
+  if (!force && lastAt && Date.now() - lastAt < 5 * 60 * 1000) {
     return { matched: 1, scanned: 0, imported: 0, skipped: 0, throttled: true, gmailAddress };
   }
 
@@ -391,6 +394,12 @@ export async function syncExpenseAccount(client, business, accessToken) {
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (!['GET','POST'].includes(req.method)) return res.status(405).json({ error: 'Method not allowed' });
+  const requestBody = req.body && typeof req.body === 'object'
+    ? req.body
+    : typeof req.body === 'string'
+      ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })()
+      : {};
+  const force = req.method === 'POST' && requestBody?.force === true;
 
   const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) }).catch(() => null);
   if (!session?.user) return res.status(401).json({ error: 'Unauthorized' });
@@ -428,7 +437,7 @@ export default async function handler(req, res) {
     for (const account of googleAccounts) {
       try {
         const accessToken = await accessTokenForAccount(req, account.id);
-        const result = await syncExpenseAccount(client, business, accessToken);
+        const result = await syncExpenseAccount(client, business, accessToken, { force });
         matchedAccounts += result.matched;
         scanned += result.scanned;
         imported += result.imported;
