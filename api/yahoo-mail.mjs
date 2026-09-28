@@ -25,7 +25,7 @@ const YAHOO_HOST = 'imap.mail.yahoo.com';
 const YAHOO_PORT = 993;
 const MAX_MESSAGES_PER_RUN = 300;
 const MAX_EXPENSE_MESSAGES_PER_RUN = 120;
-const YAHOO_EXPENSE_PARSER_VERSION = 15;
+const YAHOO_EXPENSE_PARSER_VERSION = 16;
 
 function imapQuote(value='') {
   return `"${String(value).replace(/\\/g,'\\\\').replace(/"/g,'\\"')}"`;
@@ -461,11 +461,23 @@ function looksLikeYahooExpense(parsed={}) {
     return buyerReceipt || businessCharge;
   }
 
+  const amazonReceipt =
+    /amazon/i.test(from)
+    && (
+      /\b(?:your amazon(?:\.com)? order|amazon(?:\.com)? order|order confirmed|order confirmation)\b/i.test(haystack)
+      || /\bordered\s+\d+\s+items?\b/i.test(subject)
+    );
+  if (amazonReceipt) return true;
+
   return /\b(?:receipt|invoice|order confirmation|purchase confirmation|payment receipt|subscription renewal|shipping label|postage|service fee)\b/i.test(haystack);
 }
 
 const YAHOO_EXPENSE_TERMS = [
   'artflow expense',
+  'your amazon.com order',
+  'your amazon order',
+  'amazon.com order',
+  'ordered',
   'receipt',
   'invoice',
   'order confirmation',

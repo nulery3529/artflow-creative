@@ -193,6 +193,10 @@ export async function syncConnectedEbayOrders(client,business){
         const quantity=lineItems.reduce((sum,li)=>sum+(Number(li?.quantity)||0),0)||1;
         const total=Number(Number(order?.orderTotal?.value||0).toFixed(2));
         if(total<=0) continue;
+        const legacyItemId = lineItems.map((li) => clean(li?.legacyItemId)).find(Boolean) || '';
+        const publicListingUrl = /^\d{8,14}$/.test(legacyItemId)
+          ? `https://www.ebay.com/itm/${legacyItemId}`
+          : '';
         rows.push({
           platform:'eBay',
           product_name:title,
@@ -204,6 +208,9 @@ export async function syncConnectedEbayOrders(client,business){
           order_id:orderId,
           sale_date:clean(order?.creationDate),
           source_url:`https://www.ebay.com/sh/ord/details?orderid=${encodeURIComponent(orderId)}`,
+          image_url: publicListingUrl
+            ? `/api/listing-image?listing=${encodeURIComponent(publicListingUrl)}`
+            : '',
         });
       }
       pages+=1;
@@ -213,8 +220,9 @@ export async function syncConnectedEbayOrders(client,business){
     }
   }
 
+  const imageCandidates=rows.filter((row)=>clean(row.image_url)).length;
   const saved=await insertOrders(client,business.base44_id,rows,'ebay_official_oauth');
-  return {saved,checked:rows.length,more_possible:more};
+  return {saved,checked:rows.length,more_possible:more,image_candidates:imageCandidates};
 }
 
 export default async function handler(req,res){
@@ -353,6 +361,7 @@ export default async function handler(req,res){
         checked:Number(result.checked||0),
         saved:Number(result.saved||0),
         more_possible:Boolean(result.more_possible),
+        image_candidates:Number(result.image_candidates||0),
       }));
       return res.status(200).json({
         ok:true,

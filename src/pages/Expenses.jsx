@@ -25,6 +25,8 @@ export default function Expenses() {
       method: "POST",
       credentials: "include",
       cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ force: true }),
     }).catch(() => null);
     await fetch("/api/yahoo-mail", {
       method: "POST",
@@ -88,6 +90,8 @@ export default function Expenses() {
         method: "POST",
         credentials: "include",
         cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ force: true }),
       });
       const gmailData = await gmailResponse.json().catch(() => ({}));
 
@@ -118,12 +122,15 @@ export default function Expenses() {
       const yahooMessage = yahooResponse.ok
         ? `Yahoo checked ${yahooChecked} message${yahooChecked === 1 ? "" : "s"} · ${yahooImported} imported · ${yahooSkipped} skipped`
         : "";
-      const messages = [
-        gmailResponse.ok ? gmailData?.message : "",
-        yahooMessage,
-      ].filter(Boolean);
+      const gmailMessage = gmailResponse.ok
+        ? gmailData?.message
+        : (gmailData?.error || "Reconnect Gmail to resume expense syncing");
+      const messages = [gmailMessage, yahooMessage].filter(Boolean);
 
-      if (messages.length) toast.success(messages.join(" · "));
+      if (messages.length) {
+        if (!gmailResponse.ok) toast.info(messages.join(" · "));
+        else toast.success(messages.join(" · "));
+      }
       else if (!gmailResponse.ok) toast.info(gmailData?.error || "Reconnect Gmail to resume expense syncing");
       else if (!yahooResponse.ok) toast.info(yahooData?.error || "Reconnect Yahoo to resume expense syncing");
       else toast.success("Expenses are up to date");
