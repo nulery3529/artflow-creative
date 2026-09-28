@@ -24,7 +24,8 @@ const pool = new Pool({
 const YAHOO_HOST = 'imap.mail.yahoo.com';
 const YAHOO_PORT = 993;
 const MAX_MESSAGES_PER_RUN = 300;
-const YAHOO_EXPENSE_PARSER_VERSION = 14;
+const MAX_EXPENSE_MESSAGES_PER_RUN = 120;
+const YAHOO_EXPENSE_PARSER_VERSION = 15;
 
 function imapQuote(value='') {
   return `"${String(value).replace(/\\/g,'\\\\').replace(/"/g,'\\"')}"`;
@@ -496,25 +497,39 @@ async function yahooExpenseMessages(email, appPassword, afterUid=0) {
   try {
     const found = new Set();
     const yearStart = `01-Jan-${new Date().getFullYear()}`;
-    for (const term of YAHOO_EXPENSE_TERMS) {
-      const uidRange = afterUid > 0 ? `UID ${afterUid + 1}:* ` : '';
-      const response = await imap.command(
-        `UID SEARCH ${uidRange}SINCE ${yearStart} HEADER SUBJECT ${imapQuote(term)}`
-      );
+    const collectUids = (response) => {
       const text = response.toString('utf8');
       const searchLine = text.match(/^\* SEARCH(?:\s+([0-9 ]+))?/mi)?.[1] || '';
       for (const uid of searchLine.split(/\s+/).map(Number).filter((n) => Number.isFinite(n) && n > 0)) {
         found.add(uid);
       }
+    };
+
+    if (afterUid > 0) {
+      // Once the current-year backfill has started, inspect every new Yahoo
+      // message in bounded UID order. The receipt parser below decides what is
+      // actually an expense, so vendor-specific subject wording cannot make a
+      // real purchase disappear from Art Flow.
+      const response = await imap.command(
+        `UID SEARCH UID ${afterUid + 1}:* SINCE ${yearStart}`
+      );
+      collectUids(response);
+    } else {
+      // First pass for a parser version: find likely current-year receipts
+      // without downloading the user's entire Yahoo inbox.
+      for (const term of YAHOO_EXPENSE_TERMS) {
+        const response = await imap.command(
+          `UID SEARCH SINCE ${yearStart} HEADER SUBJECT ${imapQuote(term)}`
+        );
+        collectUids(response);
+      }
     }
 
-    // Do not add every eBay message here. Listing notices, delivery updates,
-    // cancellations, and sale emails can number in the hundreds and used to
-    // crowd real purchase receipts out of the 300-message batch. The subject
-    // searches above already include "Order confirmed", receipts, fees,
-    // postage, labels, and other business-expense signals.
-    const allUids = [...found].sort((a,b)=>b-a);
-    const uids = allUids.slice(0, MAX_MESSAGES_PER_RUN);
+    // Process oldest candidates first so the saved UID is a true checkpoint.
+    // This prevents a large inbox from skipping older receipts when a run is
+    // intentionally capped for Vercel's function time limit.
+    const allUids = [...found].sort((a,b)=>a-b);
+    const uids = allUids.slice(0, MAX_EXPENSE_MESSAGES_PER_RUN);
     const messages = [];
     for (let i = 0; i < uids.length; i += 20) {
       const batch = uids.slice(i, i + 20);
@@ -1139,6 +1154,35 @@ export default async function handler(req, res) {
           ? `Yahoo connected. Added ${expenseResult.imported} expense receipt${expenseResult.imported === 1 ? '' : 's'} to review.`
           : 'Yahoo connected. Sales and expense receipts are now checked directly.',
       });
+    }
+
+    if (action === 'sync_expenses') {
+      try {
+        const expenses = await syncYahooExpenses(client, business);
+        if (!expenses.connected) {
+          return res.status(409).json({
+            error:'Yahoo is not currently connected to this Art Flow business. Open Account → Yahoo Inbox and reconnect it with a Yahoo app password, then refresh expenses again.',
+            code:'YAHOO_RECONNECT',
+          });
+        }
+        return res.status(200).json({
+          ok:true,
+          expenses,
+          message: expenses.imported > 0
+            ? `${expenses.imported} Yahoo expense receipt${expenses.imported === 1 ? '' : 's'} added to review.`
+            : expenses.remaining > 0
+              ? `Yahoo checked ${expenses.checked} expense message${expenses.checked === 1 ? '' : 's'}. More receipts will continue importing automatically.`
+              : 'Yahoo expenses are up to date.',
+        });
+      } catch (error) {
+        await saveYahooConfig(client, business, {
+          last_expense_error: clean(error?.message || 'Yahoo expense sync failed'),
+        }).catch(() => {});
+        return res.status(409).json({
+          error: clean(error?.message || 'Yahoo expense sync failed'),
+          code:'YAHOO_EXPENSE_SYNC_FAILED',
+        });
+      }
     }
 
     if (action === 'sync') {

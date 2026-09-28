@@ -338,7 +338,44 @@ async function listOrders(client, session) {
          NULLIF(data->>'product_image_url',''),
          NULLIF(data->>'marketplace_image_url',''),
          NULLIF(data->>'thumbnail_url',''),
-         NULLIF(data->>'photo_url','')
+         NULLIF(data->>'photo_url',''),
+         CASE
+           WHEN lower(COALESCE(platform,''))='ebay' THEN (
+             SELECT COALESCE(
+               NULLIF(img.data->>'image_url',''),
+               NULLIF(img.data->>'product_image_url',''),
+               NULLIF(img.data->>'marketplace_image_url',''),
+               NULLIF(img.data->>'thumbnail_url',''),
+               NULLIF(img.data->>'photo_url','')
+             )
+             FROM scoped_orders img
+             WHERE lower(COALESCE(img.platform,''))='ebay'
+               AND img.dedupe_day=deduped_orders.dedupe_day
+               AND img.dedupe_qty=deduped_orders.dedupe_qty
+               AND img.dedupe_title<>''
+               AND deduped_orders.dedupe_title<>''
+               AND (
+                 img.dedupe_title=deduped_orders.dedupe_title
+                 OR (
+                   length(deduped_orders.dedupe_title)>=12
+                   AND img.dedupe_title LIKE '%'||deduped_orders.dedupe_title||'%'
+                 )
+                 OR (
+                   length(img.dedupe_title)>=12
+                   AND deduped_orders.dedupe_title LIKE '%'||img.dedupe_title||'%'
+                 )
+               )
+               AND COALESCE(
+                 NULLIF(img.data->>'image_url',''),
+                 NULLIF(img.data->>'product_image_url',''),
+                 NULLIF(img.data->>'marketplace_image_url',''),
+                 NULLIF(img.data->>'thumbnail_url',''),
+                 NULLIF(img.data->>'photo_url','')
+               ) IS NOT NULL
+             ORDER BY img.updated_date DESC NULLS LAST, img.created_date DESC NULLS LAST
+             LIMIT 1
+           )
+         END
        ) AS image_url,
        base_item_cost,
        paper_ink_cost,

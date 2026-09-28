@@ -31,7 +31,7 @@ export default function Expenses() {
       credentials: "include",
       cache: "no-store",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "sync" }),
+      body: JSON.stringify({ action: "sync_expenses" }),
     }).catch(() => null);
     await reloadExpenses();
   };
@@ -56,7 +56,7 @@ export default function Expenses() {
         credentials: "include",
         cache: "no-store",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "sync" }),
+        body: JSON.stringify({ action: "sync_expenses" }),
       }).catch(() => null);
       await reloadExpenses();
     })();
@@ -96,7 +96,7 @@ export default function Expenses() {
         credentials: "include",
         cache: "no-store",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "sync" }),
+        body: JSON.stringify({ action: "sync_expenses" }),
       });
       const yahooData = await yahooResponse.json().catch(() => ({}));
 
