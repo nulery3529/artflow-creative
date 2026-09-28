@@ -173,6 +173,8 @@ async function accessTokenForAccount(req, accountId) {
   return token.accessToken;
 }
 
+const GMAIL_EXPENSE_PARSER_VERSION = 2;
+
 const EXPENSE_QUERIES = [
   // Explicit Art Flow forwarding/labeling remains supported for up to 90 days.
   'newer_than:90d subject:"artflow expense" -in:sent',
@@ -209,20 +211,30 @@ async function readMessage(accessToken, messageId) {
 }
 
 async function recordImport(client, { businessId, messageId, status, details, createdBy }) {
+  const payload = JSON.stringify({
+    source: 'gmail_expense_sync',
+    details,
+    parser_version: GMAIL_EXPENSE_PARSER_VERSION,
+  });
+  const updated = await client.query(`
+    UPDATE artflow.email_import_messages
+       SET status=$3,
+           updated_date=now(),
+           data=COALESCE(data,'{}'::jsonb) || $5::jsonb
+     WHERE business_id=$1
+       AND message_id=$2
+       AND import_type='expense'
+    RETURNING base44_id
+  `, [businessId,messageId,status,createdBy,payload]);
+  if (updated.rowCount) return;
+
   await client.query(`
     INSERT INTO artflow.email_import_messages (
       base44_id,business_id,message_id,import_type,status,platform,created_by_id,created_date,updated_date,data
+    ) VALUES (
+      gen_random_uuid()::text,$1,$2,'expense',$3,'Gmail',$4,now(),now(),$5::jsonb
     )
-    SELECT gen_random_uuid()::text,$1,$2,'expense',$3,'Gmail',$4,now(),now(),$5::jsonb
-    WHERE NOT EXISTS (
-      SELECT 1 FROM artflow.email_import_messages
-      WHERE business_id=$1 AND message_id=$2 AND import_type='expense'
-    )
-  `,[businessId,messageId,status,createdBy,JSON.stringify({
-    source: 'gmail_expense_sync',
-    details,
-    parser_version: 1,
-  })]);
+  `,[businessId,messageId,status,createdBy,payload]);
 }
 
 async function insertExpense(client, business, message, gmailAddress) {
@@ -352,11 +364,16 @@ export async function syncExpenseAccount(client, business, accessToken, { force 
   let processed = 0;
   for (const messageId of messageIds) {
     const alreadyProcessed = await client.query(`
-      SELECT 1 FROM artflow.email_import_messages
+      SELECT status,
+             COALESCE(NULLIF(data->>'parser_version','')::int,0) AS parser_version
+      FROM artflow.email_import_messages
       WHERE business_id=$1 AND message_id=$2 AND import_type='expense'
+      ORDER BY updated_date DESC NULLS LAST
       LIMIT 1
     `,[business.base44_id,messageId]);
-    if (alreadyProcessed.rowCount) continue;
+    const prior = alreadyProcessed.rows[0];
+    if (prior?.status === 'imported') continue;
+    if (prior?.status === 'skipped' && Number(prior?.parser_version || 0) >= GMAIL_EXPENSE_PARSER_VERSION) continue;
     if (processed >= 50) break;
     let message;
     try {
