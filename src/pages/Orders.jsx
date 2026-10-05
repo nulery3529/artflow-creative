@@ -58,7 +58,7 @@ function OrderThumbnail({ src, alt }) {
 }
 
 export default function Orders() {
-  const { records: orders, reload: reloadOrders } = useOrders();
+  const { records: orders, reload: reloadOrders, setOrderShipped } = useOrders();
   const { selected: trackedSites, configured: sitesConfigured, loading: sitesLoading } = useMarketplacePreferences();
   // Connection preferences decide which marketplaces sync; they do not remove
   // historical sales that are already part of the business ledger.
@@ -84,6 +84,26 @@ export default function Orders() {
   }, [pathname, locationSearch, reloadOrders]);
   const { isOpen: formOpen, open: openForm, close: closeForm } = useModalRoute();
   const [importingEmail, setImportingEmail] = useState(false);
+  const [updatingShipment, setUpdatingShipment] = useState(() => new Set());
+
+  const updateShipment = async (order, shipped) => {
+    const id = order?.id || order?.base44_id;
+    if (!id) return;
+    setUpdatingShipment((current) => new Set(current).add(id));
+    try {
+      await setOrderShipped(id, shipped);
+    } catch (error) {
+      toast.error("Couldn’t update shipping status", {
+        description: error?.message || "Please try again.",
+      });
+    } finally {
+      setUpdatingShipment((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
+    }
+  };
 
   const hasLegacyFacebookLogo = useMemo(
     () => activeOrders.some((order) =>
@@ -456,6 +476,19 @@ export default function Orders() {
                 </p>
               </div>
             </div>
+
+            <label className="mt-3 min-h-11 px-4 rounded-xl border border-[hsl(var(--border))] bg-background flex items-center justify-between gap-3 cursor-pointer select-none">
+              <span className="text-sm font-semibold text-foreground">Sent / Shipped</span>
+              <input
+                type="checkbox"
+                checked={Boolean(o.shipped)}
+                disabled={updatingShipment.has(o.id || o.base44_id)}
+                onChange={(event) => updateShipment(o, event.target.checked)}
+                className="h-5 w-5 rounded border-[hsl(var(--border))] accent-[hsl(var(--primary))] disabled:opacity-50"
+                aria-label={`Mark ${displayProductName(o)} as sent or shipped`}
+              />
+            </label>
+
             {sourceUrl && (
               <a
                 href={sourceUrl}
