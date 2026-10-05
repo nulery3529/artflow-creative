@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseSaleEmail } from '../api/_gmail-sales-core.mjs';
+import { marketplaceImageUrl, parseSaleEmail } from '../api/_gmail-sales-core.mjs';
 
 test('parses Facebook Marketplace seller order email', () => {
   const rows = parseSaleEmail(
@@ -43,4 +43,22 @@ test('does not count Facebook Marketplace shipping label email as a new sale', (
   );
 
   assert.deepEqual(rows, []);
+});
+
+
+test('prefers Facebook Marketplace product thumbnail over Facebook email logo', () => {
+  const html = [
+    '<img width="32" height="32" src="https://www.facebook.com/images/email/facebook_icon.png" />',
+    '<img width="64" height="64" src="https://scontent.xx.fbcdn.net/v/t45.5328-4/828925676_1384828573822816_4546459477707900126_n.jpg?stp=cp0_dst-jpg_s64x64_tt6&amp;_nc_cat=110" />',
+    '<img width="1" height="1" src="https://www.facebook.com/email_open_log_pic.php?mid=abc" />',
+  ].join('\n');
+
+  const image = marketplaceImageUrl(
+    'Facebook Marketplace',
+    html,
+    '8x8 Framed Crescent Moon Dreamcatcher Quilling Art Print'
+  );
+
+  assert.match(image, /^https:\/\/scontent\.xx\.fbcdn\.net\//i);
+  assert.doesNotMatch(image, /facebook_icon\.png/i);
 });
