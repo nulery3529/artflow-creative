@@ -1,7 +1,6 @@
 import pg from 'pg';
 import { pooledDatabaseUrl } from './_db.mjs';
 import { syncConnectedEbayOrders } from './ebay-official.mjs';
-import { syncConnectedEtsyOrders } from './etsy-official.mjs';
 
 const { Pool } = pg;
 const PRIMARY_VERCEL_PROJECT_ID = 'prj_DROTZuTXWIqP0aCXDtJ0xMkWAitz';
@@ -31,7 +30,6 @@ export default async function handler(req,res){
   const client=await pool.connect();
   const summary={
     ebay:{accounts:0,saved:0,checked:0,failed:0},
-    etsy:{accounts:0,saved:0,checked:0,failed:0},
   };
 
   try{
@@ -53,41 +51,7 @@ export default async function handler(req,res){
       }
     }
 
-    const etsyProfiles=await client.query(`
-      SELECT DISTINCT ON (COALESCE(auth_user_id,base44_id))
-             base44_id,email,full_name,role,active_business_id,disabled,auth_user_id,created_date,updated_date,data
-        FROM artflow.legacy_users
-       WHERE COALESCE((data->'etsy_oauth'->>'connected')::boolean,false)=true
-         AND COALESCE(data->'etsy_oauth'->>'refresh_token_enc','')<>''
-         AND COALESCE(active_business_id,data->>'active_business_id','')<>''
-       ORDER BY COALESCE(auth_user_id,base44_id),updated_date DESC NULLS LAST
-    `);
 
-    const syncedEtsy=new Set();
-    for(const profile of etsyProfiles.rows){
-      const businessId=clean(profile.active_business_id || profile.data?.active_business_id);
-      const shopId=clean(profile.data?.etsy_oauth?.shop_id);
-      const key=`${businessId}|${shopId}`;
-      if(!businessId || syncedEtsy.has(key)) continue;
-      syncedEtsy.add(key);
-
-      const br=await client.query(
-        `SELECT base44_id,name,primary_email,created_by_id,data FROM artflow.businesses WHERE base44_id=$1 LIMIT 1`,
-        [businessId]
-      );
-      const business=br.rows[0];
-      if(!business) continue;
-
-      summary.etsy.accounts+=1;
-      try{
-        const result=await syncConnectedEtsyOrders(client,profile,business);
-        summary.etsy.saved+=Number(result.saved||0);
-        summary.etsy.checked+=Number(result.checked||0);
-      }catch(error){
-        summary.etsy.failed+=1;
-        console.warn('Background Etsy order sync failed',businessId,error?.message||error);
-      }
-    }
 
     return res.status(200).json({ok:true,...summary});
   }catch(error){
