@@ -68,6 +68,7 @@ export default function Reports() {
   const navigate = useNavigate();
   const { records: orders, reload: reloadOrders } = useOrders();
   const { selected: trackedSites } = useMarketplacePreferences();
+  const reportOrders = useMemo(() => orders.filter((order) => displayPlatform(order.platform) !== "Legacy"), [orders]);
   const { records: allExpenses, reload: reloadExpenses } = useEntity(
     "Expense",
     "-created_date"
@@ -81,7 +82,7 @@ export default function Reports() {
   };
 
   const calc = useMemo(() => {
-    const periodOrders = orders.filter((order) => inPeriod(order.sale_date, period));
+    const periodOrders = reportOrders.filter((order) => inPeriod(order.sale_date, period));
     const periodExpenses = expenses.filter((expense) =>
       inPeriod(expense.date || expense.expense_date, period)
     );
@@ -162,7 +163,7 @@ export default function Reports() {
       expenseCategories,
       platformSales,
     };
-  }, [orders, expenses, period, trackedSites, taxRate]);
+  }, [reportOrders, expenses, period, trackedSites, taxRate]);
 
   const maxPlatform = Math.max(...calc.platformSales.map((item) => item.sales), 1);
 
@@ -174,7 +175,7 @@ export default function Reports() {
         title="Reports"
         subtitle="Performance over time"
         onBack={() => navigate(-1)}
-        right={<ExportButton orders={orders} expenses={expenses} />}
+        right={<ExportButton orders={reportOrders} expenses={expenses} />}
       />
 
       <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1">
@@ -258,10 +259,10 @@ export default function Reports() {
       </section>
 
       <div className="pt-1">
-        <MonthlySummary orders={orders} expenses={expenses} />
+        <MonthlySummary orders={reportOrders} expenses={expenses} />
       </div>
 
-      <TaxLiabilityTracker orders={orders} expenses={expenses} taxRate={taxRate} />
+      <TaxLiabilityTracker orders={reportOrders} expenses={expenses} taxRate={taxRate} />
 
       <div className="grid grid-cols-2 gap-3">
         <ReportCard
