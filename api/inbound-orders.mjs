@@ -41,7 +41,6 @@ function isAllowedMarketplaceSender(value = '') {
     '@poshmark.com',
     '@alerts.depop.com',
     '@ohhey.depop.com',
-    '@etsy.com',
     '@ebay.com',
   ].some((suffix) => email.endsWith(suffix));
 }
@@ -217,33 +216,6 @@ function firstAmount(text, patterns = []) {
   return 0;
 }
 
-function etsyRows(subject, text) {
-  if (!/sale|sold/i.test(subject)) return [];
-  const orderId = clean(text.match(/receipt\s*(?:number)?\s*[:#]?\s*(\d{5,})/i)?.[1] || text.match(/order\s*#?\s*(\d{5,})/i)?.[1] || '') || null;
-  const title = clean(
-    text.match(/you sold\s*:?\s*([^\n]+)/i)?.[1] ||
-    text.match(/item\s*:?\s*([^\n]+)/i)?.[1] ||
-    'Etsy sale'
-  ).slice(0, 120);
-  const saleTotal = firstAmount(text, [
-    /order total[:\s]*\$?([\d,]+(?:\.\d{2})?)/i,
-    /total paid[:\s]*\$?([\d,]+(?:\.\d{2})?)/i,
-    /total[:\s]*\$([\d,]+(?:\.\d{2})?)/i,
-    /\$([\d,]+\.\d{2})/,
-  ]);
-  if (!saleTotal) return [];
-  return [{
-    platform: 'Etsy',
-    product_name: title,
-    quantity: 1,
-    size: sizeFromTitle(title),
-    sale_total: saleTotal,
-    unit_price: saleTotal,
-    buyer: clean(text.match(/(?:sold to|buyer|customer)\s*:?\s*([^\n,]+)/i)?.[1] || ''),
-    order_id: orderId,
-  }];
-}
-
 function ebayRows(subject, text) {
   if (!/sold|sale/i.test(subject)) return [];
   const title = clean(
@@ -276,7 +248,6 @@ function parseSaleEmail(from, subject, text) {
   if (email.endsWith('@vinted.com')) return vintedRows(subject, text);
   if (email.endsWith('@poshmark.com')) return poshmarkRows(subject, text);
   if (email.endsWith('@alerts.depop.com') || email.endsWith('@ohhey.depop.com')) return depopRows(subject, text);
-  if (email.endsWith('@etsy.com')) return etsyRows(subject, text);
   if (email.endsWith('@ebay.com')) return ebayRows(subject, text);
   return [];
 }
