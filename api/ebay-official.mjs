@@ -97,6 +97,21 @@ function httpsUrl(value=''){
   const url=clean(value);
   return url.replace(/^http:\/\//i,'https://');
 }
+
+async function connectedSellerUsername(accessToken){
+  const r=await fetch(TRADING_URL,{method:'POST',headers:{
+    'Content-Type':'text/xml','X-EBAY-API-CALL-NAME':'GetUser','X-EBAY-API-SITEID':'0',
+    'X-EBAY-API-COMPATIBILITY-LEVEL':TRADING_VERSION,'X-EBAY-API-IAF-TOKEN':accessToken,
+  },body:'<?xml version="1.0" encoding="utf-8"?><GetUserRequest xmlns="urn:ebay:apis:eBLBaseComponents"><OutputSelector>User.UserID</OutputSelector></GetUserRequest>'});
+  const xml=await r.text();
+  if(!r.ok || /<Ack>(Failure|PartialFailure)<\/Ack>/i.test(xml)){
+    throw new Error(xmlTag(xml,'LongMessage')||xmlTag(xml,'ShortMessage')||'Unable to verify eBay seller');
+  }
+  const username=xmlTag(xml,'UserID');
+  if(!username) throw new Error('eBay did not return the connected seller username');
+  return username;
+}
+
 async function ensureListingsTable(client){
   await client.query(`CREATE TABLE IF NOT EXISTS artflow.marketplace_listings (
     id text PRIMARY KEY,business_id text NOT NULL,platform text NOT NULL,listing_id text,title text NOT NULL,
@@ -280,6 +295,13 @@ export default async function handler(req,res){
     const oauth=business.data?.ebay_oauth||{};
 
     if(req.method==='GET'){
+      if(oauth.connected && oauth.refresh_token_enc && !clean(oauth.username)){
+        try{
+          const username=await connectedSellerUsername(await validAccessToken(client,business));
+          await saveOAuth(client,business,{username});
+          oauth.username=username;
+        }catch(error){ console.warn('eBay seller verification failed',error?.message||error); }
+      }
       const connectionStatus={
         configured:configured(),
         connected:Boolean(oauth.connected&&oauth.refresh_token_enc),
