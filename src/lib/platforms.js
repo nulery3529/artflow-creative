@@ -1,10 +1,9 @@
-export const PLATFORMS = ["Vinted", "Depop", "eBay", "Etsy", "Poshmark", "Facebook Marketplace"]; 
+export const PLATFORMS = ["Vinted", "Depop", "eBay", "Poshmark", "Facebook Marketplace"]; 
 
 export const PLATFORM_TONE = {
   Vinted: "pastel-lavender text-[hsl(var(--primary))]",
   Depop: "pastel-mint text-slate-600",
   eBay: "pastel-blue text-slate-600",
-  Etsy: "bg-rose-100 text-rose-700",
   Poshmark: "bg-pink-100 text-pink-700",
   "Facebook Marketplace": "bg-blue-100 text-blue-700",
   Legacy: "bg-muted text-muted-foreground",
@@ -14,7 +13,6 @@ export const PLATFORM_BAR = {
   Vinted: "bg-[hsl(var(--primary))]",
   Depop: "bg-slate-400",
   eBay: "bg-blue-400",
-  Etsy: "bg-violet-400",
   Poshmark: "bg-pink-400",
   "Facebook Marketplace": "bg-blue-600",
   Legacy: "bg-slate-300",
@@ -61,7 +59,6 @@ export function orderSourceUrl(order) {
   const fallback = {
     Vinted: "https://www.vinted.com/",
     Depop: "https://www.depop.com/",
-    Etsy: "https://www.etsy.com/",
     eBay: "https://www.ebay.com/",
     Poshmark: "https://poshmark.com/",
     "Facebook Marketplace": "https://www.facebook.com/marketplace/",
