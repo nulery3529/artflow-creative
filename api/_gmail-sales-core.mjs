@@ -511,7 +511,7 @@ function marketplaceSourceUrl(platform = '', html = '') {
   return candidates[0]?.url || '';
 }
 
-function marketplaceImageUrl(platform = '', html = '', title = '') {
+export function marketplaceImageUrl(platform = '', html = '', title = '') {
   if (!html) return '';
 
   const key = (value = '') => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, '');
@@ -533,6 +533,7 @@ function marketplaceImageUrl(platform = '', html = '', title = '') {
 
     if (
       /email[_-]?track|tracking|spacer|pixel|transparent|vinted_logo|logo\.(?:png|jpg|jpeg|gif|webp)/i.test(lower)
+      || (platform === 'Facebook Marketplace' && /facebook_icon\.png|\/images\/email\/facebook_/i.test(lower))
       || (width > 0 && width <= 2)
       || (height > 0 && height <= 2)
     ) continue;
@@ -547,7 +548,10 @@ function marketplaceImageUrl(platform = '', html = '', title = '') {
     if (platform === 'Vinted' && /(?:^|\.)vinted\.net|(?:^|\.)vinted\.com/i.test(new URL(src).hostname)) score += 12;
     if (platform === 'Poshmark' && /poshmark|cloudfront|cloudinary/i.test(lower)) score += 10;
     if (platform === 'Depop' && /depop|cloudfront|cloudinary/i.test(lower)) score += 10;
-    if (platform === 'Facebook Marketplace' && /facebook|fbcdn|scontent/i.test(lower)) score += 10;
+    if (platform === 'Facebook Marketplace') {
+      if (/scontent\.[^/]*fbcdn\.net|fbcdn\.net/i.test(lower)) score += 30;
+      else if (/facebook\.com/i.test(lower)) score += 4;
+    }
     if (/\b(?:150x210|200x|300x|item|product|listing)\b/i.test(lower)) score += 4;
     if (width >= 40 || height >= 40) score += 2;
 
@@ -703,7 +707,7 @@ async function insertRows(client, businessId, messageId, receivedAt, rows) {
           bundle_item_titles: Array.isArray(row.bundle_item_titles) ? row.bundle_item_titles : [],
         } : {}),
         ...(row.platform === 'Poshmark' ? { poshmark_parser_version: 4 } : {}),
-        ...(row.platform === 'Facebook Marketplace' ? { facebook_image_parser_version: 1 } : {}),
+        ...(row.platform === 'Facebook Marketplace' ? { facebook_image_parser_version: 2 } : {}),
       }),
       row.product_name,
       row.quantity,
@@ -894,7 +898,7 @@ export async function syncGmailAccount(client, business, accessToken, { force = 
          )
          OR (
            platform='Facebook Marketplace'
-           AND COALESCE(data->>'facebook_image_parser_version','') <> '1'
+           AND COALESCE(data->>'facebook_image_parser_version','') <> '2'
          )
        )
      ORDER BY 1
@@ -928,7 +932,7 @@ export async function syncGmailAccount(client, business, accessToken, { force = 
           AND COALESCE(data->>'source_image_parser_version','') = '1'
           AND (
             platform <> 'Facebook Marketplace'
-            OR COALESCE(data->>'facebook_image_parser_version','') = '1'
+            OR COALESCE(data->>'facebook_image_parser_version','') = '2'
           )
         )
         UNION
