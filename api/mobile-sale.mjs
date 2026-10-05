@@ -18,7 +18,6 @@ const today = () => new Date().toISOString().slice(0, 10);
 function validPlatform(value = '') {
   if (/vinted/i.test(value)) return 'Vinted';
   if (/depop/i.test(value)) return 'Depop';
-  if (/etsy/i.test(value)) return 'Etsy';
   if (/ebay/i.test(value)) return 'eBay';
   return '';
 }
@@ -309,7 +308,7 @@ export default async function handler(req, res) {
     if (!business?.base44_id) return res.status(400).json({ error: 'No Art Flow business workspace was found.' });
 
     const tracked = Array.isArray(business.data?.tracked_marketplaces)
-      ? business.data.tracked_marketplaces.filter((item) => ['Vinted', 'Depop', 'Etsy', 'eBay'].includes(item))
+      ? business.data.tracked_marketplaces.filter((item) => ['Vinted', 'Depop', 'eBay'].includes(item))
       : [];
     if (!tracked.includes(platform)) {
       return res.status(409).json({
