@@ -3,10 +3,9 @@ import { ExternalLink, Link2, Loader2, Save } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { toast } from "sonner";
 
-const MARKETPLACES = ["Etsy", "eBay", "Depop", "Vinted", "Poshmark", "Facebook Marketplace"];
+const MARKETPLACES = ["eBay", "Depop", "Vinted", "Poshmark", "Facebook Marketplace"];
 
 const PLACEHOLDERS = {
-  Etsy: "https://www.etsy.com/shop/YourShop",
   eBay: "https://www.ebay.com/usr/yourstore",
   Depop: "https://www.depop.com/yourshop/",
   Vinted: "https://www.vinted.com/member/yourshop",
