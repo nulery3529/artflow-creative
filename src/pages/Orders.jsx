@@ -62,7 +62,7 @@ export default function Orders() {
   const { selected: trackedSites, configured: sitesConfigured, loading: sitesLoading } = useMarketplacePreferences();
   // Connection preferences decide which marketplaces sync; they do not remove
   // historical sales that are already part of the business ledger.
-  const activeOrders = orders;
+  const activeOrders = orders.filter((order) => displayPlatform(order.platform) !== "Legacy");
   const { records: inventoryCosts } = useEntity("InventoryCost", "size");
   const refresh = async () => {
     await reloadOrders();
