@@ -703,6 +703,7 @@ async function insertRows(client, businessId, messageId, receivedAt, rows) {
           bundle_item_titles: Array.isArray(row.bundle_item_titles) ? row.bundle_item_titles : [],
         } : {}),
         ...(row.platform === 'Poshmark' ? { poshmark_parser_version: 4 } : {}),
+        ...(row.platform === 'Facebook Marketplace' ? { facebook_image_parser_version: 1 } : {}),
       }),
       row.product_name,
       row.quantity,
@@ -891,6 +892,10 @@ export async function syncGmailAccount(client, business, accessToken, { force = 
            platform='Depop'
            AND source_email_id LIKE '%:%'
          )
+         OR (
+           platform='Facebook Marketplace'
+           AND COALESCE(data->>'facebook_image_parser_version','') <> '1'
+         )
        )
      ORDER BY 1
   `, [business.base44_id]);
@@ -921,6 +926,10 @@ export async function syncGmailAccount(client, business, accessToken, { force = 
           )
           AND COALESCE(data->>'source_link_parser_version','') = '1'
           AND COALESCE(data->>'source_image_parser_version','') = '1'
+          AND (
+            platform <> 'Facebook Marketplace'
+            OR COALESCE(data->>'facebook_image_parser_version','') = '1'
+          )
         )
         UNION
         SELECT data->>'cancellation_email_id' AS message_id
