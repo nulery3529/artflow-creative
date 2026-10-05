@@ -502,6 +502,8 @@ async function listOrders(client, session) {
        archived,
        sync_source,
        business_id,
+       (COALESCE(data->>'shipped','false') = 'true') AS shipped,
+       NULLIF(data->>'shipped_at','') AS shipped_at,
        CASE
          WHEN lower(COALESCE(platform,''))='poshmark'
            THEN jsonb_strip_nulls(jsonb_build_object('poshmark_earnings', data->>'poshmark_earnings'))
@@ -892,6 +894,43 @@ async function writeExpense(client, session, req) {
 async function writeOrder(client, session, req) {
   const { profile, ids, email } = await ensureWorkspace(client, session.user);
   const body = requestBody(req);
+  const action = String(body.action || 'create').toLowerCase();
+
+  if (action === 'set_shipped') {
+    const id = String(body.id || '').trim();
+    if (!id) throw new Error('Order id is required');
+    const shipped = Boolean(body.shipped);
+    const patch = {
+      shipped,
+      shipped_at: shipped ? new Date().toISOString() : null,
+    };
+    const updated = await client.query(
+      `UPDATE artflow.orders
+          SET data=COALESCE(data,'{}'::jsonb)||$4::jsonb,
+              updated_date=now()
+        WHERE base44_id=$1
+          AND (
+            business_id = ANY($2::text[])
+            OR EXISTS (
+              SELECT 1
+                FROM jsonb_array_elements_text(
+                  CASE
+                    WHEN jsonb_typeof(data->'access_emails')='array' THEN data->'access_emails'
+                    ELSE '[]'::jsonb
+                  END
+                ) access(value)
+               WHERE lower(access.value)=$3
+            )
+          )
+        RETURNING base44_id AS id,
+                  (COALESCE(data->>'shipped','false')='true') AS shipped,
+                  NULLIF(data->>'shipped_at','') AS shipped_at`,
+      [id, ids, email, JSON.stringify(patch)]
+    );
+    if (!updated.rows[0]) throw new Error('Order not found');
+    return updated.rows[0];
+  }
+
   const businessId = selectedBusinessId(profile, ids, body.business_id);
   if (!businessId) throw new Error('Business workspace not found');
   const id = String(body.id || crypto.randomUUID());
