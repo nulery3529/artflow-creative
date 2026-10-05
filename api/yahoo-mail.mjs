@@ -1028,7 +1028,7 @@ async function repairExistingEbayImages(client, businessId, rows = []) {
     WHERE business_id=$1
       AND lower(COALESCE(platform,''))='ebay'
       AND archived IS NOT TRUE
-      AND sale_date >= current_date - interval '90 days'
+      AND sale_date >= to_char(current_date - interval '90 days', 'YYYY-MM-DD')
     ORDER BY sale_date DESC NULLS LAST, updated_date DESC NULLS LAST
     LIMIT 500
   `, [businessId]);
