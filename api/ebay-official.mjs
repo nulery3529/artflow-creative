@@ -181,6 +181,28 @@ async function syncEbayListings(client,business,accessToken){
 
 
 
+
+async function ebayEndedPhotoPage(accessToken,from,to,pageNumber=1){
+  const r=await fetch(TRADING_URL,{method:'POST',headers:{
+    'Content-Type':'text/xml','X-EBAY-API-CALL-NAME':'GetSellerList','X-EBAY-API-SITEID':'0',
+    'X-EBAY-API-COMPATIBILITY-LEVEL':TRADING_VERSION,'X-EBAY-API-IAF-TOKEN':accessToken,
+  },body:`<?xml version="1.0" encoding="utf-8"?><GetSellerListRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+    <GranularityLevel>Fine</GranularityLevel><EndTimeFrom>${from}</EndTimeFrom><EndTimeTo>${to}</EndTimeTo>
+    <Pagination><EntriesPerPage>200</EntriesPerPage><PageNumber>${pageNumber}</PageNumber></Pagination>
+    </GetSellerListRequest>`});
+  const xml=await r.text();
+  if(!r.ok || /<Ack>(Failure|PartialFailure)<\/Ack>/i.test(xml))
+    throw new Error(xmlTag(xml,'LongMessage')||'Unable to retrieve historical eBay item photos');
+  return {
+    items:xmlBlocks(xml,'Item').map(item=>({
+      listingId:xmlTag(item,'ItemID'),title:xmlTag(item,'Title'),
+      imageUrl:httpsUrl(xmlTag(item,'PictureURL')||xmlTag(item,'GalleryURL')),
+      listingUrl:xmlTag(item,'ViewItemURL')||`https://www.ebay.com/itm/${xmlTag(item,'ItemID')}`,
+    })).filter(item=>item.listingId&&item.imageUrl),
+    totalPages:Math.max(1,Number(xmlTag(xml,'TotalNumberOfPages')||1)),
+  };
+}
+
 async function repairConnectedEbayPhotos(client,business,accessToken){
   const result=await client.query(`SELECT base44_id,product_name,data FROM artflow.orders
     WHERE business_id=$1 AND lower(platform)='ebay' AND archived IS NOT TRUE
@@ -195,6 +217,22 @@ async function repairConnectedEbayPhotos(client,business,accessToken){
       for(const item of batch.items) if(item.imageUrl) items.set(item.listingId,item);
       page+=1;
     }while(page<=totalPages && page<=25);
+  }
+  const now=new Date();
+  let from=new Date(Date.UTC(now.getUTCFullYear(),0,1));
+  while(from<now){
+    const to=new Date(Math.min(now.getTime(),from.getTime()+119*86400000));
+    let page=1,totalPages=1;
+    do{
+      const batch=await ebayEndedPhotoPage(accessToken,from.toISOString(),to.toISOString(),page).catch(error=>{
+        console.warn('Historical eBay photo lookup failed',error?.message||error);
+        return {items:[],totalPages:1};
+      });
+      totalPages=batch.totalPages;
+      for(const item of batch.items) items.set(item.listingId,item);
+      page+=1;
+    }while(page<=totalPages && page<=10);
+    from=new Date(to.getTime()+1000);
   }
   const titleKey=value=>clean(value).toLowerCase().replace(/^title:\s*/i,'').replace(/[^a-z0-9]+/g,'');
   let repaired=0;
