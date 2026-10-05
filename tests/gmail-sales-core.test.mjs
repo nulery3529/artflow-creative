@@ -343,3 +343,37 @@ test('keeps parsing eBay dollar sale totals after USD support', () => {
   assert.equal(rows[0].sale_total, 24);
   assert.equal(rows[0].amount_pending, false);
 });
+
+
+test('parses eBay Sold label format with shipping shown separately', () => {
+  const rows = parseSaleEmail(
+    'eBay <ebay@ebay.com>',
+    'You made the sale for 8x8 Black Framed Hocus Pocus Quote Wall Art | Billy',
+    [
+      'Your buyer has paid and now it’s time to get a shipping label.',
+      '8x8 Black Framed Hocus Pocus Quote Wall Art | Billy',
+      'Sold:',
+      '$12.00',
+      'Shipping:',
+      '$5.83',
+      'Order:',
+      '20-15234-17601',
+      'Date sold:',
+      'Oct 04, 2026',
+      'Buyer:',
+      'lunchbox_1313',
+      'Quantity sold:',
+      '1',
+    ].join('\n')
+  );
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].platform, 'eBay');
+  assert.equal(rows[0].product_name, '8x8 Black Framed Hocus Pocus Quote Wall Art | Billy');
+  assert.equal(rows[0].sale_total, 12);
+  assert.equal(rows[0].unit_price, 12);
+  assert.equal(rows[0].order_id, '20-15234-17601');
+  assert.equal(rows[0].buyer, 'lunchbox_1313');
+  assert.equal(rows[0].quantity, 1);
+  assert.equal(rows[0].amount_pending, false);
+});
