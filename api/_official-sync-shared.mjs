@@ -166,6 +166,13 @@ export async function insertOrders(client,businessId,rows,syncSource){
     ), repaired AS (
       UPDATE artflow.orders o
          SET updated_date=now(),
+             order_id=CASE
+               WHEN lower(o.platform)='ebay'
+                AND COALESCE(x.order_id,'')<>''
+                AND (COALESCE(o.order_id,'')='' OR o.order_id LIKE 'yahoo-ebay-%')
+               THEN x.order_id
+               ELSE o.order_id
+             END,
              unit_price=CASE WHEN COALESCE(o.sale_total,0)<=0 AND COALESCE(x.sale_total,0)>0 THEN x.unit_price ELSE o.unit_price END,
              sale_total=CASE WHEN COALESCE(o.sale_total,0)<=0 AND COALESCE(x.sale_total,0)>0 THEN x.sale_total ELSE o.sale_total END,
              buyer=CASE WHEN COALESCE(o.buyer,'')='' AND COALESCE(x.buyer,'')<>'' THEN x.buyer ELSE o.buyer END,
