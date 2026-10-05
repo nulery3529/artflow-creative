@@ -1,7 +1,6 @@
 const LISTING_HOST_SUFFIXES = [
   'vinted.com',
   'depop.com',
-  'etsy.com',
   'ebay.com',
   'poshmark.com',
   'facebook.com',
@@ -11,8 +10,6 @@ const IMAGE_HOST_SUFFIXES = [
   'vinted.net',
   'vinted.com',
   'depop.com',
-  'etsystatic.com',
-  'etsy.com',
   'ebayimg.com',
   'ebay.com',
   'poshmark.com',
