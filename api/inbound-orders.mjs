@@ -170,7 +170,7 @@ function poshmarkRows(subject, text) {
   return [{
     platform: 'Poshmark',
     product_name: title,
-    quantity: 1,
+    quantity: Math.max(1, Number(text.match(/Quantity(?:\s+sold)?\s*(?:\n|:)?\s*(\d+)/i)?.[1] || 1)),
     size: sizeFromTitle(title),
     sale_total: price,
     unit_price: price,
@@ -219,6 +219,7 @@ function firstAmount(text, patterns = []) {
 function ebayRows(subject, text) {
   if (!/sold|sale/i.test(subject)) return [];
   const title = clean(
+    subject.match(/you made (?:a|the) sale for\s+(.+?)[.!]*\s*$/i)?.[1] ||
     subject.match(/you sold an item\s*:?\s*(.+?)[.!]*\s*$/i)?.[1] ||
     subject.match(/^eBay item sold\s*:?\s*(.+)/i)?.[1] ||
     text.match(/item\s+title\s*:?\s*([^\n]+)/i)?.[1] ||
@@ -227,6 +228,7 @@ function ebayRows(subject, text) {
   ).slice(0, 120);
   const orderId = clean(text.match(/order\s*(?:number|#)?\s*[:#]?\s*([\d-]{6,})/i)?.[1] || '') || null;
   const saleTotal = firstAmount(text, [
+    /(?:^|\n)\s*Sold\s*(?:\n|:)\s*\$([\d,]+(?:\.\d{2})?)/im,
     /(?:order )?total[:\s]*\$([\d,]+(?:\.\d{2})?)/i,
     /\$([\d,]+\.\d{2})/,
   ]);
