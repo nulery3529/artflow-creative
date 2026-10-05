@@ -85,6 +85,40 @@ export default function Orders() {
   const { isOpen: formOpen, open: openForm, close: closeForm } = useModalRoute();
   const [importingEmail, setImportingEmail] = useState(false);
 
+  const hasLegacyFacebookLogo = useMemo(
+    () => activeOrders.some((order) =>
+      displayPlatform(order?.platform) === "Facebook Marketplace"
+      && /facebook_icon\.png|\/images\/email\/facebook_/i.test(String(directImageUrl(order) || ""))
+    ),
+    [activeOrders]
+  );
+
+  useEffect(() => {
+    if (pathname !== "/orders" || !hasLegacyFacebookLogo) return;
+    const key = "artflow_facebook_image_repair_v2";
+    if (sessionStorage.getItem(key) === "1") return;
+    sessionStorage.setItem(key, "1");
+
+    (async () => {
+      try {
+        const response = await fetch("/api/gmail-sales-sync", {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ force: true }),
+        });
+        if (!response.ok) {
+          sessionStorage.removeItem(key);
+          return;
+        }
+        await reloadOrders();
+      } catch {
+        sessionStorage.removeItem(key);
+      }
+    })();
+  }, [pathname, hasLegacyFacebookLogo, reloadOrders]);
+
   const importEmailSales = async () => {
     setImportingEmail(true);
     try {
