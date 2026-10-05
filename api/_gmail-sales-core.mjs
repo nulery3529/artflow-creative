@@ -549,8 +549,12 @@ export function marketplaceImageUrl(platform = '', html = '', title = '') {
     if (platform === 'Poshmark' && /poshmark|cloudfront|cloudinary/i.test(lower)) score += 10;
     if (platform === 'Depop' && /depop|cloudfront|cloudinary/i.test(lower)) score += 10;
     if (platform === 'Facebook Marketplace') {
-      if (/scontent\.[^/]*fbcdn\.net|fbcdn\.net/i.test(lower)) score += 30;
-      else if (/facebook\.com/i.test(lower)) score += 4;
+      // Facebook seller emails contain both the 32x32 Facebook brand icon and
+      // the actual sold-item thumbnail. Never let the brand asset win.
+      if (/facebook_icon|facebook[_-]?(?:logo|icon)|\/images\/email\/facebook_/i.test(lower)) continue;
+      if (/scontent\.[^/]*fbcdn\.net|fbcdn\.net/i.test(lower)) score += 60;
+      else if (/facebook\.com/i.test(lower)) score -= 20;
+      if (width >= 48 && height >= 48) score += 8;
     }
     if (/\b(?:150x210|200x|300x|item|product|listing)\b/i.test(lower)) score += 4;
     if (width >= 40 || height >= 40) score += 2;
@@ -707,7 +711,7 @@ async function insertRows(client, businessId, messageId, receivedAt, rows) {
           bundle_item_titles: Array.isArray(row.bundle_item_titles) ? row.bundle_item_titles : [],
         } : {}),
         ...(row.platform === 'Poshmark' ? { poshmark_parser_version: 4 } : {}),
-        ...(row.platform === 'Facebook Marketplace' ? { facebook_image_parser_version: 2 } : {}),
+        ...(row.platform === 'Facebook Marketplace' ? { facebook_image_parser_version: 3 } : {}),
       }),
       row.product_name,
       row.quantity,
@@ -898,7 +902,7 @@ export async function syncGmailAccount(client, business, accessToken, { force = 
          )
          OR (
            platform='Facebook Marketplace'
-           AND COALESCE(data->>'facebook_image_parser_version','') <> '2'
+           AND COALESCE(data->>'facebook_image_parser_version','') <> '3'
          )
        )
      ORDER BY 1
@@ -932,7 +936,7 @@ export async function syncGmailAccount(client, business, accessToken, { force = 
           AND COALESCE(data->>'source_image_parser_version','') = '1'
           AND (
             platform <> 'Facebook Marketplace'
-            OR COALESCE(data->>'facebook_image_parser_version','') = '2'
+            OR COALESCE(data->>'facebook_image_parser_version','') = '3'
           )
         )
         UNION
