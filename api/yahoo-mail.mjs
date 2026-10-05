@@ -707,7 +707,10 @@ async function yahooMessages(email, appPassword, afterUid=0) {
     let mailboxes = ['INBOX'];
     try {
       const listed = await imap.listMailboxes();
-      mailboxes = Array.from(new Set(['INBOX', ...listed])).filter((name) => {
+      // IMAP treats INBOX case-insensitively; Yahoo may list it as Inbox.
+      mailboxes = Array.from(new Set(['INBOX', ...listed.map((name) =>
+        /^inbox$/i.test(name) ? 'INBOX' : name
+      )])).filter((name) => {
         const normalized = normalize(name);
         return normalized &&
           !/(?:^|[\/._ -])(trash|deleted|sent|draft|junk|spam|bulk)(?:$|[\/._ -])/i.test(normalized);
@@ -828,7 +831,9 @@ async function yahooMessages(email, appPassword, afterUid=0) {
 
       let promotedFetched = 0;
       if (headerPromoted.size) {
-        const promotedUids = [...headerPromoted].sort((a, b) => a - b);
+        const promotedUids = [...headerPromoted]
+          .filter((uid) => !fetchedKeys.has(`${mailbox}:${uid}`))
+          .sort((a, b) => a - b);
         candidateCount += promotedUids.length;
         for (let i = 0; i < promotedUids.length; i += 20) {
           const batch = promotedUids.slice(i, i + 20);
@@ -874,6 +879,7 @@ async function yahooMessages(email, appPassword, afterUid=0) {
         .filter((uid) => !priorityFound.has(uid))
         .sort((a, b) => b - a);
       const uids = [...priorityUids, ...broadUids]
+        .filter((uid) => !fetchedKeys.has(`${mailbox}:${uid}`))
         .slice(0, capacity)
         .sort((a, b) => a - b);
 
