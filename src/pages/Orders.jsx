@@ -179,6 +179,20 @@ export default function Orders() {
     const platform = displayPlatform(order?.platform);
     const listing = String(order?.source_url || "").trim();
 
+    if (platform === "Facebook Marketplace") {
+      const isFacebookImage = /^https:\/\/(?:[^/]+\.)?(?:fbcdn\.net|facebook\.com)\//i.test(direct);
+      const isFacebookListing = /^https:\/\/(?:[^/]+\.)?facebook\.com\/marketplace\//i.test(listing);
+
+      if (isFacebookImage) {
+        const params = new URLSearchParams({ image: direct });
+        if (isFacebookListing) params.set("listing", listing);
+        return `/api/listing-image?${params.toString()}`;
+      }
+
+      if (direct) return direct;
+      return "";
+    }
+
     if (platform === "eBay") {
       const badGraphic =
         /ebaystatic\.com|app[ _-]?store|google[ _-]?play|download[^/ ]*app/i.test(direct);
