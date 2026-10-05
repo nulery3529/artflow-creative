@@ -11,7 +11,6 @@ const clean = (value = "") => String(value || "").trim();
 const detectPlatform = (value = "") => {
   if (/vinted/i.test(value)) return "Vinted";
   if (/depop/i.test(value)) return "Depop";
-  if (/etsy/i.test(value)) return "Etsy";
   if (/ebay/i.test(value)) return "eBay";
   return "";
 };
@@ -118,11 +117,11 @@ const findProduct = (value = "", sharedTitle = "") => {
     if (match) return clean(match[1]);
   }
   const title = clean(sharedTitle)
-    .replace(/\s*[-|]\s*(?:Vinted|Depop|Etsy|eBay).*$/i, "")
-    .replace(/^(?:Vinted|Depop|Etsy|eBay)\s*[-|:]\s*/i, "");
-  if (title && !/^(?:vinted|depop|etsy|ebay)$/i.test(title)) return title;
+    .replace(/\s*[-|]\s*(?:Vinted|Depop|eBay).*$/i, "")
+    .replace(/^(?:Vinted|Depop|eBay)\s*[-|:]\s*/i, "");
+  if (title && !/^(?:vinted|depop|ebay)$/i.test(title)) return title;
 
-  const ignored = /^(?:vinted|depop|etsy|ebay|order|order details|sold|sale|receipt|thank you|view order|view sale)$/i;
+  const ignored = /^(?:vinted|depop|ebay|order|order details|sold|sale|receipt|thank you|view order|view sale)$/i;
   const lines = text.split(/\r?\n/).map((line) => clean(line)).filter(Boolean);
   const candidate = lines.find((line) =>
     line.length >= 4 && line.length <= 180 &&
