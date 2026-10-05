@@ -11,6 +11,8 @@ import ThemeSettings from "@/components/ThemeSettings";
 import GmailSyncCard from "@/components/GmailSyncCard";
 import YahooInboxCard from "@/components/YahooInboxCard";
 import EbayConnectionCard from "@/components/EbayConnectionCard";
+import MarketplaceTrackingCard from "@/components/MarketplaceTrackingCard";
+import MarketplaceLinksCard from "@/components/MarketplaceLinksCard";
 import { isAppleApp, manageAppleSubscriptions } from "@/lib/appleSubscription";
 import SubscriptionPlansCard from "@/components/SubscriptionPlansCard";
 
@@ -94,6 +96,8 @@ export default function Account() {
       <YahooInboxCard />
 
       <EbayConnectionCard />
+      <MarketplaceTrackingCard />
+      <MarketplaceLinksCard />
 
       <ThemeSettings />
 
