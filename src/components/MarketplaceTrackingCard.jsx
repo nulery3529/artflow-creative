@@ -9,6 +9,7 @@ const SITE_HELP = {
   Etsy: "Sync Etsy orders and sales",
   eBay: "Sync eBay orders and sales",
   Poshmark: "Sync Poshmark orders and sales",
+  "Facebook Marketplace": "Track Facebook Marketplace / Seller app sales. Add completed sales in Orders.",
 };
 
 export default function MarketplaceTrackingCard() {
@@ -31,7 +32,8 @@ export default function MarketplaceTrackingCard() {
     setSavingSite(name);
     try {
       await save(next);
-      toast.success(wasActive ? `${name} sync turned off` : `${name} selected for sync`);
+      const action = name === "Facebook Marketplace" ? "tracking" : "sync";
+      toast.success(wasActive ? `${name} ${action} turned off` : `${name} selected for ${action}`);
     } catch (error) {
       setDraft(draft);
       toast.error(`Could not update ${name}`, { description: error?.message });
@@ -47,9 +49,9 @@ export default function MarketplaceTrackingCard() {
           <Store className="w-5 h-5" />
         </div>
         <div>
-          <h2 className="font-heading text-lg">Marketplace Sync</h2>
+          <h2 className="font-heading text-lg">Marketplaces</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Tap each marketplace you use. A checkmark means Art Flow is set to sync that site.
+            Choose the marketplaces you use to track your sales.
           </p>
         </div>
       </div>
@@ -84,7 +86,7 @@ export default function MarketplaceTrackingCard() {
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-1 leading-snug">{SITE_HELP[name]}</p>
                 <p className={`text-[11px] font-semibold mt-2 ${active ? "text-[hsl(var(--primary))]" : "text-muted-foreground"}`}>
-                  {saving ? "Saving…" : active ? "Sync on" : "Tap to sync"}
+                  {saving ? "Saving…" : name === "Facebook Marketplace" ? (active ? "Tracking on" : "Tap to track") : active ? "Sync on" : "Tap to sync"}
                 </p>
               </button>
             );

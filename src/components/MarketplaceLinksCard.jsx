@@ -3,7 +3,7 @@ import { ExternalLink, Link2, Loader2, Save } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { toast } from "sonner";
 
-const MARKETPLACES = ["Etsy", "eBay", "Depop", "Vinted", "Poshmark"];
+const MARKETPLACES = ["Etsy", "eBay", "Depop", "Vinted", "Poshmark", "Facebook Marketplace"];
 
 const PLACEHOLDERS = {
   Etsy: "https://www.etsy.com/shop/YourShop",
@@ -11,6 +11,7 @@ const PLACEHOLDERS = {
   Depop: "https://www.depop.com/yourshop/",
   Vinted: "https://www.vinted.com/member/yourshop",
   Poshmark: "https://poshmark.com/closet/yourshop",
+  "Facebook Marketplace": "https://www.facebook.com/marketplace/profile/yourprofile",
 };
 
 const emptyLinks = () => Object.fromEntries(MARKETPLACES.map((name) => [name, ""]));

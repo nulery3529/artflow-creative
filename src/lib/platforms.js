@@ -1,4 +1,4 @@
-export const PLATFORMS = ["Vinted", "Depop", "eBay", "Etsy", "Poshmark"]; 
+export const PLATFORMS = ["Vinted", "Depop", "eBay", "Etsy", "Poshmark", "Facebook Marketplace"]; 
 
 export const PLATFORM_TONE = {
   Vinted: "pastel-lavender text-[hsl(var(--primary))]",
@@ -6,6 +6,7 @@ export const PLATFORM_TONE = {
   eBay: "pastel-blue text-slate-600",
   Etsy: "bg-rose-100 text-rose-700",
   Poshmark: "bg-pink-100 text-pink-700",
+  "Facebook Marketplace": "bg-blue-100 text-blue-700",
   Legacy: "bg-muted text-muted-foreground",
 };
 
@@ -15,6 +16,7 @@ export const PLATFORM_BAR = {
   eBay: "bg-blue-400",
   Etsy: "bg-violet-400",
   Poshmark: "bg-pink-400",
+  "Facebook Marketplace": "bg-blue-600",
   Legacy: "bg-slate-300",
 };
 
@@ -26,6 +28,7 @@ export function displayPlatform(value) {
   const raw = String(value || "").trim();
   if (SUPPORTED.has(raw)) return raw;
   const lowered = raw.toLowerCase();
+  if (["facebook", "facebook marketplace", "seller", "seller app"].includes(lowered)) return "Facebook Marketplace";
   const canonical = PLATFORMS.find((platform) => platform.toLowerCase() === lowered);
   return canonical || "Legacy";
 }
@@ -61,6 +64,7 @@ export function orderSourceUrl(order) {
     Etsy: "https://www.etsy.com/",
     eBay: "https://www.ebay.com/",
     Poshmark: "https://poshmark.com/",
+    "Facebook Marketplace": "https://www.facebook.com/marketplace/",
   };
   return fallback[platform] || "";
 }
