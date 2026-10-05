@@ -354,7 +354,8 @@ function ebayRows(subject, text) {
   );
 
   const orderId = clean(
-    text.match(/(?:Order\s*(?:number|ID)|Order #)\s*(?:\n|:|#)?\s*([A-Z0-9-]{8,})/i)?.[1]
+    text.match(/(?:^|\n)\s*Order\s*(?:(?:number|ID)\s*)?(?:\n|:|#)\s*([A-Z0-9-]{8,})/im)?.[1]
+      || text.match(/(?:Order\s*(?:number|ID)|Order #)\s*(?:\n|:|#)?\s*([A-Z0-9-]{8,})/i)?.[1]
       || ''
   );
 
@@ -364,7 +365,8 @@ function ebayRows(subject, text) {
       .filter((value) => Number.isFinite(value) && value > 0)
   ));
   const totalText =
-    text.match(/(?:Order total|Total paid|Buyer paid|Sale total|Sale price|Order amount|Order value|Item subtotal|Item total|Total amount|Your total|Subtotal|Total)\s*(?:\n|:)?\s*(?:US\s*)?\$\s*([\d,.]+)/i)?.[1]
+    text.match(/(?:^|\n)\s*Sold\s*(?:\n|:)\s*(?:US\s*)?\$\s*([\d,.]+)/im)?.[1]
+    || text.match(/(?:Order total|Total paid|Buyer paid|Sale total|Sale price|Order amount|Order value|Item subtotal|Item total|Total amount|Your total|Subtotal|Total)\s*(?:\n|:)?\s*(?:US\s*)?\$\s*([\d,.]+)/i)?.[1]
     || text.match(/(?:Sold for|Item price|Price|Amount|Your earnings|Earnings|Payout|Funds available)\s*(?:\n|:)?\s*(?:US\s*)?\$\s*([\d,.]+)/i)?.[1]
     || text.match(/(?:Order total|Total paid|Buyer paid|Sale total|Sale price|Order amount|Order value|Item subtotal|Item total|Total amount|Your total|Subtotal|Total)[\s\S]{0,80}?\bUSD\s*([\d,.]+)/i)?.[1]
     || text.match(/(?:Sold for|Item price|Price|Amount|Your earnings|Earnings|Payout|Funds available)[\s\S]{0,80}?\bUSD\s*([\d,.]+)/i)?.[1]
@@ -381,7 +383,9 @@ function ebayRows(subject, text) {
     normalizedTitle = orderId ? `eBay Order ${orderId}` : 'eBay Order';
   }
 
-  const quantity = Math.max(1, Number(text.match(/Quantity\s*(?:\n|:)?\s*(\d+)/i)?.[1] || 1));
+  const quantity = Math.max(1, Number(
+    text.match(/Quantity(?:\s+sold)?\s*(?:\n|:)?\s*(\d+)/i)?.[1] || 1
+  ));
 
   return [{
     platform: 'eBay',
