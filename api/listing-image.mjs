@@ -4,6 +4,7 @@ const LISTING_HOST_SUFFIXES = [
   'etsy.com',
   'ebay.com',
   'poshmark.com',
+  'facebook.com',
 ];
 
 const IMAGE_HOST_SUFFIXES = [
@@ -17,6 +18,8 @@ const IMAGE_HOST_SUFFIXES = [
   'poshmark.com',
   'di2ponv0v5otw.cloudfront.net',
   'd2zlsagv0ouax1.cloudfront.net',
+  'fbcdn.net',
+  'facebook.com',
 ];
 
 const clean = (value = '') => String(value || '').trim();
