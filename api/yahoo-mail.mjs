@@ -1083,7 +1083,7 @@ async function repairExistingEbayImages(client, businessId, rows = []) {
       UPDATE artflow.orders
          SET data = COALESCE(data,'{}'::jsonb)
            || jsonb_build_object(
-                'image_url',$2,
+                'image_url',$2::text,
                 'source_image_parser_version',6,
                 'source_image_repaired_at',now()
               ),
