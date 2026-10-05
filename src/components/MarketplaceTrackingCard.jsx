@@ -6,7 +6,6 @@ import { toast } from "sonner";
 const SITE_HELP = {
   Vinted: "Sync Vinted orders and sales",
   Depop: "Sync Depop orders and sales",
-  Etsy: "Sync Etsy orders and sales",
   eBay: "Sync eBay orders and sales",
   Poshmark: "Sync Poshmark orders and sales",
   "Facebook Marketplace": "Track Facebook Marketplace / Seller app sales. Add completed sales in Orders.",
