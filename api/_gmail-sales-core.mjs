@@ -25,6 +25,7 @@ export function isAllowedMarketplaceSender(value = '') {
     '@alerts.depop.com',
     '@ohhey.depop.com',
     '@ebay.com',
+    '@marketplace.facebook.com',
   ].some((suffix) => email.endsWith(suffix));
 }
 
@@ -245,6 +246,54 @@ function depopRows(subject, text) {
 }
 
 
+function facebookMarketplaceRows(subject = '', text = '') {
+  const normalizedSubject = clean(subject).replace(/^(?:(?:fwd?|fw):\s*)+/i, '');
+  const subjectMatch = normalizedSubject.match(/^New Marketplace order for\s+(.+?)\s*$/i);
+  if (!subjectMatch) return [];
+
+  // Facebook's seller-order email is distinct from ordinary Marketplace
+  // messages. Require seller-side wording so conversations, listing alerts,
+  // and shipping-label follow-ups are never counted as new sales.
+  if (!/Congrats on your Marketplace order!/i.test(text) && !/recent sale on Facebook/i.test(text)) {
+    return [];
+  }
+
+  const title = clean(subjectMatch[1]).replace(/[.!]+$/, '');
+  if (!title) return [];
+
+  const titleIndex = String(text).toLowerCase().indexOf(title.toLowerCase());
+  const nearbyText = titleIndex >= 0
+    ? String(text).slice(titleIndex + title.length, titleIndex + title.length + 240)
+    : String(text);
+  const priceText =
+    nearbyText.match(/(?:US\s*)?\$\s*([\d,]+(?:\.\d{2})?)/i)?.[1]
+    || String(text).match(/(?:US\s*)?\$\s*([\d,]+(?:\.\d{2})?)/i)?.[1]
+    || '';
+  const saleTotal = Number(String(priceText).replace(/,/g, '')) || 0;
+  if (saleTotal <= 0) return [];
+
+  const orderId = clean(
+    String(text).match(/facebook\.com\/marketplace\/you\/shipping_orders\/(\d+)/i)?.[1]
+      || ''
+  );
+  const sourceUrl = orderId
+    ? `https://www.facebook.com/marketplace/you/shipping_orders/${orderId}/`
+    : '';
+
+  return [{
+    platform: 'Facebook Marketplace',
+    product_name: title,
+    quantity: 1,
+    size: sizeFromTitle(title),
+    sale_total: saleTotal,
+    unit_price: saleTotal,
+    buyer: '',
+    order_id: orderId || null,
+    source_url: sourceUrl,
+  }];
+}
+
+
 function ebayRows(subject, text) {
   const normalizedSubject = clean(subject).replace(/^(?:(?:fwd?|fw):\s*)+/i, '');
   const explicitSellerSaleSubject =
@@ -354,7 +403,11 @@ export function parseSaleEmail(from, subject, text, trustedForwarder = false) {
   if (email.endsWith('@poshmark.com')) return poshmarkRows(subject, text);
   if (email.endsWith('@alerts.depop.com') || email.endsWith('@ohhey.depop.com')) return depopRows(subject, text);
   if (email.endsWith('@ebay.com')) return ebayRows(subject, text);
+  if (email.endsWith('@marketplace.facebook.com')) return facebookMarketplaceRows(subject, text);
   if (trustedForwarder && /\bebay\b/i.test(`${subject}\n${text}`)) return ebayRows(subject, text);
+  if (trustedForwarder && /(?:new marketplace order for|congrats on your marketplace order)/i.test(`${subject}\n${text}`)) {
+    return facebookMarketplaceRows(subject, text);
+  }
   return [];
 }
 
@@ -412,6 +465,7 @@ function marketplaceSourceUrl(platform = '', html = '') {
     Vinted: 'vinted.com',
     Poshmark: 'poshmark.com',
     Depop: 'depop.com',
+    'Facebook Marketplace': 'facebook.com',
   };
   const domain = domains[platform];
   if (!domain || !html) return '';
@@ -493,6 +547,7 @@ function marketplaceImageUrl(platform = '', html = '', title = '') {
     if (platform === 'Vinted' && /(?:^|\.)vinted\.net|(?:^|\.)vinted\.com/i.test(new URL(src).hostname)) score += 12;
     if (platform === 'Poshmark' && /poshmark|cloudfront|cloudinary/i.test(lower)) score += 10;
     if (platform === 'Depop' && /depop|cloudfront|cloudinary/i.test(lower)) score += 10;
+    if (platform === 'Facebook Marketplace' && /facebook|fbcdn|scontent/i.test(lower)) score += 10;
     if (/\b(?:150x210|200x|300x|item|product|listing)\b/i.test(lower)) score += 4;
     if (width >= 40 || height >= 40) score += 2;
 
@@ -586,6 +641,7 @@ export const GMAIL_QUERIES = [
   `from:poshmark.com "just sold to" "on Poshmark" after:${GMAIL_YEAR_START}`,
   `from:poshmark.com subject:"Please do not ship:" "was canceled" after:${GMAIL_YEAR_START}`,
   `{from:alerts.depop.com from:ohhey.depop.com} subject:"Sale confirmation for" after:${GMAIL_YEAR_START}`,
+  `from:noreply@marketplace.facebook.com subject:"New Marketplace order for" after:${GMAIL_YEAR_START}`,
 ];
 
 async function listMessageIds(accessToken) {
