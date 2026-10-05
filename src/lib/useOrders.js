@@ -87,5 +87,38 @@ export function useOrders() {
     };
   }, [reload]);
 
-  return { records, loading, reload };
+  const setOrderShipped = useCallback(async (id, shipped) => {
+    const shippedAt = shipped ? new Date().toISOString() : null;
+    setRecords((current) =>
+      current.map((order) =>
+        order?.id === id || order?.base44_id === id
+          ? { ...order, shipped, shipped_at: shippedAt }
+          : order
+      )
+    );
+
+    try {
+      const response = await fetch("/api/neon-data?op=orders", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set_shipped", id, shipped }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || `Order update ${response.status}`);
+      return data.item;
+    } catch (error) {
+      setRecords((current) =>
+        current.map((order) =>
+          order?.id === id || order?.base44_id === id
+            ? { ...order, shipped: !shipped, shipped_at: null }
+            : order
+        )
+      );
+      throw error;
+    }
+  }, []);
+
+  return { records, loading, reload, setOrderShipped };
 }
