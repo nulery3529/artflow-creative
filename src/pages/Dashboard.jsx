@@ -453,7 +453,7 @@ export default function Dashboard() {
 
   // Marketplace preferences control which connections Art Flow syncs. They
   // must never hide a real sale that is already in the business ledger.
-  const activeOrders = orders;
+  const activeOrders = orders.filter((order) => displayPlatform(order.platform) !== "Legacy");
 
   const imageSources = useMemo(() => {
     const listingByUrl = new Map();
@@ -1079,7 +1079,6 @@ export default function Dashboard() {
                     Poshmark: "#610721",
                     Vinted: "#027783",
                     Depop: "#E4001D",
-                    Etsy: "#F16521",
                     eBay: "#0064D2",
                   };
                   const color = brandColors[row.name] || "#8B5CF6";
