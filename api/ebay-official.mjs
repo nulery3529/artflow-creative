@@ -175,11 +175,12 @@ export async function syncConnectedEbayOrders(client,business){
   const seen=new Set();
   let more=false;
 
-  for(const status of ['NOT_STARTED','IN_PROGRESS','FULFILLED']){
+  // eBay supports these paired fulfillment filters, not single-value sets.
+  for(const status of ['NOT_STARTED|IN_PROGRESS','FULFILLED|IN_PROGRESS']){
     let pages=0, continuation='';
     while(pages<20){
       const url=continuation
-        ? `https://api.ebay.com${continuation}`
+        ? new URL(continuation, ORDERS_URL).href
         : `${ORDERS_URL}?filter=orderfulfillmentstatus:${encodeURIComponent(`{${status}}`)}&limit=50`;
       const data=await ebayGet(url,token);
       const orders=Array.isArray(data?.orders)?data.orders:[];
