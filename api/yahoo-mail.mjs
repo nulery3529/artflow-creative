@@ -203,7 +203,7 @@ function ebayListingUrl(html='', raw='') {
   return itemId ? `https://www.ebay.com/itm/${itemId}` : '';
 }
 
-function ebayImageUrl(html='', title='', raw='') {
+export function ebayImageUrl(html='', title='', raw='') {
   const key = (value='') => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, '');
   const titleKey = key(title);
   const candidates = [];
@@ -216,6 +216,9 @@ function ebayImageUrl(html='', title='', raw='') {
     let host = '';
     try { host = new URL(src).hostname.toLowerCase(); } catch { return; }
     if (host !== 'i.ebayimg.com' && !host.endsWith('.ebayimg.com')) return;
+    // Legacy eBay URLs contain base64 padding (=) before /z/<photo id>.
+    // A URL cut off at that padding serves a generic placeholder.
+    if (/\/00\/s\//i.test(src) && !/\/z\/[^/]+\//i.test(src)) return;
 
     if (/app[ _-]?store|google[ _-]?play|download(?: the)? app|mobile app|ebay app|logo|icon/i.test(`${alt}\n${src}`)) return;
 
@@ -250,8 +253,8 @@ function ebayImageUrl(html='', title='', raw='') {
     }
   }
 
-  const source = `${html || ''}\n${raw || ''}`;
-  for (const match of source.matchAll(/https?:\/\/[^"'<>\s=]+/gi)) addCandidate(match[0], '', 0);
+  const source = `${html || ''}\n${decodeQuotedPrintable(raw || '')}`;
+  for (const match of source.matchAll(/https?:\/\/[^"'<>\s]+/gi)) addCandidate(match[0], '', 0);
   for (const match of source.matchAll(/https?:=3D\/\/[^"'<>\s]+/gi)) {
     addCandidate(match[0].replace(/=3D/gi, '='), '', 0);
   }
@@ -1077,14 +1080,14 @@ async function repairExistingEbayImages(client, businessId, rows = []) {
     if (!best || bestScore < 45) continue;
 
     const currentImage = clean(best?.data?.image_url || '');
-    if (currentImage && Number(best?.data?.source_image_parser_version || 0) >= 6) continue;
+    if (currentImage && Number(best?.data?.source_image_parser_version || 0) >= 7) continue;
 
     const result = await client.query(`
       UPDATE artflow.orders
          SET data = COALESCE(data,'{}'::jsonb)
            || jsonb_build_object(
                 'image_url',$2::text,
-                'source_image_parser_version',6,
+                'source_image_parser_version',7,
                 'source_image_repaired_at',now()
               ),
              updated_date=now()
