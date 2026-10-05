@@ -120,11 +120,12 @@ async function ensureListingsTable(client){
   )`);
   await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS marketplace_listings_business_platform_url_idx ON artflow.marketplace_listings (business_id, platform, listing_url)`);
 }
-async function ebayActivePage(accessToken,pageNumber=1){
+async function ebayActivePage(accessToken,pageNumber=1,listName='ActiveList'){
+  if(!['ActiveList','SoldList'].includes(listName)) throw new Error('Invalid eBay list');
   const body=`<?xml version="1.0" encoding="utf-8"?>
 <GetMyeBaySellingRequest xmlns="urn:ebay:apis:eBLBaseComponents">
   <DetailLevel>ReturnAll</DetailLevel>
-  <ActiveList><Include>true</Include><Pagination><EntriesPerPage>200</EntriesPerPage><PageNumber>${pageNumber}</PageNumber></Pagination></ActiveList>
+  <${listName}><Include>true</Include>${listName==='SoldList'?'<DurationInDays>60</DurationInDays>':''}<Pagination><EntriesPerPage>200</EntriesPerPage><PageNumber>${pageNumber}</PageNumber></Pagination></${listName}>
 </GetMyeBaySellingRequest>`;
   const r=await fetch(TRADING_URL,{method:'POST',headers:{
     'Content-Type':'text/xml','X-EBAY-API-CALL-NAME':'GetMyeBaySelling','X-EBAY-API-SITEID':'0',
@@ -135,7 +136,7 @@ async function ebayActivePage(accessToken,pageNumber=1){
     const message=xmlTag(xml,'LongMessage')||xmlTag(xml,'ShortMessage')||`eBay Trading API ${r.status}`;
     throw new Error(message);
   }
-  const active=xml.match(/<ActiveList>([\s\S]*?)<\/ActiveList>/i)?.[1]||'';
+  const active=xml.match(new RegExp(`<${listName}>([\\s\\S]*?)<\\/${listName}>`,'i'))?.[1]||'';
   const items=xmlBlocks(active,'Item').map(item=>{
     const listingId=xmlTag(item,'ItemID');
     const title=xmlTag(item,'Title')||`eBay listing ${listingId}`;
@@ -178,6 +179,47 @@ async function syncEbayListings(client,business,accessToken){
   return {saved,more:!complete};
 }
 
+
+
+async function repairConnectedEbayPhotos(client,business,accessToken){
+  const result=await client.query(`SELECT base44_id,product_name,data FROM artflow.orders
+    WHERE business_id=$1 AND lower(platform)='ebay' AND archived IS NOT TRUE
+      AND left(COALESCE(sale_date,''),4)=to_char(CURRENT_DATE,'YYYY') LIMIT 500`,[business.base44_id]);
+  if(!result.rows.length) return 0;
+  const items=new Map();
+  for(const listName of ['ActiveList','SoldList']){
+    let page=1,totalPages=1;
+    do{
+      const batch=await ebayActivePage(accessToken,page,listName);
+      totalPages=batch.totalPages;
+      for(const item of batch.items) if(item.imageUrl) items.set(item.listingId,item);
+      page+=1;
+    }while(page<=totalPages && page<=25);
+  }
+  const titleKey=value=>clean(value).toLowerCase().replace(/^title:\s*/i,'').replace(/[^a-z0-9]+/g,'');
+  let repaired=0;
+  for(const order of result.rows){
+    const key=titleKey(order.product_name);
+    if(key.length<20) continue;
+    const exact=[...items.values()].filter(item=>titleKey(item.title)===key);
+    const matches=exact.length?exact:[...items.values()].filter(item=>{
+      const other=titleKey(item.title);
+      return key.length>=30 && other.startsWith(key);
+    });
+    // A truncated email title must identify one item, never a guessed artwork.
+    if(matches.length!==1) continue;
+    const item=matches[0];
+    if(clean(order.data?.image_url)===item.imageUrl) continue;
+    await client.query(`UPDATE artflow.orders SET data=COALESCE(data,'{}'::jsonb)
+      || jsonb_build_object('image_url',$2::text,'ebay_item_id',$3::text,
+        'source_url',$4::text,'source_image_source','ebay_seller_item',
+        'source_image_parser_version',8),updated_date=now()
+      WHERE base44_id=$1 AND business_id=$5`,
+      [order.base44_id,item.imageUrl,item.listingId,item.listingUrl,business.base44_id]);
+    repaired+=1;
+  }
+  return repaired;
+}
 
 export async function syncConnectedEbayOrders(client,business){
   if(!business?.base44_id) return {saved:0,checked:0,more_possible:false};
@@ -238,7 +280,8 @@ export async function syncConnectedEbayOrders(client,business){
 
   const imageCandidates=rows.filter((row)=>clean(row.image_url)).length;
   const saved=await insertOrders(client,business.base44_id,rows,'ebay_official_oauth');
-  return {saved,checked:rows.length,more_possible:more,image_candidates:imageCandidates};
+  const photosRepaired=await repairConnectedEbayPhotos(client,business,token);
+  return {saved,checked:rows.length,more_possible:more,image_candidates:imageCandidates,photos_repaired:photosRepaired};
 }
 
 export default async function handler(req,res){
@@ -385,12 +428,15 @@ export default async function handler(req,res){
         saved:Number(result.saved||0),
         more_possible:Boolean(result.more_possible),
         image_candidates:Number(result.image_candidates||0),
+        photos_repaired:Number(result.photos_repaired||0),
       }));
       return res.status(200).json({
         ok:true,
         ...result,
         message:result.saved>0
           ? `eBay synced: ${result.saved} new sale${result.saved===1?'':'s'} imported.`
+          : result.photos_repaired>0
+            ? `Updated ${result.photos_repaired} eBay order photos.`
           : result.skipped
             ? 'eBay is not connected yet.'
             : 'eBay orders are up to date.',
