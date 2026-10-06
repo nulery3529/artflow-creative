@@ -220,7 +220,7 @@ async function readMessage(accessToken, messageId) {
   return googleJson(accessToken, url);
 }
 
-async function recordImport(client, { businessId, messageId, status, details, createdBy }) {
+export async function recordImport(client, { businessId, messageId, status, details, createdBy }) {
   const payload = JSON.stringify({
     source: 'gmail_expense_sync',
     details,
@@ -230,12 +230,12 @@ async function recordImport(client, { businessId, messageId, status, details, cr
     UPDATE artflow.email_import_messages
        SET status=$3,
            updated_date=now(),
-           data=COALESCE(data,'{}'::jsonb) || $5::jsonb
+           data=COALESCE(data,'{}'::jsonb) || $4::jsonb
      WHERE business_id=$1
        AND message_id=$2
        AND import_type='expense'
     RETURNING base44_id
-  `, [businessId,messageId,status,createdBy,payload]);
+  `, [businessId,messageId,status,payload]);
   if (updated.rowCount) return;
 
   await client.query(`
