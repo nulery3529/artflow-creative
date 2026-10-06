@@ -7,7 +7,6 @@ import {
   ArrowUpRight,
   RefreshCw,
   Plus,
-  Images,
   BarChart3,
   Activity,
   Target,
@@ -19,6 +18,7 @@ import { useEntity, isApprovedExpense } from "@/lib/useBusinessData";
 import { useOrders } from "@/lib/useOrders";
 import {
   formatMoney,
+  formatDate,
   currentMonthKey,
   monthLabel,
 } from "@/lib/format";
@@ -640,7 +640,7 @@ export default function Dashboard() {
       expenseMap.set(
         category,
         (expenseMap.get(category) || 0) +
-          expenseDeduction(expense)
+          numberValue(expense?.amount)
       );
     }
 
@@ -652,8 +652,7 @@ export default function Dashboard() {
         value,
       }))
       .filter((row) => row.value > 0)
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 6);
+      .sort((a, b) => b.value - a.value);
 
     const monthKeys = Array.from(
       new Set(
@@ -1188,17 +1187,7 @@ export default function Dashboard() {
                       </p>
 
                       <p className="text-xs font-medium mt-1">
-                        {orderDate(order)
-                          ? new Date(
-                              orderDate(order)
-                            ).toLocaleDateString(
-                              undefined,
-                              {
-                                month: "short",
-                                day: "numeric",
-                              }
-                            )
-                          : "—"}
+                        {formatDate(orderDate(order)) || "—"}
                       </p>
                     </div>
 
@@ -1223,7 +1212,7 @@ export default function Dashboard() {
             </h2>
 
             <p className="text-[10px] text-muted-foreground mt-1">
-              Deductible business spending
+              Total approved business spending
             </p>
           </div>
 
@@ -1339,61 +1328,8 @@ export default function Dashboard() {
         )}
       </Card>
 
-      {/* TOP LISTINGS + ACTIVITY + QUICK ACTIONS */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
-        <Card className="p-5 lg:p-6">
-          <div className="flex items-center justify-between gap-3 mb-4">
-            <div>
-              <h2 className="text-sm font-semibold">
-                Top Listings
-              </h2>
-
-              <p className="text-[10px] text-muted-foreground mt-1">
-                Best-performing artwork
-              </p>
-            </div>
-
-            <Images className="w-4 h-4 text-purple-500" />
-          </div>
-
-          {!dashboard.topListings.length ? (
-            <EmptyState text="No listing data yet" />
-          ) : (
-            <div className="space-y-3">
-              {dashboard.topListings.map(
-                (listing, index) => (
-                  <div
-                    key={listing.name}
-                    className="flex items-center gap-3 rounded-2xl bg-purple-50/55 dark:bg-white/5 p-3"
-                  >
-                    <DashboardThumbnail
-                      src={listing.image_url}
-                      alt={listing.name}
-                      fallback={String(index + 1)}
-                    />
-
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-semibold truncate">
-                        {listing.name}
-                      </p>
-
-                      <p className="text-[10px] text-muted-foreground mt-1">
-                        {listing.quantity} sold
-                      </p>
-                    </div>
-
-                    <p className="text-xs font-semibold">
-                      {formatMoney(
-                        listing.sales
-                      )}
-                    </p>
-                  </div>
-                )
-              )}
-            </div>
-          )}
-        </Card>
-
+      {/* ACTIVITY + QUICK ACTIONS */}
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card className="p-5 lg:p-6">
           <div className="flex items-center justify-between gap-3 mb-4">
             <div>

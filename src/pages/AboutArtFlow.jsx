@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ShoppingBag, Receipt, Package, MoreHorizontal, RefreshCw, Home, Car, Palette, UserRound, BarChart3, Calculator, CalendarDays, Target, Save, TrendingUp, BadgeDollarSign, WalletCards, PiggyBank, ArrowRight, ArrowUpRight, Images, Activity, Plus } from "lucide-react";
+import { ShoppingBag, Receipt, Package, MoreHorizontal, RefreshCw, Home, Car, Palette, UserRound, BarChart3, Calculator, CalendarDays, Target, Save, TrendingUp, BadgeDollarSign, WalletCards, PiggyBank, ArrowRight, ArrowUpRight, Activity, Plus } from "lucide-react";
 
 const MiniArt = ({ variant = 1 }) => {
   const classes = {
@@ -55,10 +55,10 @@ const MARKETPLACE_STYLES = {
     logo: "https://upload.wikimedia.org/wikipedia/commons/f/fb/Depop_logo.svg",
     logoClass: "w-[76px] h-auto",
   },
-  Etsy: {
-    color: "#F16521",
-    soft: "rgba(241,101,33,.18)",
-    logo: "https://upload.wikimedia.org/wikipedia/commons/8/89/Etsy_logo.svg",
+  "Facebook Marketplace": {
+    color: "#1877F2",
+    soft: "rgba(24,119,242,.18)",
+    logo: "/facebook-marketplace.svg",
     logoClass: "w-[66px] h-auto",
   },
   eBay: {
@@ -166,7 +166,7 @@ function PreviewMarketPerformance({ compact = false }) {
     ["Poshmark", "$1,420", "100%", "#D6249F"],
     ["Vinted", "$1,080", "76%", "#007782"],
     ["Depop", "$822", "58%", "#111111"],
-    ["Etsy", "$640", "45%", "#F1641E"],
+    ["Facebook Marketplace", "$640", "45%", "#1877F2"],
     ["eBay", "$520", "37%", "#3665F3"],
   ];
   return (
@@ -210,7 +210,7 @@ function PreviewOrderCard({ image = 1, title, platform, size, qty, date, sale, c
     Poshmark: "bg-pink-50 text-pink-800",
     Vinted: "bg-cyan-50 text-cyan-800",
     Depop: "bg-red-50 text-red-700",
-    Etsy: "bg-orange-50 text-orange-700",
+    "Facebook Marketplace": "bg-blue-50 text-blue-700",
     eBay: "bg-blue-50 text-blue-700",
   }[platform] || "bg-slate-100 text-slate-600";
 
@@ -313,7 +313,7 @@ function PreviewOrders() {
       </div>
 
       <div className="mb-2 flex gap-1 overflow-hidden">
-        {["All (187)", "Poshmark (64)", "Vinted (51)", "Depop (39)", "Etsy (21)", "eBay (12)", "Bundles (18)"].map((item, i) => (
+        {["All (187)", "Poshmark (64)", "Vinted (51)", "Depop (39)", "Facebook Marketplace (21)", "eBay (12)", "Bundles (18)"].map((item, i) => (
           <span key={item} className={`shrink-0 rounded-full px-2 py-1.5 text-[5.5px] font-bold ${i === 0 ? "bg-[#d63bea] text-white" : "bg-slate-100 text-slate-600"}`}>
             {item}
           </span>
@@ -993,7 +993,7 @@ function PreviewDashboardHome({ onTabChange, compact = false }) {
             <PreviewOrder image="bundle" title="Bundle Order" platform="Depop" amount="$42.00" />
             <PreviewOrder image={2} title="Framed Art Print" platform="Poshmark" amount="$28.00" />
             <PreviewOrder image={3} title="Botanical Art Print" platform="Vinted" amount="$18.00" />
-            <PreviewOrder image={4} title="Skeleton Butterfly Print" platform="Etsy" amount="$24.00" />
+            <PreviewOrder image={4} title="Skeleton Butterfly Print" platform="Facebook Marketplace" amount="$24.00" />
             <PreviewOrder image={1} title="Vintage Floral Print" platform="eBay" amount="$22.00" />
           </div>
         </div>
@@ -1047,34 +1047,7 @@ function PreviewDashboardHome({ onTabChange, compact = false }) {
         </div>
       </div>
 
-      <div className={`mt-3 grid gap-3 ${compact ? "grid-cols-1" : "grid-cols-3"}`}>
-        <div className={sectionCard}>
-          <div className="mb-3 flex items-center justify-between">
-            <div>
-              <p className="text-[9px] font-bold">Top Listings</p>
-              <p className="mt-0.5 text-[7px] text-slate-400">Best-performing artwork</p>
-            </div>
-            <Images className="h-4 w-4 text-purple-500" />
-          </div>
-          <div className="space-y-2">
-            {[
-              ["Framed Floral Print", "18 sold", "$432", 2],
-              ["Skeleton Butterfly Print", "14 sold", "$336", 1],
-              ["Botanical Art Print", "11 sold", "$198", 3],
-              ["Digital Art Download", "9 sold", "$72", 4],
-            ].map(([name, sold, value, image], index) => (
-              <div key={name} className="flex items-center gap-2 rounded-2xl bg-purple-50/55 p-2">
-                <MiniArt variant={image} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[7px] font-bold text-slate-800">{name}</p>
-                  <p className="mt-1 text-[6px] text-slate-400">{sold}</p>
-                </div>
-                <span className="text-[7px] font-bold text-slate-700">{value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
+      <div className={`mt-3 grid gap-3 ${compact ? "grid-cols-1" : "grid-cols-2"}`}>
         <div className={sectionCard}>
           <div className="mb-3 flex items-center justify-between">
             <div>
@@ -1579,7 +1552,7 @@ export default function AboutArtFlow() {
           <p className="text-xs font-black uppercase tracking-[0.18em] text-[#f06add]">Supported marketplaces</p>
           <p className="mx-auto mt-3 max-w-2xl text-sm font-semibold leading-6 text-white/55">Track orders and sales from the marketplaces Art Flow Creative supports.</p>
           <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            {["Poshmark", "Vinted", "Depop", "Etsy", "eBay"].map((name) => {
+            {["Poshmark", "Vinted", "Depop", "Facebook Marketplace", "eBay"].map((name) => {
               const brand = MARKETPLACE_STYLES[name];
               return (
                 <div
@@ -1648,6 +1621,8 @@ export default function AboutArtFlow() {
           <p className="text-xs font-black uppercase tracking-[0.2em] text-white/60">Pricing</p>
           <h2 className="mt-4 [font-family:'Fraunces',serif] text-4xl font-semibold">Try Art Flow Creative free for 7 days.</h2>
           <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-white/65">No credit card required to start. Create your account and explore the workspace before choosing a plan.</p>
+          <p className="mt-5 text-lg font-bold">$9.99/month or $79.99/year</p>
+          <p className="mt-2 text-xs leading-6 text-white/65">Apple subscriptions are purchased and managed in the Art Flow Creative iPhone app. The 7-day trial is available to eligible new subscribers.</p>
           <Link to="/register" className="mt-8 inline-flex min-h-14 items-center justify-center rounded-xl bg-white px-7 py-3 text-sm font-black text-[#4a236f]">
             Start your 7-day free trial
           </Link>

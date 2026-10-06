@@ -265,7 +265,7 @@ async function readWebhookConfig(client) {
   return result.rows;
 }
 
-async function insertRows(client, businessId, emailId, receivedAt, rows) {
+export async function insertRows(client, businessId, emailId, receivedAt, rows) {
   const createdBy = (await client.query(`SELECT created_by_id FROM artflow.orders WHERE business_id=$1 AND created_by_id IS NOT NULL ORDER BY created_date DESC LIMIT 1`, [businessId])).rows[0]?.created_by_id || null;
   const inserted = [];
   for (let index = 0; index < rows.length; index += 1) {
@@ -278,12 +278,12 @@ async function insertRows(client, businessId, emailId, receivedAt, rows) {
         base44_id,business_id,sale_date,platform,archived,order_id,source_email_id,created_by_id,created_date,updated_date,data,
         product_name,quantity,size,unit_price,sale_total,buyer,base_item_cost,paper_ink_cost,packaging_cost,total_cost,estimated_profit,sync_source
       )
-      SELECT gen_random_uuid()::text,$1,$2,$3,false,$4,$5,$6,now(),now(),$7::jsonb,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,'resend_inbound_email'
+      SELECT gen_random_uuid()::text,$1,$2,$3,false,$4::text,$5,$6,now(),now(),$7::jsonb,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,'resend_inbound_email'
       WHERE NOT EXISTS (
         SELECT 1 FROM artflow.orders
         WHERE business_id=$1 AND (
           source_email_id=$5 OR
-          ($4 IS NOT NULL AND $4<>'' AND order_id=$4 AND platform=$3) OR
+          ($4::text IS NOT NULL AND $4::text<>'' AND order_id=$4::text AND platform=$3) OR
           (platform=$3 AND lower(product_name)=lower($8) AND sale_date=$2 AND abs(COALESCE(sale_total,0)-$12)<0.01)
         )
       )
