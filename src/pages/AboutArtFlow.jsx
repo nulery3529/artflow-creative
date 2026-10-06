@@ -1621,6 +1621,8 @@ export default function AboutArtFlow() {
           <p className="text-xs font-black uppercase tracking-[0.2em] text-white/60">Pricing</p>
           <h2 className="mt-4 [font-family:'Fraunces',serif] text-4xl font-semibold">Try Art Flow Creative free for 7 days.</h2>
           <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-white/65">No credit card required to start. Create your account and explore the workspace before choosing a plan.</p>
+          <p className="mt-5 text-lg font-bold">$9.99/month or $79.99/year</p>
+          <p className="mt-2 text-xs leading-6 text-white/65">Apple subscriptions are purchased and managed in the Art Flow Creative iPhone app. The 7-day trial is available to eligible new subscribers.</p>
           <Link to="/register" className="mt-8 inline-flex min-h-14 items-center justify-center rounded-xl bg-white px-7 py-3 text-sm font-black text-[#4a236f]">
             Start your 7-day free trial
           </Link>
