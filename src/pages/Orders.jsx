@@ -297,7 +297,7 @@ export default function Orders() {
     const completedSales = filtered.filter(hasRecordedSaleAmount);
     const sales = completedSales.reduce((s, o) => s + Number(o.sale_total || 0), 0);
     const profit = completedSales.reduce((s, o) => s + Number(o.estimated_profit || 0), 0);
-    const count = filtered.reduce((s, o) => s + Math.max(1, Number(o.quantity) || 1), 0);
+    const count = filtered.length;
     return { sales, profit, count };
   }, [filtered]);
 
