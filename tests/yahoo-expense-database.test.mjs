@@ -30,6 +30,7 @@ test('Yahoo receipt moved to another UID does not become another expense', async
     // Missing message IDs must not collapse unrelated receipts.
     await insertYahooExpense(client, business, 'owner@example.com', 11, { ...receipt, messageId: '' });
     await insertYahooExpense(client, business, 'owner@example.com', 12, { ...receipt, messageId: '' });
+    assert.deepEqual(await insertYahooExpense(client, business, 'owner@example.com', 13, { ...receipt, subject: '📦ORDER DELIVERED: Paper', messageId: '<delivery@shop.example>' }), { imported: 0, skipped: 1 });
     const result = await db.query('SELECT amount FROM artflow.expenses');
     assert.equal(result.rows.length, 4);
     assert.ok(result.rows.every(row => Number(row.amount) === 12.50));

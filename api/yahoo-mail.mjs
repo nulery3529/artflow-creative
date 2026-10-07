@@ -605,8 +605,8 @@ export async function insertYahooExpense(client, business, email, uid, parsed) {
     return { imported:0, skipped:1 };
   }
 
-  if (isNonExpenseNotice(parsed.subject)) {
-    await recordYahooExpenseImport(client, business, email, uid, 'skipped', 'Credit, refund, or failed-payment notice was not counted as a positive expense');
+  if (isNonExpenseNotice(originalSubject(parsed.subject, parsed.text))) {
+    await recordYahooExpenseImport(client, business, email, uid, 'skipped', 'Refund, failed-payment, or delivery status notice was not counted as a new expense');
     return { imported:0, skipped:1 };
   }
 
