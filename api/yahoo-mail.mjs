@@ -581,7 +581,7 @@ async function recordYahooExpenseImport(client, business, email, uid, status, de
   ]);
 }
 
-async function insertYahooExpense(client, business, email, uid, parsed) {
+export async function insertYahooExpense(client, business, email, uid, parsed) {
   const messageKey = `yahoo:${email}:${uid}`;
 
   const explicitBuyerReceiptSubject =
@@ -634,9 +634,10 @@ async function insertYahooExpense(client, business, email, uid, parsed) {
   const existing = await client.query(`
     SELECT 1 FROM artflow.expenses
     WHERE business_id=$1
-      AND (receipt_id=$2 OR data->>'yahoo_message_key'=$3)
+      AND (receipt_id=$2 OR data->>'yahoo_message_key'=$3
+        OR ($4::text <> '' AND trim(data->>'yahoo_message_id')=$4))
     LIMIT 1
-  `,[business.base44_id,receiptId,messageKey]);
+  `,[business.base44_id,receiptId,messageKey,clean(parsed.messageId || '')]);
 
   if (existing.rowCount) {
     await recordYahooExpenseImport(client, business, email, uid, 'skipped', 'Duplicate Yahoo expense email');
