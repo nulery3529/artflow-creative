@@ -106,7 +106,8 @@ export function extractTotal(text = '') {
 
 export function isNonExpenseNotice(subject = '') {
   const value = String(subject || '').toLowerCase();
-  return /\bcredit invoice\b|\brefund(?:ed)?\b|\bpayment (?:failed|declined|unsuccessful)\b/.test(value);
+  return /\bcredit invoice\b|\brefund(?:ed)?\b|\bpayment (?:failed|declined|unsuccessful)\b/.test(value)
+    || /\b(?:out for delivery|order delivered|package delivered|your (?:order|package|item) (?:has been |was |is )?(?:delivered|shipped|dispatched)|delivery update|tracking update)\b/.test(value);
 }
 
 function forwardedHeader(text = '', label = 'From') {
@@ -261,12 +262,12 @@ async function insertExpense(client, business, message, gmailAddress) {
     : headerValue(message, 'Date') || new Date().toISOString();
   const createdBy = business.created_by_id || null;
 
-  if (isNonExpenseNotice(subject)) {
+  if (isNonExpenseNotice(originalSubject(subject, text))) {
     await recordImport(client, {
       businessId: business.base44_id,
       messageId,
       status: 'skipped',
-      details: 'Credit, refund, or failed-payment notice was not counted as a positive expense',
+      details: 'Refund, failed-payment, or delivery status notice was not counted as a new expense',
       createdBy,
     });
     return { imported: 0, skipped: 1 };
