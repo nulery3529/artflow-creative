@@ -43,7 +43,7 @@ export function orderSourceUrl(order) {
   if (platform === "Poshmark" && /^[a-f0-9]{24}$/i.test(orderId)) {
     return `https://poshmark.com/order/sales/${orderId}`;
   }
-  if (platform === "eBay" && orderId) {
+  if (platform === "eBay" && /^\d{2}-\d{5}-\d{5}$/.test(orderId)) {
     return `https://www.ebay.com/sh/ord/details?orderid=${encodeURIComponent(orderId)}`;
   }
 
