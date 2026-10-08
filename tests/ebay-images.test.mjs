@@ -18,3 +18,8 @@ test('keeps the matching artwork image ahead of unrelated email graphics', () =>
   const html = `<img src="https://i.ebayimg.com/images/g/APP/s-l500.jpg" alt="Download eBay app"><img src="${photo}" alt="Framed cat print">`;
   assert.equal(ebayImageUrl(html, 'Framed cat print'), photo);
 });
+
+test('rejects 48x48 eBay package graphics as product photos', () => {
+  const icon = 'https://i.ebayimg.com/00/s/NDhYNDg=/z/PACKAGE/$_57.PNG';
+  assert.equal(ebayImageUrl(`<img src="${icon}" alt="XPPen drawing pad">`, 'XPPen drawing pad'), '');
+});
