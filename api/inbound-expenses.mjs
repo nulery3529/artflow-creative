@@ -117,9 +117,10 @@ function looksLikePurchase(subject = '', text = '') {
 }
 
 function categoryFor(subject = '', text = '') {
+  const subjectValue = String(subject || '').toLowerCase();
   const value = `${subject}\n${text}`.toLowerCase();
-  if (/\b(etsy fee|ebay fee|depop fee|vinted fee|poshmark fee|seller fee|listing fee|marketplace fee|platform fee|transaction fee)\b/.test(value)) return 'Marketplace & Selling Fees';
-  if (/\b(processing fee|payment processing|stripe fee|paypal fee|bank fee|service charge|merchant fee)\b/.test(value)) return 'Bank & Payment Processing Fees';
+  if (/\b(etsy fee|ebay fee|depop fee|vinted fee|poshmark fee|seller fee|listing fee|marketplace fee|platform fee|transaction fee)\b/.test(subjectValue)) return 'Marketplace & Selling Fees';
+  if (/\b(processing fee|payment processing|stripe fee|paypal fee|bank fee|service charge|merchant fee)\b/.test(subjectValue)) return 'Bank & Payment Processing Fees';
   if (/\b(camera|lens|tripod|photo light|light box|photography|backdrop)\b/.test(value)) return 'Photography Equipment';
   if (/\b(picture frame|photo frame|frames|framed|display stand|easel|magnetic frame|acrylic frame)\b/.test(value)) return 'Frames & Display';
   if (/\b(printer ink|ink cartridge|cartridge|toner|cli-\d+|pgi-\d+|refill ink)\b/.test(value)) return 'Ink & Printing Supplies';
@@ -144,6 +145,8 @@ function categoryFor(subject = '', text = '') {
   if (/\b(business license|permit|registration fee|annual filing|state filing)\b/.test(value)) return 'Business Licenses & Fees';
   if (/\b(art kit|art supply|paint|paintbrush|brush set|marker|colored pencil|pencil set|watercolor|acrylic paint|glue|adhesive|craft supply|quilling)\b/.test(value)) return 'Art Materials & Supplies';
   if (/\b(office supply|office supplies|desk|filing|label maker|notebook|pens|printer labels)\b/.test(value)) return 'Office Supplies';
+  if (/\b(etsy fee|ebay fee|depop fee|vinted fee|poshmark fee|seller fee|listing fee|marketplace fee|platform fee|transaction fee)\b/.test(value)) return 'Marketplace & Selling Fees';
+  if (/\b(processing fee|payment processing|stripe fee|paypal fee|bank fee|service charge|merchant fee)\b/.test(value)) return 'Bank & Payment Processing Fees';
   return 'Other Business Expense';
 }
 

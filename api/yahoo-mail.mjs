@@ -222,6 +222,10 @@ export function ebayImageUrl(html='', title='', raw='') {
 
     if (/app[ _-]?store|google[ _-]?play|download(?: the)? app|mobile app|ebay app|logo|icon/i.test(`${alt}\n${src}`)) return;
 
+    // The 48x48 legacy variant is a package/category thumbnail, not a useful
+    // product photo. Prefer a real listing image or no image over this graphic.
+    if (/\/00\/s\/NDhYNDg(?:=|%3D)*\/.*\$_57\.PNG(?:\?|$)/i.test(src)) return;
+
     let score = 30 + bonus;
     const altKey = key(alt);
     if (titleKey && altKey) {
