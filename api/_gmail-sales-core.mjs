@@ -201,7 +201,10 @@ function depopRows(subject, text) {
 
   for (let i = 0; i < lines.length - 1; i += 1) {
     if (/^\$[\d,.]+$/.test(lines[i + 1]) && !/^\$/.test(lines[i])) {
-      const title = lines[i];
+      // Depop's plain-text sale template prefixes the item name with the
+      // image alt text (for example, "image 4x4 Golden Girls Magnet").
+      // Keep that presentation label out of the imported product name.
+      const title = lines[i].replace(/^image\s+/i, '').trim();
       const price = Number(lines[i + 1].slice(1).replace(/,/g, '')) || 0;
       if (!title || !price) continue;
       items.push({ title, price });
