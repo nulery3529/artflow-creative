@@ -244,6 +244,27 @@ test('collapses the current Depop multi-item sale confirmation into one bundle o
   assert.equal(rows[0].depop_bundle, true);
 });
 
+test('removes Depop image alt text from a current single-item sale title', () => {
+  const rows = parseSaleEmail(
+    'Depop <sold@alerts.depop.com>',
+    'Your USPS shipping label and sale confirmation for @hanik_911.',
+    [
+      "You've made a sale!",
+      'Order details',
+      'image 4x4 Golden Girls Acrylic Magnet | Live...',
+      '$7.00',
+      'Ship to',
+      'Buyer',
+      'hanik_911',
+    ].join('\n')
+  );
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].product_name, '4x4 Golden Girls Acrylic Magnet | Live...');
+  assert.equal(rows[0].sale_total, 7);
+  assert.equal(rows[0].buyer, 'hanik_911');
+});
+
 test('ignores eBay listing activity that is not a completed sale', () => {
   const rows = parseSaleEmail(
     'eBay <ebay@ebay.com>',
