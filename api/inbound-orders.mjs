@@ -42,6 +42,7 @@ function isAllowedMarketplaceSender(value = '') {
     '@alerts.depop.com',
     '@ohhey.depop.com',
     '@ebay.com',
+    '@marketplace.facebook.com',
   ].some((suffix) => email.endsWith(suffix));
 }
 
@@ -210,6 +211,58 @@ function depopRows(subject, text) {
   return rows;
 }
 
+function facebookMarketplaceRows(subject = '', text = '') {
+  const normalizedSubject = clean(subject).replace(/^(?:(?:fwd?|fw):\s*)+/i, '');
+  const subjectMatch = normalizedSubject.match(/^New Marketplace order for\s+(.+?)\s*$/i);
+  const shippingLabel = /^Shipping label for your Marketplace order$/i.test(normalizedSubject);
+  if (!subjectMatch && !shippingLabel) return [];
+
+  const orderId = clean(
+    String(text).match(/facebook\.com\/marketplace\/you\/shipping_orders\/(\d+)/i)?.[1]
+      || String(text).match(/\/marketplace\/you\/shipping_orders\/(\d+)/i)?.[1]
+      || ''
+  );
+  const sellerSale = /Congrats on your Marketplace order!/i.test(text) || /recent sale on Facebook/i.test(text);
+  const verifiedShippingLabel = shippingLabel
+    && Boolean(orderId)
+    && /prepaid shipping label for .+?'s order is attached/i.test(text)
+    && /To be shipped/i.test(text)
+    && sellerSale;
+  if (!sellerSale || (shippingLabel && !verifiedShippingLabel)) return [];
+
+  const title = clean(
+    subjectMatch?.[1]
+      || String(text).match(/={3,}\s*\n+\s*([^\n$]+?)\s*\$[\d,]+(?:\.\d{2})?\s*To be shipped/i)?.[1]
+      || String(text).match(/\n\s*([^\n$]+?)\s*\$[\d,]+(?:\.\d{2})?\s*To be shipped/i)?.[1]
+      || ''
+  ).replace(/[.!]+$/, '');
+  if (!title) return [];
+
+  const titleIndex = String(text).toLowerCase().indexOf(title.toLowerCase());
+  const nearbyText = titleIndex >= 0
+    ? String(text).slice(titleIndex + title.length, titleIndex + title.length + 240)
+    : String(text);
+  const priceText = nearbyText.match(/(?:US\s*)?\$\s*([\d,]+(?:\.\d{2})?)/i)?.[1]
+    || String(text).match(/(?:US\s*)?\$\s*([\d,]+(?:\.\d{2})?)/i)?.[1]
+    || '';
+  const saleTotal = Number(String(priceText).replace(/,/g, '')) || 0;
+  if (saleTotal <= 0) return [];
+
+  return [{
+    platform: 'Facebook Marketplace',
+    product_name: title,
+    quantity: 1,
+    size: sizeFromTitle(title),
+    sale_total: saleTotal,
+    unit_price: saleTotal,
+    buyer: shippingLabel
+      ? clean(String(text).match(/prepaid shipping label for\s+(.+?)'s order is attached/i)?.[1] || '')
+      : '',
+    order_id: orderId || null,
+    source_url: orderId ? `https://www.facebook.com/marketplace/you/shipping_orders/${orderId}/` : '',
+  }];
+}
+
 function firstAmount(text, patterns = []) {
   for (const pattern of patterns) {
     const match = text.match(pattern);
@@ -254,6 +307,7 @@ function parseSaleEmail(from, subject, text) {
   if (email.endsWith('@poshmark.com')) return poshmarkRows(subject, text);
   if (email.endsWith('@alerts.depop.com') || email.endsWith('@ohhey.depop.com')) return depopRows(subject, text);
   if (email.endsWith('@ebay.com')) return ebayRows(subject, text);
+  if (email.endsWith('@marketplace.facebook.com')) return facebookMarketplaceRows(subject, text);
   return [];
 }
 
