@@ -252,16 +252,33 @@ function depopRows(subject, text) {
 function facebookMarketplaceRows(subject = '', text = '') {
   const normalizedSubject = clean(subject).replace(/^(?:(?:fwd?|fw):\s*)+/i, '');
   const subjectMatch = normalizedSubject.match(/^New Marketplace order for\s+(.+?)\s*$/i);
-  if (!subjectMatch) return [];
+  const shippingLabel = /^Shipping label for your Marketplace order$/i.test(normalizedSubject);
+  if (!subjectMatch && !shippingLabel) return [];
 
-  // Facebook's seller-order email is distinct from ordinary Marketplace
-  // messages. Require seller-side wording so conversations, listing alerts,
-  // and shipping-label follow-ups are never counted as new sales.
-  if (!/Congrats on your Marketplace order!/i.test(text) && !/recent sale on Facebook/i.test(text)) {
+  // Facebook sometimes sends the shipping label as the only seller-side sale
+  // email. Accept that format only when it contains the same durable order
+  // link, price, fulfillment state, and recent-sale footer as a confirmation.
+  const orderId = clean(
+    String(text).match(/facebook\.com\/marketplace\/you\/shipping_orders\/(\d+)/i)?.[1]
+      || String(text).match(/\/marketplace\/you\/shipping_orders\/(\d+)/i)?.[1]
+      || ''
+  );
+  const sellerSale = /Congrats on your Marketplace order!/i.test(text) || /recent sale on Facebook/i.test(text);
+  const verifiedShippingLabel = shippingLabel
+    && Boolean(orderId)
+    && /prepaid shipping label for .+?'s order is attached/i.test(text)
+    && /To be shipped/i.test(text)
+    && sellerSale;
+  if (!sellerSale || (shippingLabel && !verifiedShippingLabel)) {
     return [];
   }
 
-  const title = clean(subjectMatch[1]).replace(/[.!]+$/, '');
+  const title = clean(
+    subjectMatch?.[1]
+      || String(text).match(/={3,}\s*\n+\s*([^\n$]+?)\s*\$[\d,]+(?:\.\d{2})?\s*To be shipped/i)?.[1]
+      || String(text).match(/\n\s*([^\n$]+?)\s*\$[\d,]+(?:\.\d{2})?\s*To be shipped/i)?.[1]
+      || ''
+  ).replace(/[.!]+$/, '');
   if (!title) return [];
 
   const titleIndex = String(text).toLowerCase().indexOf(title.toLowerCase());
@@ -275,12 +292,11 @@ function facebookMarketplaceRows(subject = '', text = '') {
   const saleTotal = Number(String(priceText).replace(/,/g, '')) || 0;
   if (saleTotal <= 0) return [];
 
-  const orderId = clean(
-    String(text).match(/facebook\.com\/marketplace\/you\/shipping_orders\/(\d+)/i)?.[1]
-      || ''
-  );
   const sourceUrl = orderId
     ? `https://www.facebook.com/marketplace/you/shipping_orders/${orderId}/`
+    : '';
+  const buyer = shippingLabel
+    ? clean(String(text).match(/prepaid shipping label for\s+(.+?)'s order is attached/i)?.[1] || '')
     : '';
 
   return [{
@@ -290,7 +306,7 @@ function facebookMarketplaceRows(subject = '', text = '') {
     size: sizeFromTitle(title),
     sale_total: saleTotal,
     unit_price: saleTotal,
-    buyer: '',
+    buyer,
     order_id: orderId || null,
     source_url: sourceUrl,
   }];
@@ -656,7 +672,7 @@ export const GMAIL_QUERIES = [
   `from:poshmark.com "just sold to" "on Poshmark" after:${GMAIL_YEAR_START}`,
   `from:poshmark.com subject:"Please do not ship:" "was canceled" after:${GMAIL_YEAR_START}`,
   `{from:alerts.depop.com from:ohhey.depop.com} subject:"Sale confirmation for" after:${GMAIL_YEAR_START}`,
-  `from:noreply@marketplace.facebook.com subject:"New Marketplace order for" after:${GMAIL_YEAR_START}`,
+  `from:noreply@marketplace.facebook.com {subject:"New Marketplace order for" subject:"Shipping label for your Marketplace order"} after:${GMAIL_YEAR_START}`,
 ];
 
 async function listMessageIds(accessToken) {

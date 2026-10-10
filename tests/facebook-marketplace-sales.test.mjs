@@ -45,6 +45,30 @@ test('does not count Facebook Marketplace shipping label email as a new sale', (
   assert.deepEqual(rows, []);
 });
 
+test('parses a verified Facebook seller shipping-label email when no separate order email exists', () => {
+  const rows = parseSaleEmail(
+    'Facebook Marketplace <noreply@marketplace.facebook.com>',
+    'Shipping label for your Marketplace order',
+    [
+      'Hi Natasha,',
+      "Your prepaid shipping label for Catherine Shula's order is attached. Please ship this item by Wed, Oct 14 to avoid cancellation.",
+      '========================================',
+      '8x10 Framed Black Cat Moon & Stars Art Print$12.00To be shipped',
+      'See order details',
+      '/marketplace/you/shipping_orders/10235195657497742/?referral_surface=c2c_seller_shipping_label_created_email&listing_id=1808081850227621',
+      'This message was sent about a recent sale on Facebook.',
+    ].join('\n')
+  );
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].platform, 'Facebook Marketplace');
+  assert.equal(rows[0].product_name, '8x10 Framed Black Cat Moon & Stars Art Print');
+  assert.equal(rows[0].sale_total, 12);
+  assert.equal(rows[0].buyer, 'Catherine Shula');
+  assert.equal(rows[0].order_id, '10235195657497742');
+  assert.equal(rows[0].size, '8x10');
+});
+
 
 test('prefers Facebook Marketplace product thumbnail over Facebook email logo', () => {
   const html = [

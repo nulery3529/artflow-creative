@@ -189,6 +189,13 @@ test('Gmail sync includes Poshmark cancellation messages', () => {
   );
 });
 
+test('Gmail sync includes Facebook seller shipping-label messages', () => {
+  assert.ok(GMAIL_QUERIES.some((query) =>
+    query.includes('marketplace.facebook.com')
+      && query.includes('Shipping label for your Marketplace order')
+  ));
+});
+
 
 test('parses the current Vinted bundle sale email format', () => {
   const rows = parseSaleEmail(
