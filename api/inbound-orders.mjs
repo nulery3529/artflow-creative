@@ -186,7 +186,7 @@ function depopRows(subject, text) {
   const block = text.match(/Order details\s*\n([\s\S]*?)\n\s*Ship to\b/i)?.[1] || '';
   if (!block) return [];
   const lines = block.split('\n').map(clean).filter(Boolean);
-  const rows = [];
+  const items = [];
   for (let i = 0; i < lines.length - 1; i += 1) {
     if (/^\$[\d,.]+$/.test(lines[i + 1]) && !/^\$/.test(lines[i])) {
       // Depop's plain-text sale template prefixes the item name with the
@@ -195,20 +195,48 @@ function depopRows(subject, text) {
       const title = lines[i].replace(/^image\s+/i, '').trim();
       const price = Number(lines[i + 1].slice(1).replace(/,/g, '')) || 0;
       if (!title || !price) continue;
-      rows.push({
-        platform: 'Depop',
-        product_name: title,
-        quantity: 1,
-        size: sizeFromTitle(title),
-        sale_total: price,
-        unit_price: price,
-        buyer,
-        order_id: null,
-      });
+      items.push({ title, price });
       i += 1;
     }
   }
-  return rows;
+
+  if (!items.length) return [];
+
+  // A Depop bundle is one sale and must stay one order. Saving every product
+  // as a separate order overstates the order count and loses the bundle's
+  // gross subtotal when this message arrives through the forwarding webhook.
+  if (items.length > 1) {
+    const subtotalText = text.match(/\bSubtotal\s*\n?\s*\$([\d,.]+)/i)?.[1] || '';
+    const summed = items.reduce((sum, item) => sum + item.price, 0);
+    const saleTotal = Number(String(subtotalText).replace(/,/g, '')) || Number(summed.toFixed(2));
+    const quantity = items.length;
+
+    return [{
+      platform: 'Depop',
+      product_name: `Bundle of ${quantity} items`,
+      quantity,
+      size: 'Other',
+      sale_total: saleTotal,
+      unit_price: Number((saleTotal / quantity).toFixed(2)),
+      buyer,
+      order_id: null,
+      depop_bundle: true,
+      bundle_item_count: quantity,
+      bundle_item_titles: items.map((item) => item.title),
+    }];
+  }
+
+  const item = items[0];
+  return [{
+    platform: 'Depop',
+    product_name: item.title,
+    quantity: 1,
+    size: sizeFromTitle(item.title),
+    sale_total: item.price,
+    unit_price: item.price,
+    buyer,
+    order_id: null,
+  }];
 }
 
 function facebookMarketplaceRows(subject = '', text = '') {
@@ -301,7 +329,7 @@ function ebayRows(subject, text) {
   }];
 }
 
-function parseSaleEmail(from, subject, text) {
+export function parseSaleEmail(from, subject, text) {
   const email = addressOnly(from);
   if (email.endsWith('@vinted.com')) return vintedRows(subject, text);
   if (email.endsWith('@poshmark.com')) return poshmarkRows(subject, text);
@@ -352,7 +380,15 @@ export async function insertRows(client, businessId, emailId, receivedAt, rows) 
       row.order_id,
       sourceEmailId,
       createdBy,
-      JSON.stringify({ source: 'resend_inbound_email', resend_email_id: emailId }),
+      JSON.stringify({
+        source: 'resend_inbound_email',
+        resend_email_id: emailId,
+        ...(row.depop_bundle ? {
+          depop_bundle: true,
+          bundle_item_count: row.bundle_item_count || row.quantity || 1,
+          bundle_item_titles: Array.isArray(row.bundle_item_titles) ? row.bundle_item_titles : [],
+        } : {}),
+      }),
       row.product_name,
       row.quantity,
       row.size,
