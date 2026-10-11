@@ -1,7 +1,40 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PGlite } from '@electric-sql/pglite';
-import { insertRows } from '../api/inbound-orders.mjs';
+import { insertRows, parseSaleEmail } from '../api/inbound-orders.mjs';
+
+test('forwarded Depop multi-item sales remain one bundle order', () => {
+  const rows = parseSaleEmail(
+    'Depop <sold@alerts.depop.com>',
+    'Your USPS shipping label and sale confirmation for @ldura_444.',
+    [
+      "You've made a sale!",
+      'Order details',
+      'image 8x8 Framed Yin Yang Buddha Quilling Art...',
+      '$10.80',
+      'image 8x8 black Framed Floral I Love You...',
+      '$10.80',
+      'Ship to',
+      'Buyer',
+      'ldura_444',
+      'Payment details',
+      'Subtotal',
+      '$21.60',
+      "What you'll receive $20.39",
+    ].join('\n')
+  );
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].product_name, 'Bundle of 2 items');
+  assert.equal(rows[0].quantity, 2);
+  assert.equal(rows[0].sale_total, 21.60);
+  assert.equal(rows[0].unit_price, 10.80);
+  assert.equal(rows[0].buyer, 'ldura_444');
+  assert.deepEqual(rows[0].bundle_item_titles, [
+    '8x8 Framed Yin Yang Buddha Quilling Art...',
+    '8x8 black Framed Floral I Love You...',
+  ]);
+});
 
 test('forwarded sales with missing order IDs import once in PostgreSQL', async () => {
   const db = new PGlite();
